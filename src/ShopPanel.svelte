@@ -1,11 +1,12 @@
 <script>
-  import { game, cityById, buyPlane, buyEngine, buyBoat, fmt } from './game.svelte.js';
+  import { game, cityById, buyPlane, buyEngine, buyBoat, isOpen, fmt } from './game.svelte.js';
   import { ENGINES, CARS, PLANES, BOATS, MI } from './data.js';
   import Sprite from './Sprite.svelte';
   const c = $derived(cityById[game.selected]);
 </script>
 
 <p class="note">New vehicles show up at <b>{c.name}</b>.
+  {#if !isOpen(c.id)} It’s locked, so unlock it or pick another city first.{/if}
   {#if !c.air} It has no airport, so only helicopters can be bought here.{/if}
   {#if !c.rail} It has no station, so select a station city to buy engines.{/if}
   {#if !c.port} It has no port, so select a port city to buy boats.{/if}
@@ -21,7 +22,7 @@
       <small>{p.pax} seats, {p.cargo} cargo{p.vtol ? '. Lands anywhere' : ''}</small>
       <small>Range {Math.round(p.range * MI)} mi. Speed <span class="pips">{#each [1, 2, 3, 4, 5] as n}<i class:on={n <= p.pips}></i>{/each}</span></small>
     </span>
-    <button class="btn primary" disabled={locked || (!c.air && !p.vtol) || game.coins < p.price} onclick={() => buyPlane(k)}>{locked ? `Lv ${p.level}` : `$${fmt(p.price)}`}</button>
+    <button class="btn primary" disabled={locked || !isOpen(c.id) || (!c.air && !p.vtol) || game.coins < p.price} onclick={() => buyPlane(k)}>{locked ? `Lv ${p.level}` : `$${fmt(p.price)}`}</button>
   </div>
 {/each}
 
@@ -36,7 +37,7 @@
       <small>Pulls up to {e.maxCars} cars</small>
       <small>Speed <span class="pips">{#each [1, 2, 3, 4, 5] as n}<i class:on={n <= e.pips}></i>{/each}</span></small>
     </span>
-    <button class="btn primary" disabled={locked || !c.rail || game.coins < e.price} onclick={() => buyEngine(k)}>{locked ? `Lv ${e.level}` : `$${fmt(e.price)}`}</button>
+    <button class="btn primary" disabled={locked || !isOpen(c.id) || !c.rail || game.coins < e.price} onclick={() => buyEngine(k)}>{locked ? `Lv ${e.level}` : `$${fmt(e.price)}`}</button>
   </div>
 {/each}
 
@@ -59,6 +60,6 @@
       <small>{[bt.cap.pax && `${bt.cap.pax} seats`, bt.cap.cargo && `${bt.cap.cargo} cargo`, bt.cap.fuel && `${bt.cap.fuel} fuel`].filter(Boolean).join(', ')}</small>
       <small>Speed <span class="pips">{#each [1, 2, 3, 4, 5] as n}<i class:on={n <= bt.pips}></i>{/each}</span></small>
     </span>
-    <button class="btn primary" disabled={locked || !c.port || game.coins < bt.price} onclick={() => buyBoat(k)}>{locked ? `Lv ${bt.level}` : `$${fmt(bt.price)}`}</button>
+    <button class="btn primary" disabled={locked || !isOpen(c.id) || !c.port || game.coins < bt.price} onclick={() => buyBoat(k)}>{locked ? `Lv ${bt.level}` : `$${fmt(bt.price)}`}</button>
   </div>
 {/each}

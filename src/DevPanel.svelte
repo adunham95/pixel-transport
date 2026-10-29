@@ -1,5 +1,5 @@
 <script>
-  import { game, dev, cityById, devCoins, devMaxLevel, devSpawn, devFinishLegs, devFillJobs, setDev, fmt } from './game.svelte.js';
+  import { game, dev, cityById, devCoins, devMaxLevel, devSpawn, devFinishLegs, devFillJobs, devUnlockAll, setDev, isOpen, fmt } from './game.svelte.js';
   import { ENGINES, PLANES, BOATS, LEVELS } from './data.js';
   import Sprite from './Sprite.svelte';
   const c = $derived(cityById[game.selected]);
@@ -28,9 +28,13 @@
 </div>
 <div class="grid3 two">
   <button class="btn small" onclick={devFinishLegs}>Finish current legs</button>
-  <button class="btn small" onclick={devFillJobs}>+6 jobs at {c.name}</button>
+  <button class="btn small" disabled={!isOpen(c.id)} onclick={devFillJobs}>+6 jobs at {c.name}</button>
+</div>
+<div class="grid3 two">
+  <button class="btn small" onclick={devUnlockAll}>Unlock all towns</button>
 </div>
 
+{#if !isOpen(c.id)}<p class="muted small">{c.name} is locked, so nothing can be spawned there.</p>{/if}
 {#each groups as g}
   <h3>Spawn {g.title.toLowerCase()} at {c.name}</h3>
   {#if !g.ok}<p class="muted small">{c.name} doesn’t have {g.need}{g.list.length ? ', so only these can go here' : '. Select a city that does'}.</p>{/if}

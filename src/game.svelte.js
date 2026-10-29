@@ -1,4 +1,4 @@
-import { CITIES, RAILS, ENGINES, CARS, PLANES, BOATS, LEVELS, RATES, SPEED } from './data.js';
+import { CITIES, RAILS, ENGINES, CARS, PLANES, BOATS, LEVELS, RATES, SPEED, CITY_PRICE, START_CITIES } from './data.js';
 import { seaLane } from './sea.js';
 
 const KEY = 'pixel-transport-save-v1';
@@ -83,7 +83,8 @@ export function canLoad(v, job) {
 
 // one hop between two cities for this vehicle, or null if it can't make it
 export function leg(v, from, to) {
-  if (!from || from === to) return null;
+  // vehicles can't stop at locked towns (trains may still roll through them on the way)
+  if (!from || from === to || !isOpen(to)) return null;
   if (v.kind === 'train') {
     const p = railPath(from, to);
     if (!p) return null;
@@ -137,7 +138,7 @@ function hops(v, from) {
 const reachCache = new Map();
 // can this vehicle get there from where it's parked, stopping along the way if needed?
 export function canReach(v, to) {
-  if (!v.city || v.city === to) return false;
+  if (!v.city || v.city === to || !isOpen(to)) return false;
   // every port is on the same ocean, so boats never need a stop on the way
   if (v.kind === 'train') return !!railPath(v.city, to);
   if (v.kind === 'boat') return !!seaLane(v.city, to);
@@ -169,13 +170,15 @@ function pickWeighted(items) {
   return items[items.length - 1][0];
 }
 
+// a new job at an unlocked town, headed to another unlocked town (null if there's nowhere to go)
 function makeJob(g, from, forceTo, forceType) {
   const A = cityById[from];
   const types = [['pax', 5], ['cargo', 4]];
   // fuel only moves by tanker car or oil tanker, so it starts and ends at stations and ports
   if ((A.rail || A.port) && g.level >= 3) types.push(['fuel', 2]);
   const type = forceType ?? pickWeighted(types);
-  const cands = CITIES.filter((c) => c.id !== from && (type !== 'fuel' || c.rail || c.port));
+  const cands = CITIES.filter((c) => c.id !== from && g.unlocked[c.id] && (type !== 'fuel' || c.rail || c.port));
+  if (!forceTo && !cands.length) return null;
   const to = forceTo ?? pickWeighted(cands.map((c) => [c.id, 1 / (1 + (dist(from, c.id) / 70) ** 2)]));
   const pay = Math.round(10 + dist(from, to) * RATES[type]);
   return { id: g.nextId++, type, from, to, pay };
@@ -192,6 +195,7 @@ function newVehicle(g, kind, model, city, cars) {
 function fresh() {
   const now = Date.now();
   const g = { v: 1, coins: 600, xp: 0, level: 1, nextId: 1, selected: 'bay', vehicles: [], jobs: {}, spawnAt: {}, saved: now };
+  g.unlocked = Object.fromEntries(START_CITIES.map((id) => [id, true]));
   g.vehicles.push(newVehicle(g, 'train', 'puffer', 'bay', ['pax', 'box']));
   g.vehicles.push(newVehicle(g, 'plane', 'sparrow', 'bay'));
   g.vehicles.push(newVehicle(g, 'boat', 'coaster', 'mill'));
@@ -199,13 +203,11 @@ function fresh() {
     g.jobs[c.id] = [];
     g.spawnAt[c.id] = now + 4000 + Math.random() * 8000;
   }
-  // a friendly start at Bayport: something for each vehicle
-  const b = g.jobs.bay;
-  b.push(makeJob(g, 'bay', 'gull', 'pax'), makeJob(g, 'bay', 'gull', 'pax'), makeJob(g, 'bay', 'gull', 'cargo'));
-  b.push(makeJob(g, 'bay', 'mid', 'pax'), makeJob(g, 'bay', 'mid', 'cargo'), makeJob(g, 'bay', 'cedar', 'pax'));
-  // and a boat run from Millbrook, the nearest port, out to islands planes can't reach
-  g.jobs.mill.push(makeJob(g, 'mill', 'shellbeach', 'cargo'), makeJob(g, 'mill', 'shellbeach', 'pax'), makeJob(g, 'mill', 'gull', 'cargo'));
-  for (const c of CITIES) if (c.id !== 'bay') for (let i = 0; i < 4; i++) g.jobs[c.id].push(makeJob(g, c.id));
+  // a friendly start: something for the plane and train at Bayport, and the boat at Millbrook
+  g.jobs.bay.push(makeJob(g, 'bay', 'gull', 'pax'), makeJob(g, 'bay', 'gull', 'pax'), makeJob(g, 'bay', 'gull', 'cargo'));
+  g.jobs.bay.push(makeJob(g, 'bay', 'mill', 'pax'), makeJob(g, 'bay', 'mill', 'cargo'), makeJob(g, 'bay', 'mill', 'pax'));
+  g.jobs.mill.push(makeJob(g, 'mill', 'gull', 'cargo'), makeJob(g, 'mill', 'gull', 'pax'), makeJob(g, 'mill', 'bay', 'cargo'));
+  for (let i = 0; i < 4; i++) g.jobs.gull.push(makeJob(g, 'gull'));
   return g;
 }
 
@@ -217,6 +219,18 @@ function load() {
     if (!g || g.v !== 1) return null;
     // older saves predate the bigger world: give new towns a job board
     for (const c of CITIES) { g.jobs[c.id] ??= []; g.spawnAt[c.id] ??= Date.now() + (g.skew ?? 0) + Math.random() * 8000; }
+    if (!g.unlocked) {
+      // older saves predate unlocking: keep the starting towns plus anywhere the fleet is, is headed or has cargo for
+      const keep = new Set(START_CITIES);
+      for (const v of g.vehicles) {
+        if (v.city) keep.add(v.city);
+        if (v.trip) keep.add(v.trip.to);
+        for (const l of v.next ?? []) keep.add(l.to);
+        for (const j of v.cargo) keep.add(j.to);
+      }
+      g.unlocked = Object.fromEntries([...keep].map((id) => [id, true]));
+      for (const id in g.jobs) g.jobs[id] = keep.has(id) ? g.jobs[id].filter((j) => keep.has(j.to)) : [];
+    }
     return g;
   } catch { return null; }
 }
@@ -310,6 +324,24 @@ function arrive(v, at) {
 }
 
 function ownJobs(id) { return game.jobs[id].filter((j) => j.from === id).length; }
+function addJob(id) { const j = makeJob(game, id); if (j) game.jobs[id].push(j); }
+
+// ---------- unlocking towns ----------
+
+export function isOpen(id) { return !!game.unlocked[id]; }
+export function connections(c) { return c.rail + c.air + c.port; }
+export function unlockPrice(c) { return CITY_PRICE * connections(c); }
+
+export function unlockCity(id) {
+  const c = cityById[id], price = unlockPrice(c);
+  if (isOpen(id)) return;
+  if (game.coins < price) { toast(`You need $${fmt(price)} to unlock ${c.name}`, 'bad'); return; }
+  game.coins -= price;
+  game.unlocked[id] = true;
+  reachCache.clear();
+  for (let i = 0; i < 4; i++) addJob(id);
+  toast(`${c.name} is open for business`, 'good');
+}
 
 function step() {
   const now = gameNow();
@@ -323,7 +355,7 @@ function step() {
   for (const c of CITIES) {
     if (now >= game.spawnAt[c.id]) {
       game.spawnAt[c.id] = now + 7000 + Math.random() * 8000;
-      if (ownJobs(c.id) < JOB_CAP) game.jobs[c.id].push(makeJob(game, c.id));
+      if (isOpen(c.id) && ownJobs(c.id) < JOB_CAP) addJob(c.id);
     }
   }
 }
@@ -335,7 +367,7 @@ export function start() {
   const before = game.coins;
   quiet = true;
   step();
-  for (const c of CITIES) while (ownJobs(c.id) < 4) game.jobs[c.id].push(makeJob(game, c.id));
+  for (const c of CITIES) if (isOpen(c.id)) for (let i = ownJobs(c.id); i < 4; i++) addJob(c.id);
   quiet = false;
   if (loaded && game.coins > before) toast(`Welcome back. Your fleet earned $${fmt(game.coins - before)} while you were away.`, 'good');
   setInterval(() => { clock.now = gameNow(); step(); }, 250);
@@ -395,6 +427,7 @@ export function autoLoad(v) {
 export function toggleStop(v, id) {
   const p = ui.plan;
   if (p.length && p[p.length - 1] === id) { p.pop(); return; }
+  if (!isOpen(id)) { toast(`${cityById[id].name} is locked. Unlock it from its city panel.`, 'bad'); return; }
   if (leg(v, p.length ? p[p.length - 1] : v.city, id)) p.push(id);
   else toast(`${v.name} can’t reach ${cityById[id].name} from ${cityById[p.length ? p[p.length - 1] : v.city].name}`, 'bad');
 }
@@ -433,6 +466,7 @@ function spend(price, level, label) {
 
 export function buyPlane(model) {
   const c = cityById[game.selected], p = PLANES[model];
+  if (!isOpen(c.id)) { toast(`Unlock ${c.name} first`, 'bad'); return; }
   if (!c.air && !p.vtol) { toast(`${c.name} has no airport. Pick an airport city first.`, 'bad'); return; }
   if (!spend(p.price, p.level, p.name)) return;
   const v = newVehicle(game, 'plane', model, c.id);
@@ -444,6 +478,7 @@ export function buyPlane(model) {
 
 export function buyBoat(model) {
   const c = cityById[game.selected], b = BOATS[model];
+  if (!isOpen(c.id)) { toast(`Unlock ${c.name} first`, 'bad'); return; }
   if (!c.port) { toast(`${c.name} has no port. Pick a port city first.`, 'bad'); return; }
   if (!spend(b.price, b.level, b.name)) return;
   const v = newVehicle(game, 'boat', model, c.id);
@@ -455,6 +490,7 @@ export function buyBoat(model) {
 
 export function buyEngine(model) {
   const c = cityById[game.selected], e = ENGINES[model];
+  if (!isOpen(c.id)) { toast(`Unlock ${c.name} first`, 'bad'); return; }
   if (!c.rail) { toast(`${c.name} has no station. Pick a station city first.`, 'bad'); return; }
   if (!spend(e.price, e.level, e.name)) return;
   const v = newVehicle(game, 'train', model, c.id, []);
@@ -517,6 +553,7 @@ export function resetGame() {
   const g = fresh();
   for (const k of Object.keys(game)) delete game[k];
   Object.assign(game, g);
+  reachCache.clear();
   skew = 0;
   dev.speed = 1;
   Object.assign(ui, { tab: 'city', sheetOpen: true, activeVehicle: null, picking: false, plan: [], focusVehicle: null, follow: null, focus: { x: cityById.bay.x, y: cityById.bay.y, t: Date.now() } });
@@ -542,6 +579,7 @@ export function devMaxLevel() {
 // a free vehicle of any model at the selected city, if it has the right station, airport or port
 export function devSpawn(kind, model) {
   const c = cityById[game.selected];
+  if (!isOpen(c.id)) { toast(`Unlock ${c.name} first`, 'bad'); return; }
   const need = { train: ['rail', 'station'], plane: ['air', 'airport'], boat: ['port', 'port'] }[kind];
   if (!c[need[0]] && !(kind === 'plane' && PLANES[model].vtol)) { toast(`${c.name} has no ${need[1]}`, 'bad'); return; }
   const v = newVehicle(game, kind, model, c.id, kind === 'train' ? Array(ENGINES[model].maxCars).fill(0).map((_, i) => ['pax', 'box', 'tank'][i % 3]) : undefined);
@@ -557,6 +595,12 @@ export function devFinishLegs() {
 }
 
 export function devFillJobs() {
-  const id = game.selected;
-  for (let i = 0; i < 6; i++) game.jobs[id].push(makeJob(game, id));
+  if (!isOpen(game.selected)) { toast('Unlock this town first', 'bad'); return; }
+  for (let i = 0; i < 6; i++) addJob(game.selected);
+}
+
+export function devUnlockAll() {
+  for (const c of CITIES) if (!isOpen(c.id)) { game.unlocked[c.id] = true; for (let i = 0; i < 4; i++) addJob(c.id); }
+  reachCache.clear();
+  toast('Every town is unlocked', 'good');
 }

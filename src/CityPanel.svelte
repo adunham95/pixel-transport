@@ -1,5 +1,6 @@
 <script>
-  import { game, ui, cityById, etaText, fmtTime, clock, followVehicle } from './game.svelte.js';
+  import { game, ui, cityById, etaText, fmtTime, clock, followVehicle, isOpen, connections, unlockPrice, unlockCity, fmt } from './game.svelte.js';
+  import { CITY_PRICE } from './data.js';
   import Sprite from './Sprite.svelte';
   import JobRow from './JobRow.svelte';
   import LoadPanel from './LoadPanel.svelte';
@@ -33,6 +34,14 @@
     </div>
   </div>
 
+  {#if !isOpen(c.id)}
+    {@const n = connections(c)}
+    <div class="locked-card">
+      <p><b>{c.name} is locked.</b> Unlock it to get jobs here and send your vehicles in.</p>
+      <p class="muted small">{n} connection{n > 1 ? 's' : ''} × ${fmt(CITY_PRICE)} = ${fmt(unlockPrice(c))}</p>
+      <button class="btn primary" disabled={game.coins < unlockPrice(c)} onclick={() => unlockCity(c.id)}>Unlock for ${fmt(unlockPrice(c))}</button>
+    </div>
+  {:else}
   <h3>Parked here</h3>
   {#each here as v (v.id)}
     <button class="row vrow" onclick={() => { ui.activeVehicle = v.id; ui.picking = false; }}>
@@ -61,4 +70,5 @@
   {:else}
     <p class="muted">No jobs right now. New ones turn up every few seconds.</p>
   {/each}
+  {/if}
 {/if}

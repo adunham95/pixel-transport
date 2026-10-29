@@ -1,6 +1,6 @@
 <script>
   import { onMount } from 'svelte';
-  import { game, ui, cityById, leg, planLegs, toggleStop, selectCity, posAt, tripProgress, gameNow } from './game.svelte.js';
+  import { game, ui, cityById, leg, planLegs, toggleStop, selectCity, posAt, tripProgress, gameNow, isOpen } from './game.svelte.js';
   import { CITIES, ENGINES, W, H } from './data.js';
   import { buildTerrain, makeWaterPattern, R } from './terrain.js';
   import { drawArt, drawConsistRow, trainUnits, consistBox, artSize, loadArt } from './sprites.js';
@@ -197,8 +197,11 @@
       const inView = (wx, wy) => wx * R > cx - 60 && wx * R < cx + bw + 60 && wy * R > cy - 50 && wy * R < cy + bh + 50;
       for (const c of CITIES) {
         if (!inView(c.x, c.y)) continue;
+        // locked towns are drawn faded until they're bought
+        b.globalAlpha = isOpen(c.id) ? 1 : 0.45;
         if (c.port) pier(c);
         drawCity(c);
+        b.globalAlpha = 1;
         if (pv && leg(pv, lastStop, c.id)) ring(c, now);
         if (c.id === game.selected && (blink || pv)) brackets(c);
       }
@@ -290,7 +293,7 @@
         ctx.lineWidth = 3.5 * dpr;
         ctx.strokeStyle = 'rgba(18,22,38,0.75)';
         ctx.strokeText(c.name, lx, sy);
-        ctx.fillStyle = c.id === game.selected ? '#ffd23f' : '#ffffff';
+        ctx.fillStyle = c.id === game.selected ? '#ffd23f' : isOpen(c.id) ? '#ffffff' : '#b9c0cc';
         ctx.fillText(c.name, lx, sy);
         if (n) {
           const bx = lx + tw / 2 + 4 * dpr, by = sy - fs * 1.08;
