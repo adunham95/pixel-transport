@@ -6,6 +6,8 @@
     <circle cx="12" cy="7" r="3.5" /><path d="M5 21v-1.5A5.5 5.5 0 0 1 10.5 14h3a5.5 5.5 0 0 1 5.5 5.5V21" />
   {:else if name === 'cargo'}
     <path d="M3 7.5 12 3l9 4.5v9L12 21l-9-4.5z" /><path d="M3 7.5 12 12l9-4.5M12 12v9" />
+  {:else if name === 'bulk'}
+    <path d="M2.5 19.5 8 10l3.5 5 3-4.5 7 9z" /><path d="M8 10l1.5 3M14.5 10.5l1 2.5" />
   {:else if name === 'fuel'}
     <path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z" />
   {:else if name === 'coin'}

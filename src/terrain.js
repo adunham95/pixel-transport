@@ -1,4 +1,4 @@
-import { W, H, CITIES, RAILS, CONTINENTS } from './data.js';
+import { W, H, CITIES, RAILS, CONTINENTS, MAGLEV_LINES } from './data.js';
 
 export const R = 2; // sub pixels per world unit
 const TW = W * R, TH = H * R;
@@ -230,6 +230,22 @@ export function buildTerrain() {
   for (const { pts, horiz } of rails) for (const [x, y] of pts) {
     if (horiz) { ctx.fillRect(x, y - 1, 1, 1); ctx.fillRect(x, y + 1, 1, 1); }
     else { ctx.fillRect(x - 1, y, 1, 1); ctx.fillRect(x + 1, y, 1, 1); }
+  }
+
+  // maglev guideways: a raised concrete beam on pillars with a glowing center line
+  for (const line of MAGLEV_LINES) for (let i = 1; i < line.length; i++) {
+    const A = byId[line[i - 1]], B = byId[line[i]];
+    const { pts, horiz } = bresenham(A.x * R, A.y * R, B.x * R, B.y * R);
+    const run = pts.filter(([x, y]) => Math.hypot(x - A.x * R, y - A.y * R) > 10 && Math.hypot(x - B.x * R, y - B.y * R) > 10);
+    run.forEach(([x, y], k) => {
+      if (k % 8 === 4) { ctx.fillStyle = 'rgba(20,24,34,0.35)'; ctx.fillRect(x + 1, y + 2, 3, 2); }
+      ctx.fillStyle = '#6f7682';
+      if (horiz) ctx.fillRect(x, y - 2, 1, 5); else ctx.fillRect(x - 2, y, 5, 1);
+      ctx.fillStyle = '#d4d9e0';
+      if (horiz) ctx.fillRect(x, y - 1, 1, 3); else ctx.fillRect(x - 1, y, 3, 1);
+      ctx.fillStyle = '#1fa3c9';
+      ctx.fillRect(x, y, 1, 1);
+    });
   }
   return canvas;
 }

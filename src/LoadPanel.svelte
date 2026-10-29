@@ -3,7 +3,7 @@
   import Icon from './Icon.svelte';
   import Sprite from './Sprite.svelte';
   import JobRow from './JobRow.svelte';
-  import { TYPE_LABEL } from './data.js';
+  import { TYPE_LABEL, JOB_TYPES, ENGINES } from './data.js';
   let { v } = $props();
   const cap = $derived(capacity(v));
   const u = $derived(used(v));
@@ -36,9 +36,15 @@
   );
   const unrouted = $derived(v.cargo.filter((j) => !routed.has(j.to) && canReach(v, j.to)).length);
 
-  const NEEDS = { pax: 'passenger car', cargo: 'boxcar', fuel: 'tanker' };
+  const NEEDS = { pax: 'passenger car', cargo: 'boxcar', fuel: 'tanker', bulk: 'hopper car' };
   function blocker(j) {
-    if (!cap[j.type]) return { block: true, text: v.kind === 'plane' ? 'Planes can’t carry fuel' : v.kind === 'boat' ? `No room for ${TYPE_LABEL[j.type].toLowerCase()} on this boat` : `Needs a ${NEEDS[j.type]}` };
+    if (!cap[j.type]) {
+      const what = TYPE_LABEL[j.type].toLowerCase();
+      if (v.kind === 'plane') return { block: true, text: `Planes can’t carry ${what}` };
+      if (v.kind === 'boat') return { block: true, text: `No room for ${what} on this boat` };
+      if (j.type === 'pax' && ENGINES[v.model].freightOnly) return { block: true, text: 'Freight trains don’t carry passengers' };
+      return { block: true, text: `Needs a ${NEEDS[j.type]}` };
+    }
     if (u[j.type] >= cap[j.type]) return { block: true, text: 'No room left' };
     if (!canReach(v, j.to)) return { block: false, text: 'Needs a transfer' };
     if (!route(v, j.to)) return { block: false, text: 'Needs fuel stops on the way' };
@@ -54,7 +60,7 @@
   <Sprite kind={v.kind} model={v.model} cars={v.cars ?? []} scale={3} />
 </div>
 <div class="meters">
-  {#each ['pax', 'cargo', 'fuel'] as t}
+  {#each JOB_TYPES as t}
     {#if cap[t]}<span class="meter t-{t}" class:full={u[t] >= cap[t]}><Icon name={t} size={14} />{u[t]}/{cap[t]}</span>{/if}
   {/each}
 </div>

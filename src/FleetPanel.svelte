@@ -1,6 +1,6 @@
 <script>
   import { game, ui, dev, setDev, cityById, capacity, used, endRoute, addCar, removeCar, canRemoveCar, upgradeEngine, upgradeCost, sellVehicle, sellValue, resetGame, openLoad, followVehicle, etaText, fmt } from './game.svelte.js';
-  import { ENGINES, CARS, PLANES, MI } from './data.js';
+  import { ENGINES, CARS, PLANES, MI, JOB_TYPES } from './data.js';
   import Sprite from './Sprite.svelte';
   import Icon from './Icon.svelte';
 </script>
@@ -21,7 +21,7 @@
     {#if open}
       <div class="card-body">
         <div class="meters">
-          {#each ['pax', 'cargo', 'fuel'] as t}
+          {#each JOB_TYPES as t}
             {#if cap[t]}<span class="meter t-{t}"><Icon name={t} size={14} />{used(v)[t]}/{cap[t]}</span>{/if}
           {/each}
           {#if v.kind === 'plane'}<span class="meter">Range {Math.round(PLANES[v.model].range * MI)} mi</span>{/if}
@@ -44,8 +44,9 @@
             <div class="grid3">
               {#each Object.entries(CARS) as [k, c]}
                 {@const locked = game.level < c.level}
-                <button class="btn small" disabled={locked || v.cars.length >= e.maxCars || game.coins < c.price} onclick={() => addCar(v, k)}>
-                  {locked ? `${c.short} at Lv ${c.level}` : `+ ${c.short} $${c.price}`}
+                {@const nope = e.freightOnly && c.holds === 'pax'}
+                <button class="btn small" disabled={locked || nope || v.cars.length >= e.maxCars || game.coins < c.price} onclick={() => addCar(v, k)}>
+                  {locked ? `${c.short} at Lv ${c.level}` : nope ? `No ${c.short}` : `+ ${c.short} $${c.price}`}
                 </button>
               {/each}
             </div>

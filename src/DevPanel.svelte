@@ -1,14 +1,18 @@
 <script>
-  import { game, dev, cityById, devCoins, devMaxLevel, devSpawn, devFinishLegs, devFillJobs, devUnlockAll, setDev, isOpen, fmt } from './game.svelte.js';
+  import { game, dev, cityById, devCoins, devMaxLevel, devSpawn, devFinishLegs, devFillJobs, devUnlockAll, setDev, isOpen, canBase, fmt } from './game.svelte.js';
   import { ENGINES, PLANES, BOATS, LEVELS } from './data.js';
   import Sprite from './Sprite.svelte';
   const c = $derived(cityById[game.selected]);
   const groups = $derived([
-    { kind: 'train', title: 'Trains', specs: ENGINES, ok: c.rail, need: 'a station' },
-    // helicopters can go anywhere, other planes need an airport
-    { kind: 'plane', title: 'Planes', specs: PLANES, ok: c.air, need: 'an airport', anywhere: (s) => s.vtol },
-    { kind: 'boat', title: 'Boats', specs: BOATS, ok: c.port, need: 'a port' },
-  ].map((g) => ({ ...g, list: Object.entries(g.specs).filter(([, s]) => g.ok || g.anywhere?.(s)) })));
+    { kind: 'train', title: 'Trains', specs: ENGINES },
+    { kind: 'plane', title: 'Planes', specs: PLANES },
+    { kind: 'boat', title: 'Boats', specs: BOATS },
+  ].map((g) => {
+    // only what can actually be based here: maglevs need a maglev town, seaplanes a port or airport, and so on
+    const list = Object.entries(g.specs).filter(([k]) => canBase(g.kind, k, c));
+    return { ...g, list, some: list.length < Object.keys(g.specs).length };
+  }));
+  const demo = (s) => (s.freightOnly ? ['box', 'hopper', 'tank'] : ['pax', 'box', 'tank']).slice(0, Math.min(3, s.maxCars));
 </script>
 
 <p class="note">Dev mode is for trying things out. Spawned vehicles are free and ignore levels.</p>
@@ -37,11 +41,11 @@
 {#if !isOpen(c.id)}<p class="muted small">{c.name} is locked, so nothing can be spawned there.</p>{/if}
 {#each groups as g}
   <h3>Spawn {g.title.toLowerCase()} at {c.name}</h3>
-  {#if !g.ok}<p class="muted small">{c.name} doesn’t have {g.need}{g.list.length ? ', so only these can go here' : '. Select a city that does'}.</p>{/if}
+  {#if !g.list.length}<p class="muted small">None can be based at {c.name}.</p>{:else if g.some}<p class="muted small">Only the ones that can be based at {c.name}.</p>{/if}
   {#if g.list.length}
     {#each g.list as [k, s]}
       <button class="row" onclick={() => devSpawn(g.kind, k)}>
-        <span class="pv"><Sprite kind={g.kind} model={k} cars={g.kind === 'train' ? ['pax', 'box', 'tank'].slice(0, Math.min(3, s.maxCars)) : []} scale={3} /></span>
+        <span class="pv"><Sprite kind={g.kind} model={k} cars={g.kind === 'train' ? demo(s) : []} scale={3} /></span>
         <span class="grow"><b>{s.name}</b><small>Lv {s.level}, ${fmt(s.price)} in the shop</small></span>
         <span class="act">Spawn</span>
       </button>

@@ -1,4 +1,4 @@
-import { CITIES, RAILS, ENGINES, CARS, PLANES, BOATS, LEVELS, RATES, SPEED, CITY_PRICE, START_CITIES } from './data.js';
+import { CITIES, RAILS, ENGINES, CARS, PLANES, BOATS, LEVELS, RATES, SPEED, CITY_PRICE, START_CITIES, JOB_TYPES, MAGLEV_LINES } from './data.js';
 import { seaLane } from './sea.js';
 
 const KEY = 'pixel-transport-save-v1';
@@ -18,15 +18,25 @@ for (const [a, b] of RAILS) {
   adj[b].push([a, d]);
 }
 
+// maglev guideways are their own network, separate from the rails
+const magAdj = Object.fromEntries(CITIES.map((c) => [c.id, []]));
+for (const line of MAGLEV_LINES) for (let i = 1; i < line.length; i++) {
+  const [a, b] = [line[i - 1], line[i]], d = dist(a, b);
+  magAdj[a].push([b, d]);
+  magAdj[b].push([a, d]);
+}
+export const onMaglev = (id) => magAdj[id].length > 0;
+
 const railCache = new Map();
-export function railPath(from, to) {
-  if (!cityById[from]?.rail || !cityById[to]?.rail) return null;
-  const key = `${from}>${to}`;
-  if (!railCache.has(key)) railCache.set(key, findRail(from, to));
+// shortest rail route; with maglev set, over the maglev guideways instead
+export function railPath(from, to, maglev = false) {
+  if (maglev ? !onMaglev(from) || !onMaglev(to) : !cityById[from]?.rail || !cityById[to]?.rail) return null;
+  const key = `${from}>${to}${maglev ? '~' : ''}`;
+  if (!railCache.has(key)) railCache.set(key, findRail(from, to, maglev));
   return railCache.get(key);
 }
 
-function findRail(from, to) {
+function findRail(from, to, maglev) {
   const D = {}, prev = {}, seen = new Set();
   for (const c of CITIES) D[c.id] = Infinity;
   D[from] = 0;
@@ -36,7 +46,7 @@ function findRail(from, to) {
     if (u === null) return null;
     if (u === to) break;
     seen.add(u);
-    for (const [v, w] of adj[u]) if (D[u] + w < D[v]) { D[v] = D[u] + w; prev[v] = u; }
+    for (const [v, w] of (maglev ? magAdj : adj)[u]) if (D[u] + w < D[v]) { D[v] = D[u] + w; prev[v] = u; }
   }
   const ids = [to];
   while (ids[0] !== from) ids.unshift(prev[ids[0]]);
@@ -63,16 +73,18 @@ export function tripProgress(trip, now) {
 const SPECS = { train: ENGINES, plane: PLANES, boat: BOATS };
 export function spec(v) { return SPECS[v.kind][v.model]; }
 
+const none = () => Object.fromEntries(JOB_TYPES.map((t) => [t, 0]));
+
 export function capacity(v) {
-  if (v.kind === 'plane') { const p = PLANES[v.model]; return { pax: p.pax, cargo: p.cargo, fuel: 0 }; }
-  if (v.kind === 'boat') return { ...BOATS[v.model].cap };
-  const cap = { pax: 0, cargo: 0, fuel: 0 };
-  for (const c of v.cars) cap[CARS[c].holds] += CARS[c].cap;
+  const cap = none();
+  if (v.kind === 'plane') { const p = PLANES[v.model]; cap.pax = p.pax; cap.cargo = p.cargo; }
+  else if (v.kind === 'boat') Object.assign(cap, BOATS[v.model].cap);
+  else for (const c of v.cars) cap[CARS[c].holds] += CARS[c].cap;
   return cap;
 }
 
 export function used(v) {
-  const u = { pax: 0, cargo: 0, fuel: 0 };
+  const u = none();
   for (const j of v.cargo) u[j.type]++;
   return u;
 }
@@ -86,9 +98,9 @@ export function leg(v, from, to) {
   // vehicles can't stop at locked towns (trains may still roll through them on the way)
   if (!from || from === to || !isOpen(to)) return null;
   if (v.kind === 'train') {
-    const p = railPath(from, to);
-    if (!p) return null;
     const e = ENGINES[v.model];
+    const p = railPath(from, to, !!e.maglev);
+    if (!p) return null;
     return {
       from, to, len: p.len,
       pts: p.ids.map((id) => [cityById[id].x, cityById[id].y]),
@@ -97,12 +109,14 @@ export function leg(v, from, to) {
     };
   }
   if (v.kind === 'boat') {
-    const lane = seaLane(from, to), b = BOATS[v.model];
+    const b = BOATS[v.model];
+    if (!canBase('boat', v.model, cityById[from]) || !canBase('boat', v.model, cityById[to])) return null;
+    const lane = seaLane(from, to);
     if (!lane) return null;
     return { from, to, len: lane.len, pts: lane.pts, cost: Math.max(1, Math.ceil(lane.len * b.run)), time: lane.len / (b.speed * SPEED) };
   }
   const A = cityById[from], B = cityById[to], p = PLANES[v.model];
-  if ((!A.air || !B.air) && !p.vtol) return null;
+  if (!canBase('plane', v.model, A) || !canBase('plane', v.model, B)) return null;
   const d = Math.hypot(A.x - B.x, A.y - B.y);
   if (d > p.range) return null;
   return { from, to, len: d, pts: [[A.x, A.y], [B.x, B.y]], cost: Math.max(1, Math.ceil(d * p.fuel)), time: d / (p.speed * SPEED) };
@@ -140,8 +154,8 @@ const reachCache = new Map();
 export function canReach(v, to) {
   if (!v.city || v.city === to || !isOpen(to)) return false;
   // every port is on the same ocean, so boats never need a stop on the way
-  if (v.kind === 'train') return !!railPath(v.city, to);
-  if (v.kind === 'boat') return !!seaLane(v.city, to);
+  if (v.kind === 'train') return !!railPath(v.city, to, !!ENGINES[v.model].maglev);
+  if (v.kind === 'boat') return !!leg(v, v.city, to);
   const key = `${v.model}@${v.city}`;
   if (!reachCache.has(key)) reachCache.set(key, new Set(Object.keys(hops(v, v.city).D)));
   return reachCache.get(key).has(to);
@@ -174,12 +188,16 @@ function pickWeighted(items) {
 function makeJob(g, from, forceTo, forceType) {
   const A = cityById[from];
   const types = [['pax', 5], ['cargo', 4]];
-  // fuel only moves by tanker car or oil tanker, so it starts and ends at stations and ports
+  // fuel and bulk only move by rail car or ship, so they start and end at stations and ports
   if ((A.rail || A.port) && g.level >= 3) types.push(['fuel', 2]);
+  if ((A.rail || A.port) && g.level >= 2) types.push(['bulk', 2]);
   const type = forceType ?? pickWeighted(types);
-  const cands = CITIES.filter((c) => c.id !== from && g.unlocked[c.id] && (type !== 'fuel' || c.rail || c.port));
+  const heavy = type === 'fuel' || type === 'bulk';
+  const cands = CITIES.filter((c) => c.id !== from && g.unlocked[c.id] && (!heavy || c.rail || c.port));
   if (!forceTo && !cands.length) return null;
-  const to = forceTo ?? pickWeighted(cands.map((c) => [c.id, 1 / (1 + (dist(from, c.id) / 70) ** 2)]));
+  // heavy loads leaving a port lean toward other ports, so ships have work too
+  const weight = (c) => (1 / (1 + (dist(from, c.id) / 70) ** 2)) * (heavy && A.port && c.port ? 3 : 1);
+  const to = forceTo ?? pickWeighted(cands.map((c) => [c.id, weight(c)]));
   const pay = Math.round(10 + dist(from, to) * RATES[type]);
   return { id: g.nextId++, type, from, to, pay };
 }
@@ -324,7 +342,22 @@ function arrive(v, at) {
 }
 
 function ownJobs(id) { return game.jobs[id].filter((j) => j.from === id).length; }
-function addJob(id) { const j = makeJob(game, id); if (j) game.jobs[id].push(j); }
+function addJob(id) {
+  const j = makeJob(game, id);
+  if (!j) return;
+  game.jobs[id].push(j);
+  // bulk comes in batches of three loads headed the same way
+  if (j.type === 'bulk') for (let i = 0; i < 2; i++) game.jobs[id].push({ ...j, id: game.nextId++ });
+}
+
+// can this model be based at (start from, stop at) this city?
+export function canBase(kind, model, c) {
+  if (kind === 'train') return ENGINES[model].maglev ? onMaglev(c.id) : c.rail;
+  if (kind === 'boat') return c.port && (!BOATS[model].harbor || c.rail);
+  const p = PLANES[model];
+  return c.air || !!p.vtol || (!!p.seaplane && c.port);
+}
+
 
 // ---------- unlocking towns ----------
 
@@ -467,7 +500,7 @@ function spend(price, level, label) {
 export function buyPlane(model) {
   const c = cityById[game.selected], p = PLANES[model];
   if (!isOpen(c.id)) { toast(`Unlock ${c.name} first`, 'bad'); return; }
-  if (!c.air && !p.vtol) { toast(`${c.name} has no airport. Pick an airport city first.`, 'bad'); return; }
+  if (!canBase('plane', model, c)) { toast(`${c.name} has no airport${p.seaplane ? ' or port' : ''}. Pick another city first.`, 'bad'); return; }
   if (!spend(p.price, p.level, p.name)) return;
   const v = newVehicle(game, 'plane', model, c.id);
   game.vehicles.push(v);
@@ -479,7 +512,7 @@ export function buyPlane(model) {
 export function buyBoat(model) {
   const c = cityById[game.selected], b = BOATS[model];
   if (!isOpen(c.id)) { toast(`Unlock ${c.name} first`, 'bad'); return; }
-  if (!c.port) { toast(`${c.name} has no port. Pick a port city first.`, 'bad'); return; }
+  if (!canBase('boat', model, c)) { toast(b.harbor ? `${b.name} needs a port with a rail station` : `${c.name} has no port. Pick a port city first.`, 'bad'); return; }
   if (!spend(b.price, b.level, b.name)) return;
   const v = newVehicle(game, 'boat', model, c.id);
   game.vehicles.push(v);
@@ -491,7 +524,7 @@ export function buyBoat(model) {
 export function buyEngine(model) {
   const c = cityById[game.selected], e = ENGINES[model];
   if (!isOpen(c.id)) { toast(`Unlock ${c.name} first`, 'bad'); return; }
-  if (!c.rail) { toast(`${c.name} has no station. Pick a station city first.`, 'bad'); return; }
+  if (!canBase('train', model, c)) { toast(e.maglev ? `${c.name} isn’t on a maglev line` : `${c.name} has no station. Pick a station city first.`, 'bad'); return; }
   if (!spend(e.price, e.level, e.name)) return;
   const v = newVehicle(game, 'train', model, c.id, []);
   game.vehicles.push(v);
@@ -504,6 +537,7 @@ export function addCar(v, type) {
   const car = CARS[type], e = ENGINES[v.model];
   if (!v.city) return;
   if (v.cars.length >= e.maxCars) { toast(`${e.name} can pull ${e.maxCars} cars at most`, 'bad'); return; }
+  if (e.freightOnly && car.holds === 'pax') { toast(`${e.name} only pulls freight cars`, 'bad'); return; }
   if (!spend(car.price, car.level, car.name)) return;
   v.cars.push(type);
 }
@@ -512,7 +546,7 @@ export function canRemoveCar(v, i) {
   if (!v.city) return false;
   const after = { ...v, cars: v.cars.filter((_, k) => k !== i) };
   const cap = capacity(after), u = used(v);
-  return u.pax <= cap.pax && u.cargo <= cap.cargo && u.fuel <= cap.fuel;
+  return JOB_TYPES.every((t) => u[t] <= cap[t]);
 }
 
 export function removeCar(v, i) {
@@ -528,6 +562,8 @@ export function upgradeCost(v, model) {
 export function upgradeEngine(v, model) {
   const e = ENGINES[model];
   if (!v.city) return;
+  if (e.maglev && !onMaglev(v.city)) { toast(`${cityById[v.city].name} isn’t on a maglev line`, 'bad'); return; }
+  if (e.freightOnly && v.cars.some((c) => CARS[c].holds === 'pax')) { toast(`${e.name} only pulls freight cars. Sell the passenger cars first.`, 'bad'); return; }
   if (!spend(upgradeCost(v, model), e.level, e.name)) return;
   v.model = model;
   const n = game.vehicles.filter((x) => x.model === model && x.id !== v.id).length + 1;
@@ -580,9 +616,9 @@ export function devMaxLevel() {
 export function devSpawn(kind, model) {
   const c = cityById[game.selected];
   if (!isOpen(c.id)) { toast(`Unlock ${c.name} first`, 'bad'); return; }
-  const need = { train: ['rail', 'station'], plane: ['air', 'airport'], boat: ['port', 'port'] }[kind];
-  if (!c[need[0]] && !(kind === 'plane' && PLANES[model].vtol)) { toast(`${c.name} has no ${need[1]}`, 'bad'); return; }
-  const v = newVehicle(game, kind, model, c.id, kind === 'train' ? Array(ENGINES[model].maxCars).fill(0).map((_, i) => ['pax', 'box', 'tank'][i % 3]) : undefined);
+  if (!canBase(kind, model, c)) { toast(`${SPECS[kind][model].name} can’t be based at ${c.name}`, 'bad'); return; }
+  const mix = ENGINES[model]?.freightOnly ? ['box', 'tank', 'hopper'] : ['pax', 'box', 'tank', 'hopper'];
+  const v = newVehicle(game, kind, model, c.id, kind === 'train' ? Array(ENGINES[model].maxCars).fill(0).map((_, i) => mix[i % mix.length]) : undefined);
   game.vehicles.push(v);
   toast(`${v.name} added at ${c.name}`, 'good');
 }

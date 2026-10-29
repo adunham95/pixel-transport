@@ -6,6 +6,8 @@
 // much track the unit takes up, so cars couple up nose to tail. An engine with
 // steam puffs smoke from its chimney, `steam` sub pixels ahead of its center.
 
+// freightOnly: true means it won’t pull passenger cars. maglev: true means it only runs on
+// the MAGLEV_LINES guideways in data.js and only stops at their towns.
 export const ENGINES = {
   puffer: {
     name: "Puffer",
@@ -46,6 +48,27 @@ export const ENGINES = {
       <rect x="-1.2" y="-0.3" width="5" height="0.6" fill="#ffd23f"/>
       <rect x="-1" y="-1.7" width="4.6" height="0.5" fill="rgb(99,155,115)"/>
       <rect x="3.7" y="-0.4" width="0.5" height="0.8" fill="#fff3a8"/>
+    </svg>`,
+  },
+  freightmaster: {
+    name: "Freightmaster",
+    level: 3,
+    price: 3000,
+    maxCars: 12,
+    speed: 6,
+    run: 0.14,
+    pips: 2,
+    color: "#c4432f",
+    trim: "#f2c14e",
+    freightOnly: true,
+    art: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-5 -2.6 10 5.2">
+      <rect x="-4.4" y="-2.1" width="8.8" height="4.2" rx="0.8" fill="#c4432f" stroke="rgba(18,24,38,0.9)" stroke-width="0.8"/>
+      <rect x="-4.4" y="-2.1" width="8.8" height="0.6" fill="#f2c14e"/><rect x="-4.4" y="1.5" width="8.8" height="0.6" fill="#f2c14e"/>
+      <g fill="#7d2a1e"><rect x="-3.8" y="-1.2" width="0.5" height="2.4"/><rect x="-3" y="-1.2" width="0.5" height="2.4"/><rect x="-2.2" y="-1.2" width="0.5" height="2.4"/></g>
+      <g fill="#2d2a2e"><circle cx="-0.8" cy="0" r="0.45"/><circle cx="0.4" cy="0" r="0.45"/></g>
+      <rect x="1.8" y="-1.6" width="2.4" height="3.2" rx="0.4" fill="#a8382a"/>
+      <rect x="3.5" y="-1.3" width="0.5" height="2.6" fill="#23344f"/>
+      <rect x="4.1" y="-0.4" width="0.4" height="0.8" fill="#fff3a8"/>
     </svg>`,
   },
   diesel: {
@@ -115,6 +138,25 @@ export const ENGINES = {
       <rect x="-4" y="-1.7" width="5" height="0.4" fill="rgba(255,255,255,0.7)"/>
     </svg>`,
   },
+  maglev: {
+    name: "Maglev",
+    level: 7,
+    price: 18000,
+    maxCars: 6,
+    speed: 22,
+    run: 0.24,
+    pips: 5,
+    color: "#f4f6f8",
+    trim: "#1fa3c9",
+    maglev: true,
+    art: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-5.5 -2.6 11 5.2">
+      <path d="M-4.6 -2L0.6 -2Q4.9 -1.9 4.9 0Q4.9 1.9 0.6 2L-4.6 2Q-4.9 2 -4.9 1.6L-4.9 -1.6Q-4.9 -2 -4.6 -2Z" fill="#f4f6f8" stroke="rgba(18,24,38,0.9)" stroke-width="0.8" stroke-linejoin="round"/>
+      <rect x="-4.6" y="-0.35" width="8" height="0.7" fill="#1fa3c9"/>
+      <rect x="-4.4" y="-1.65" width="6" height="0.4" fill="rgba(255,255,255,0.9)"/>
+      <path d="M1.6 -1.4Q4.2 -1.2 4.4 0Q4.2 1.2 1.6 1.4Z" fill="#23344f"/>
+      <rect x="2.2" y="-1.1" width="0.7" height="0.45" fill="rgba(170,215,255,0.85)"/>
+    </svg>`,
+  },
 };
 
 export const CARS = {
@@ -179,10 +221,27 @@ export const CARS = {
       <rect x="-3.3" y="1.1" width="6.6" height="0.4" fill="#d6dbe0"/>
     </svg>`,
   },
+  hopper: {
+    name: "Hopper car",
+    short: "Hopper",
+    level: 2,
+    price: 200,
+    holds: "bulk",
+    cap: 6,
+    color: "#5a4a3c",
+    dark: "#2a2420",
+    art: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-3.9 -2.6 7.8 5.2">
+      <rect x="-3.5" y="-2.1" width="7" height="4.2" rx="0.5" fill="#5a4a3c" stroke="rgba(18,24,38,0.9)" stroke-width="0.8"/>
+      <rect x="-3.1" y="-1.6" width="2.8" height="3.2" rx="0.3" fill="#2a2420"/><rect x="0.3" y="-1.6" width="2.8" height="3.2" rx="0.3" fill="#2a2420"/>
+      <g fill="#463d36"><rect x="-2.5" y="-0.9" width="0.8" height="0.6"/><rect x="-1.4" y="0.2" width="0.7" height="0.6"/><rect x="0.9" y="-0.6" width="0.8" height="0.6"/><rect x="2" y="0.5" width="0.6" height="0.5"/></g>
+      <rect x="-0.3" y="-2.1" width="0.6" height="4.2" fill="#7a6552"/>
+    </svg>`,
+  },
 };
 
 // range is in world units; fuel is coins per world unit flown.
 // vtol: true means it can land at any city (helicopters, tiltrotors), not just airports.
+// seaplane: true means it can also land at ports, mooring at the pier.
 // rotors: [[x, y, radius], ...] in the art's sub pixel units. They're drawn on top of the
 // art and spin while flying, so leave them out of the svg itself.
 export const PLANES = {
@@ -239,6 +298,33 @@ export const PLANES = {
       <rect x="-0.79" y="7.45" width="2.05" height="0.8" fill="#2a6fd6"/>
       <path d="M5.6 -1.13H6.2A0.5 0.5 0 0 1 6.7 -0.63V0.63A0.5 0.5 0 0 1 6.2 1.13H5.6A0.5 0.5 0 0 1 5.1 0.63V-0.63A0.5 0.5 0 0 1 5.6 -1.13Z" fill="#23344f"/>
       <rect x="5.3" y="-1.03" width="0.5" height="0.5" fill="rgba(170,215,255,0.85)"/>
+    </svg>`,
+  },
+  otter: {
+    name: "Otter",
+    level: 2,
+    price: 2400,
+    pax: 4,
+    cargo: 2,
+    range: 150,
+    speed: 8,
+    fuel: 0.4,
+    pips: 2,
+    color: "#f2c14e",
+    trim: "#2a6fd6",
+    seaplane: true,
+    art: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-9 -9 18 18">
+      <rect x="-3.6" y="-3.4" width="9.4" height="1.4" rx="0.7" fill="#e9e4d6" stroke="rgba(18,24,38,0.9)" stroke-width="0.4"/><rect x="-3.6" y="2" width="9.4" height="1.4" rx="0.7" fill="#e9e4d6" stroke="rgba(18,24,38,0.9)" stroke-width="0.4"/>
+      <g fill="#6d7680"><rect x="0.8" y="-2.1" width="0.4" height="1"/><rect x="2.6" y="-2.1" width="0.4" height="1"/><rect x="0.8" y="1.1" width="0.4" height="1"/><rect x="2.6" y="1.1" width="0.4" height="1"/></g>
+      <path d="M-5.2 -0.6L-5.8 -3.2L-7 -3.2L-7 -0.6ZM-5.2 0.6L-5.8 3.2L-7 3.2L-7 0.6ZM-7.2 -0.95Q-7.7 0 -7.2 0.95L3.6 1.3Q6.6 1.1 6.9 0Q6.6 -1.1 3.6 -1.3Z" fill="none" stroke="rgba(18,24,38,0.9)" stroke-width="1.2" stroke-linejoin="round"/>
+      <path d="M-5.2 -0.6L-5.8 -3.2L-7 -3.2L-7 -0.6ZM-5.2 0.6L-5.8 3.2L-7 3.2L-7 0.6Z" fill="#d9a83c"/>
+      <path d="M-7.2 -0.95Q-7.7 0 -7.2 0.95L3.6 1.3Q6.6 1.1 6.9 0Q6.6 -1.1 3.6 -1.3Z" fill="#f2c14e"/>
+      <rect x="-6.6" y="-0.25" width="10" height="0.5" fill="#2a6fd6"/>
+      <path d="M3.8 -0.9Q5.8 -0.8 6.2 0Q5.8 0.8 3.8 0.9Z" fill="#23344f"/>
+      <path d="M3.4 -8.2L3.4 8.2L0.6 8.2L0.6 -8.2Z" fill="#f2c14e" stroke="rgba(18,24,38,0.9)" stroke-width="0.9" stroke-linejoin="round"/>
+      <rect x="0.6" y="-8.2" width="2.8" height="0.4" fill="rgba(255,255,255,0.5)"/>
+      <rect x="0.6" y="-8.2" width="2.8" height="1" fill="#2a6fd6"/><rect x="0.6" y="7.2" width="2.8" height="1" fill="#2a6fd6"/>
+      <rect x="7" y="-1.8" width="0.45" height="3.6" fill="rgba(40,40,48,0.6)"/>
     </svg>`,
   },
   vista: {
@@ -526,7 +612,8 @@ export const PLANES = {
   },
 };
 
-// boats are slow but cheap to run; cap is how many of each job type fit on board
+// boats are slow but cheap to run; cap is how many of each job type fit on board (missing types are 0).
+// harbor: true means it only docks at ports that also have a rail station.
 export const BOATS = {
   coaster: {
     name: "Coaster",
@@ -588,6 +675,27 @@ export const BOATS = {
       </g>
     </svg>`,
   },
+  lakefreighter: {
+    name: "Lake Freighter",
+    level: 3,
+    price: 5500,
+    cap: { bulk: 24 },
+    speed: 4,
+    run: 0.07,
+    pips: 1,
+    color: "#8b2f2a",
+    deck: "#4a4f55",
+    art: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-15.5 -3.2 31 6.4">
+      <path d="M-14.6 -2.6L12 -2.6Q15 -2.6 15 0Q15 2.6 12 2.6L-14.6 2.6Q-15 2.6 -15 2.1L-15 -2.1Q-15 -2.6 -14.6 -2.6Z" fill="#8b2f2a" stroke="rgba(18,24,38,0.9)" stroke-width="0.7" stroke-linejoin="round"/>
+      <path d="M-14.2 -1.9L12 -1.9Q14 -1.9 14 0Q14 1.9 12 1.9L-14.2 1.9Z" fill="#4a4f55"/>
+      <rect x="-9.6" y="-1.3" width="1.3" height="2.6" fill="#8c939b"/><rect x="-7.55" y="-1.3" width="1.3" height="2.6" fill="#8c939b"/><rect x="-5.5" y="-1.3" width="1.3" height="2.6" fill="#8c939b"/><rect x="-3.45" y="-1.3" width="1.3" height="2.6" fill="#8c939b"/><rect x="-1.4" y="-1.3" width="1.3" height="2.6" fill="#8c939b"/><rect x="0.65" y="-1.3" width="1.3" height="2.6" fill="#8c939b"/><rect x="2.7" y="-1.3" width="1.3" height="2.6" fill="#8c939b"/><rect x="4.75" y="-1.3" width="1.3" height="2.6" fill="#8c939b"/><rect x="6.8" y="-1.3" width="1.3" height="2.6" fill="#8c939b"/>
+      <rect x="-10.4" y="-0.25" width="19.6" height="0.5" fill="#d9a92c"/>
+      <rect x="-14.4" y="-1.7" width="3.6" height="3.4" rx="0.4" fill="#f4f6f8" stroke="rgba(18,24,38,0.9)" stroke-width="0.35"/>
+      <rect x="-13.6" y="-0.6" width="1.4" height="1.2" rx="0.3" fill="#2d2a2e"/>
+      <rect x="9.8" y="-1.7" width="2.6" height="3.4" rx="0.4" fill="#f4f6f8" stroke="rgba(18,24,38,0.9)" stroke-width="0.35"/>
+      <rect x="11.8" y="-1.3" width="0.4" height="2.6" fill="#23344f"/>
+    </svg>`,
+  },
   oiler: {
     name: "Oil Tanker",
     level: 4,
@@ -607,6 +715,26 @@ export const BOATS = {
       <g fill="#d6dbe0" stroke="#6d7680" stroke-width="0.3">
         <circle cx="-4.4" cy="0" r="1.1"/><circle cx="-1.6" cy="0" r="1.1"/><circle cx="1.2" cy="0" r="1.1"/><circle cx="4" cy="0" r="1.1"/>
       </g>
+    </svg>`,
+  },
+  containership: {
+    name: "Container Ship",
+    level: 5,
+    price: 20000,
+    cap: { cargo: 36 },
+    speed: 5,
+    run: 0.2,
+    pips: 2,
+    color: "#23344f",
+    deck: "#5b6470",
+    harbor: true,
+    art: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-17 -4.2 34 8.4">
+      <path d="M-15.8 -3.6L10 -3.6Q16.5 -3.6 16.5 0Q16.5 3.6 10 3.6L-15.8 3.6Q-16.5 3.6 -16.5 2.9L-16.5 -2.9Q-16.5 -3.6 -15.8 -3.6Z" fill="#23344f" stroke="rgba(18,24,38,0.9)" stroke-width="0.7" stroke-linejoin="round"/>
+      <path d="M-15.6 -2.9L10 -2.9Q15.3 -2.9 15.3 0Q15.3 2.9 10 2.9L-15.6 2.9Z" fill="#5b6470"/>
+      <g stroke="rgba(18,24,38,0.5)" stroke-width="0.15"><rect x="-10.4" y="-2.5" width="2.1" height="1.55" fill="#d6453a"/><rect x="-10.4" y="-0.8" width="2.1" height="1.55" fill="#f2c14e"/><rect x="-10.4" y="0.9" width="2.1" height="1.55" fill="#e08a2c"/><rect x="-8.1" y="-2.5" width="2.1" height="1.55" fill="#2f9a5a"/><rect x="-8.1" y="-0.8" width="2.1" height="1.55" fill="#7b4fc9"/><rect x="-8.1" y="0.9" width="2.1" height="1.55" fill="#2a6fd6"/><rect x="-5.8" y="-2.5" width="2.1" height="1.55" fill="#d6453a"/><rect x="-5.8" y="-0.8" width="2.1" height="1.55" fill="#f2c14e"/><rect x="-5.8" y="0.9" width="2.1" height="1.55" fill="#e08a2c"/><rect x="-3.5" y="-2.5" width="2.1" height="1.55" fill="#2f9a5a"/><rect x="-3.5" y="-0.8" width="2.1" height="1.55" fill="#7b4fc9"/><rect x="-3.5" y="0.9" width="2.1" height="1.55" fill="#2a6fd6"/><rect x="-1.2" y="-2.5" width="2.1" height="1.55" fill="#d6453a"/><rect x="-1.2" y="-0.8" width="2.1" height="1.55" fill="#f2c14e"/><rect x="-1.2" y="0.9" width="2.1" height="1.55" fill="#e08a2c"/><rect x="1.1" y="-2.5" width="2.1" height="1.55" fill="#2f9a5a"/><rect x="1.1" y="-0.8" width="2.1" height="1.55" fill="#7b4fc9"/><rect x="1.1" y="0.9" width="2.1" height="1.55" fill="#2a6fd6"/><rect x="3.4" y="-2.5" width="2.1" height="1.55" fill="#d6453a"/><rect x="3.4" y="-0.8" width="2.1" height="1.55" fill="#f2c14e"/><rect x="3.4" y="0.9" width="2.1" height="1.55" fill="#e08a2c"/><rect x="5.7" y="-2.5" width="2.1" height="1.55" fill="#2f9a5a"/><rect x="5.7" y="-0.8" width="2.1" height="1.55" fill="#7b4fc9"/><rect x="5.7" y="0.9" width="2.1" height="1.55" fill="#2a6fd6"/><rect x="8" y="-2.5" width="2.1" height="1.55" fill="#d6453a"/><rect x="8" y="-0.8" width="2.1" height="1.55" fill="#f2c14e"/><rect x="8" y="0.9" width="2.1" height="1.55" fill="#e08a2c"/></g>
+      <rect x="-15.4" y="-2.5" width="3.8" height="5" rx="0.4" fill="#f4f6f8" stroke="rgba(18,24,38,0.9)" stroke-width="0.35"/>
+      <rect x="-12.2" y="-2.1" width="0.45" height="4.2" fill="#23344f"/>
+      <rect x="-14.6" y="-0.6" width="1.4" height="1.2" rx="0.3" fill="#d6453a"/>
     </svg>`,
   },
   liner: {

@@ -208,5 +208,15 @@ export { ENGINES, CARS, PLANES, BOATS } from "./vehicles.js";
 
 // xp needed to reach level i+1
 export const LEVELS = [0, 120, 300, 600, 1000, 1600, 2500, 3800, 5500];
-export const RATES = { pax: 0.9, cargo: 0.8, fuel: 1.3 };
-export const TYPE_LABEL = { pax: "Passengers", cargo: "Cargo", fuel: "Fuel" };
+// job types; bulk (coal, grain, ore) turns up in batches and pays less per load
+export const JOB_TYPES = ["pax", "cargo", "fuel", "bulk"];
+export const RATES = { pax: 0.9, cargo: 0.8, fuel: 1.3, bulk: 0.45 };
+export const TYPE_LABEL = { pax: "Passengers", cargo: "Cargo", fuel: "Fuel", bulk: "Bulk" };
+// maglev express lines: each is a list of towns, joined in order by an elevated guideway.
+// Maglev trains only run on these and only stop at their towns.
+export const MAGLEV_LINES = [
+  ["frost", "bay", "mid", "sun", "south", "hillcrest"], // Westmark
+  ["ashford", "riverton", "harrow", "brookside", "larkspur", "hollowell"], // Heartland
+  ["cactusflats", "dunmore", "sandhollow", "drycreek"], // Sunreach
+  ["eastport", "moonvale", "copperbay", "juniper"], // Eastmark
+];

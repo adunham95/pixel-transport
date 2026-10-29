@@ -1,7 +1,7 @@
 <script>
   import { onMount } from 'svelte';
   import { game, ui, cityById, leg, planLegs, toggleStop, selectCity, posAt, tripProgress, gameNow, isOpen } from './game.svelte.js';
-  import { CITIES, ENGINES, W, H } from './data.js';
+  import { CITIES, ENGINES, PLANES, W, H } from './data.js';
   import { buildTerrain, makeWaterPattern, R } from './terrain.js';
   import { drawArt, drawConsistRow, trainUnits, consistBox, artSize, loadArt } from './sprites.js';
   import { dockOf } from './sea.js';
@@ -230,7 +230,12 @@
       }
       for (const id in pp) {
         const c = cityById[id];
-        pp[id].slice(0, 2).forEach((v, i) => big(c.x * R - 2 - i * 20, c.y * R + 11, () => drawArt(b, 0, 0, 0, 'plane', v.model)));
+        pp[id].slice(0, 2).forEach((v, i) => {
+          // seaplanes at a town with no runway float at the end of the pier
+          const d = !c.air && PLANES[v.model].seaplane && dockOf(id);
+          if (d) big(d[0] * R + i * 14, d[1] * R + 6, () => drawArt(b, 0, 0, Math.atan2(d[1] - c.y, d[0] - c.x), 'plane', v.model));
+          else big(c.x * R - 2 - i * 20, c.y * R + 11, () => drawArt(b, 0, 0, 0, 'plane', v.model));
+        });
       }
 
       // trains on the move
