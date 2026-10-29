@@ -1,7 +1,7 @@
 <script>
   import { onMount } from 'svelte';
-  import { game, ui, cityById, leg, planLegs, toggleStop, selectCity, posAt, tripProgress, gameNow, isOpen, fx, darkness, loopStops, isCarrier, carrierAt } from './game.svelte.js';
-  import { CITIES, ENGINES, PLANES, CARS, W, H } from './data.js';
+  import { game, ui, cityById, leg, planLegs, toggleStop, selectCity, posAt, tripProgress, gameNow, isOpen, fx, darkness, loopStops, isCarrier, carrierAt, townSize } from './game.svelte.js';
+  import { CITIES, ENGINES, PLANES, CARS, TRUCKS, W, H } from './data.js';
   import { buildTerrain, makeWaterPattern, R } from './terrain.js';
   import { drawArt, trainUnits, artSize, loadArt } from './sprites.js';
   import { dockOf } from './sea.js';
@@ -22,6 +22,13 @@
     [-8, -6, 6, 3, 5, '#c9553f', '#e2735c', '#efe6d2'],
     [-1, -11, 7, 3, 9, '#3f6fa8', '#5d8cc6', '#dfe4ea'],
     [-5, -1, 6, 2, 4, '#7a5aa8', '#9878c6', '#f2eadb'],
+  ];
+  // one more building for each size a town grows to, behind the first three
+  const GROWN = [
+    [4, -5, 5, 2, 5, '#2f9a5a', '#4cb874', '#efe6d2'],
+    [-13, -4, 4, 2, 5, '#c9553f', '#e2735c', '#f2eadb'],
+    [6, -13, 4, 2, 9, '#5b6470', '#7a8492', '#dfe4ea'],
+    [-11, -14, 5, 2, 10, '#3f6fa8', '#5d8cc6', '#dfe4ea'],
   ];
 
   onMount(() => {
@@ -130,8 +137,17 @@
       rect('#ffd23f', x, y - 5, 1, 1);
     }
 
+    // a little grey garage with a roller door, beside towns that have a depot
+    function depot(x, y) {
+      rect('#1d2433', x - 1, y - 1, 8, 6);
+      rect('#8a949e', x, y, 6, 4); rect('#a7b0ba', x, y, 6, 1);
+      rect('#4a4f57', x + 1, y + 1, 4, 3);
+      for (let k = 0; k < 3; k++) rect('#5b6470', x + 1, y + 1 + k, 4, 1 - (k % 2) * 0.5);
+    }
+
     function drawCity(c) {
       const x = c.x * R, y = c.y * R;
+      if (game.depots[c.id]) depot(c.island ? x - 13 : x + 5, c.island ? y - 2 : y + 4);
       if (c.air) {
         rect('#2c3038', x - 14, y + 7, 28, 8);
         rect('#535965', x - 13, y + 8, 26, 6);
@@ -148,7 +164,8 @@
         return;
       }
       rect('rgba(0,0,0,0.22)', x - 7, y + 4, 15, 2);
-      for (const [dx, dy, w, rh, wh, roof, roofL, wall] of BUILDINGS) {
+      const size = isOpen(c.id) ? townSize(c.id) : 1;
+      for (const [dx, dy, w, rh, wh, roof, roofL, wall] of [...GROWN.slice(0, size - 1).reverse(), ...BUILDINGS]) {
         const bx = x + dx, by = y + dy;
         rect('#1d2433', bx - 1, by - 1, w + 2, rh + wh + 2);
         rect(roof, bx, by, w, rh); rect(roofL, bx, by, w, 1);
@@ -417,6 +434,13 @@
         for (const u of placed.slice().reverse()) big(u.p.x * R, u.p.y * R, () => drawArt(b, 0, 0, u.p.ang, u.kind, u.model));
         const e = placed[0];
         if (e && v.kind === 'train' && ENGINES[v.model].steam != null) steam(e.p.x * R, e.p.y * R, e.p.ang, ENGINES[v.model].steam, now);
+        // oversize rigs flash their amber beacons in turn, day and night
+        if (e && v.kind === 'truck' && TRUCKS[v.model].beacons) {
+          const bs = TRUCKS[v.model].beacons, on = bs[Math.floor(now / 280) % bs.length];
+          const at = onArt(e.p.x * R, e.p.y * R, e.p.ang, on[0], on[1]);
+          lamp(at, '255,170,30');
+          if (dk) lights.push(() => lamp(at, '255,170,30'));
+        }
         if (dk) lights.push(() => consistLights(v, placed));
         if (e) hits.push({ id: v.id, x: e.p.x * R, y: e.p.y * R });
         if (e && marked(v)) marker(e.p.x * R, e.p.y * R - 6);

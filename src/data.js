@@ -254,13 +254,26 @@ export const REPEAT_ROUTES = { level: 3, price: 4000 };
 // vehicles age as they travel: fuel costs step more for every `per` world units, up to max.
 // A service resets it, costing the vehicle's price times its wear times `service`.
 export const WEAR = { per: 2500, step: 0.1, max: 0.5, service: 0.5 };
+// mail turns up everywhere from this level. It pays well but goes back to the post office
+// if it waits at its town longer than ttl (game time).
+export const MAIL = { level: 2, ttl: 4 * 60 * 1000 };
+// wide loads (turbine blades, boat hulls, little houses) only go by road, on lowboy trailers,
+// between mainland towns joined by roads
+export const WIDE = { level: 6 };
+// towns grow as jobs to and from them are delivered: GROWTH[i] deliveries to reach size i + 1.
+// Each size up adds jobs, spawns them faster and pays 10% more for jobs leaving the town.
+export const GROWTH = [0, 25, 75, 175, 350];
+export const SIZE_NAME = ["Village", "Town", "City", "Big city", "Metropolis"];
+// a depot at a town: servicing there costs `service` of the usual, and vehicles parked
+// there slowly lose their age, `repair` world units of it each game minute
+export const DEPOT = { level: 3, price: 3000, service: 0.5, repair: 150 };
 
 // xp needed to reach level i+1
 export const LEVELS = [0, 400, 1000, 2000, 3500, 5500, 8500, 12500, 18000];
 // job types; bulk (coal, grain, ore) turns up in batches and pays less per load
-export const JOB_TYPES = ["pax", "cargo", "fuel", "bulk"];
-export const RATES = { pax: 0.9, cargo: 0.8, fuel: 1.3, bulk: 0.45 };
-export const TYPE_LABEL = { pax: "Passengers", cargo: "Cargo", fuel: "Fuel", bulk: "Bulk" };
+export const JOB_TYPES = ["pax", "cargo", "fuel", "bulk", "mail", "wide"];
+export const RATES = { pax: 0.9, cargo: 0.8, fuel: 1.3, bulk: 0.45, mail: 1.6, wide: 2.6 };
+export const TYPE_LABEL = { pax: "Passengers", cargo: "Cargo", fuel: "Fuel", bulk: "Bulk", mail: "Mail", wide: "Wide load" };
 // maglev express lines: each is a list of towns, joined in order by an elevated guideway.
 // Maglev trains only run on these and only stop at their towns.
 export const MAGLEV_LINES = [

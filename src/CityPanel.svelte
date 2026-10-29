@@ -1,6 +1,6 @@
 <script>
-  import { game, ui, cityById, etaText, fmtTime, clock, followVehicle, isOpen, connections, unlockPrice, unlockCity, carrierAt, fmt } from './game.svelte.js';
-  import { CITY_PRICE } from './data.js';
+  import { game, ui, cityById, etaText, fmtTime, clock, followVehicle, isOpen, connections, unlockPrice, unlockCity, carrierAt, fmt, townSize, sizeName, growthOf, buyDepot } from './game.svelte.js';
+  import { CITY_PRICE, DEPOT } from './data.js';
   import Sprite from './Sprite.svelte';
   import JobRow from './JobRow.svelte';
   import LoadPanel from './LoadPanel.svelte';
@@ -35,6 +35,8 @@
       {#if c.rail + c.air + c.port > 1}<span class="tag hub">Transfer hub</span>{/if}
       {#if c.island}<span class="tag">Island</span>{/if}
       {#if c.anchor}<span class="tag">Anchorage</span>{/if}
+      {#if !c.anchor && isOpen(c.id)}<span class="tag hub">{sizeName(c.id)}</span>{/if}
+      {#if game.depots[c.id]}<span class="tag">Depot</span>{/if}
       {#if carrierAt(c.id)}<span class="tag hub">{c.anchor || !c.air ? 'Carrier landing strip' : 'Carrier in port'}</span>{/if}
     </div>
   </div>
@@ -50,6 +52,24 @@
       <button class="btn primary" disabled={game.coins < unlockPrice(c)} onclick={() => unlockCity(c.id)}>Unlock for ${fmt(unlockPrice(c))}</button>
     </div>
   {:else}
+  {#if !c.anchor}
+    {@const gr = growthOf(c.id)}
+    <div class="grow-card">
+      <div class="gline">
+        <span><b>{sizeName(c.id)}</b>{#if townSize(c.id) > 1} · jobs pay +{(townSize(c.id) - 1) * 10}%{/if}</span>
+        <small>{gr.next == null ? `${fmt(gr.n)} deliveries, as big as it gets` : `${gr.n - gr.from} of ${gr.next - gr.from} deliveries to grow`}</small>
+      </div>
+      {#if gr.next != null}<div class="bar"><i style:width="{((gr.n - gr.from) / (gr.next - gr.from)) * 100}%"></i></div>{/if}
+      <div class="gline depot">
+        {#if game.depots[c.id]}
+          <small>Depot: vehicles parked here lose their age over time, and servicing here costs half.</small>
+        {:else}
+          <small>Build a depot: vehicles parked here lose their age over time, and servicing here costs half.</small>
+          <button class="btn small" disabled={game.level < DEPOT.level || game.coins < DEPOT.price} onclick={() => buyDepot(c.id)}>{game.level < DEPOT.level ? `Lv ${DEPOT.level}` : `$${fmt(DEPOT.price)}`}</button>
+        {/if}
+      </div>
+    </div>
+  {/if}
   <h3>Parked here</h3>
   {#each here as v (v.id)}
     <button class="row vrow" animate:flip transition:slide={{ duration: 200 }} onclick={() => { ui.activeVehicle = v.id; ui.picking = false; }}>
@@ -83,3 +103,13 @@
   {/if}
   </div>
 {/if}
+
+<style>
+  .grow-card { margin-top: 10px; padding: 10px 12px; background: var(--panel-3); border-radius: var(--r); display: flex; flex-direction: column; gap: 6px; }
+  .gline { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .gline small { color: var(--ink-soft); font-size: 12px; }
+  .gline b { font-weight: 600; }
+  .depot { flex-wrap: nowrap; padding-top: 6px; border-top: 1px solid var(--line); }
+  .bar { height: 5px; background: var(--panel-2); border-radius: 3px; overflow: hidden; }
+  .bar i { display: block; height: 100%; background: var(--accent); border-radius: 3px; }
+</style>

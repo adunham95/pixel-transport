@@ -1,4 +1,4 @@
-import { CITIES, RAILS, ROADS, ROAD_OFF, LANE, roadSide, ENGINES, CARS, PLANES, BOATS, BARGES, TRUCKS, TRAILERS, LEVELS, RATES, SPEED, CITY_PRICE, START_CITIES, JOB_TYPES, MAGLEV_LINES, REPEAT_ROUTES, WEAR } from './data.js';
+import { CITIES, RAILS, ROADS, ROAD_OFF, LANE, roadSide, ENGINES, CARS, PLANES, BOATS, BARGES, TRUCKS, TRAILERS, LEVELS, RATES, SPEED, CITY_PRICE, START_CITIES, JOB_TYPES, MAGLEV_LINES, REPEAT_ROUTES, WEAR, MAIL, WIDE, GROWTH, SIZE_NAME, DEPOT } from './data.js';
 import { seaLane } from './sea.js';
 
 const KEY = 'pixel-transport-save-v1';
@@ -7,6 +7,7 @@ const LOOP_WAIT = 30 * 1000;
 const JOB_CAP = 6;
 // a job left waiting at its town this long (game time) goes elsewhere, so towns can't clog up
 export const JOB_TTL = 15 * 60 * 1000;
+export const jobTtl = (j) => (j.type === 'mail' ? MAIL.ttl : JOB_TTL);
 
 export const cityById = Object.fromEntries(CITIES.map((c) => [c.id, c]));
 
@@ -248,14 +249,19 @@ function makeJob(g, from, forceTo, forceType) {
   // fuel and bulk only move by rail car or ship, so they start and end at stations and ports
   if ((A.rail || A.port) && g.level >= 3) types.push(['fuel', 2]);
   if ((A.rail || A.port) && g.level >= 2) types.push(['bulk', 2]);
+  if (g.level >= MAIL.level) types.push(['mail', 3]);
+  // wide loads only go by road, so they stay on their own landmass
+  const roadTo = (c) => c.road && c.cont === A.cont;
+  if (A.road && g.level >= WIDE.level && CITIES.some((c) => c.id !== from && g.unlocked[c.id] && roadTo(c))) types.push(['wide', 1]);
   const type = forceType ?? pickWeighted(types);
   const heavy = type === 'fuel' || type === 'bulk';
-  const cands = CITIES.filter((c) => c.id !== from && g.unlocked[c.id] && (!heavy || c.rail || c.port));
+  const cands = CITIES.filter((c) => c.id !== from && g.unlocked[c.id] && (!heavy || c.rail || c.port) && (type !== 'wide' || roadTo(c)));
   if (!forceTo && !cands.length) return null;
   // heavy loads leaving a port lean toward other ports, so ships have work too
   const weight = (c) => (1 / (1 + (dist(from, c.id) / 70) ** 2)) * (heavy && A.port && c.port ? 3 : 1);
   const to = forceTo ?? pickWeighted(cands.map((c) => [c.id, weight(c)]));
-  const pay = Math.round(10 + dist(from, to) * RATES[type]);
+  // bigger towns pay more for what leaves them
+  const pay = Math.round((10 + dist(from, to) * RATES[type]) * (1 + 0.1 * (townSize(from, g) - 1)));
   return { id: g.nextId++, type, from, to, pay };
 }
 
@@ -269,7 +275,7 @@ function newVehicle(g, kind, model, city, cars) {
 
 function fresh() {
   const now = Date.now();
-  const g = { v: 1, coins: 600, xp: 0, level: 1, nextId: 1, selected: 'bay', vehicles: [], jobs: {}, spawnAt: {}, saved: now };
+  const g = { v: 1, coins: 600, xp: 0, level: 1, nextId: 1, selected: 'bay', vehicles: [], jobs: {}, spawnAt: {}, growth: {}, depots: {}, saved: now };
   g.unlocked = Object.fromEntries(START_CITIES.map((id) => [id, true]));
   g.vehicles.push(newVehicle(g, 'train', 'puffer', 'bay', ['pax', 'box']));
   g.vehicles.push(newVehicle(g, 'plane', 'sparrow', 'bay'));
@@ -295,6 +301,8 @@ function load() {
     if (!g || g.v !== 1) return null;
     // older saves predate the bigger world: give new towns a job board
     for (const c of CITIES) { g.jobs[c.id] ??= []; g.spawnAt[c.id] ??= Date.now() + (g.skew ?? 0) + Math.random() * 8000; }
+    g.growth ??= {};
+    g.depots ??= {};
     if (!g.unlocked) {
       // older saves predate unlocking: keep the starting towns plus anywhere the fleet is, is headed or has cargo for
       const keep = new Set(START_CITIES);
@@ -408,7 +416,7 @@ function books(v) { return (v.books ??= { earned: 0, fuel: 0, since: gameNow() }
 function dropOff(v, to) {
   let total = 0, n = 0;
   v.cargo = v.cargo.filter((j) => {
-    if (j.to === to) { total += j.pay; n++; return false; }
+    if (j.to === to) { total += j.pay; n++; grow(j.to); grow(j.from); return false; }
     return true;
   });
   if (n) { earn(total); books(v).earned += total; }
@@ -445,6 +453,36 @@ function arrive(v, at) {
   if (ui.track === v.id) ui.track = null;
   if (n) toast(`${v.name} delivered ${n} at ${name}. +$${fmt(total)}`, 'good');
   else toast(`${v.name} arrived at ${name}`);
+}
+
+// ---------- town growth and depots ----------
+
+// 1 (village) to GROWTH.length (metropolis), from how many jobs to and from it have been delivered
+export function townSize(id, g = game) {
+  const n = g.growth?.[id] ?? 0;
+  let s = 1;
+  while (s < GROWTH.length && n >= GROWTH[s]) s++;
+  return s;
+}
+export const sizeName = (id) => SIZE_NAME[townSize(id) - 1];
+// deliveries made, and needed for the next size (null once it's as big as it gets)
+export function growthOf(id) {
+  const n = game.growth[id] ?? 0, s = townSize(id);
+  return { n, from: GROWTH[s - 1], next: GROWTH[s] ?? null };
+}
+function grow(id) {
+  if (cityById[id].anchor) return;
+  const before = townSize(id);
+  game.growth[id] = (game.growth[id] ?? 0) + 1;
+  if (townSize(id) > before && !quiet) toast(`${cityById[id].name} grew into a ${sizeName(id).toLowerCase()}. More jobs, better pay.`, 'level');
+}
+const jobCap = (id) => JOB_CAP + 2 * (townSize(id) - 1);
+
+export function buyDepot(id) {
+  if (game.depots[id] || cityById[id].anchor) return;
+  if (!spend(DEPOT.price, DEPOT.level, 'Depots')) return;
+  game.depots[id] = true;
+  toast(`Depot built at ${cityById[id].name}`, 'good');
 }
 
 function ownJobs(id) { return game.jobs[id].filter((j) => j.from === id).length; }
@@ -524,12 +562,17 @@ function step() {
     // jobs are stamped the first time they're seen waiting; ones dropped off for a transfer never expire
     const list = game.jobs[c.id];
     for (const j of list) j.at ??= now;
-    if (list.some((j) => j.from === c.id && now - j.at > JOB_TTL)) game.jobs[c.id] = list.filter((j) => j.from !== c.id || now - j.at <= JOB_TTL);
+    if (list.some((j) => j.from === c.id && now - j.at > jobTtl(j))) game.jobs[c.id] = list.filter((j) => j.from !== c.id || now - j.at <= jobTtl(j));
     if (now >= game.spawnAt[c.id]) {
-      game.spawnAt[c.id] = now + 7000 + Math.random() * 8000;
-      if (isOpen(c.id) && !c.anchor && ownJobs(c.id) < JOB_CAP) addJob(c.id);
+      // bigger towns turn up jobs faster
+      game.spawnAt[c.id] = now + (7000 + Math.random() * 8000) / (1 + 0.25 * (townSize(c.id) - 1));
+      if (isOpen(c.id) && !c.anchor && ownJobs(c.id) < jobCap(c.id)) addJob(c.id);
     }
   }
+  // vehicles resting at a depot slowly lose their age
+  const dt = now - (game.repairAt ?? now);
+  game.repairAt = now;
+  if (dt > 0) for (const v of game.vehicles) if (v.city && game.depots[v.city] && v.miles) v.miles = Math.max(0, v.miles - (DEPOT.repair * dt) / 60000);
 }
 
 let started = false;
@@ -758,6 +801,7 @@ export function addCar(v, type) {
   if (!v.city) return;
   if (v.cars.length >= e.maxCars) { toast(`${e.name} can pull ${e.maxCars} ${what}${e.maxCars > 1 ? 's' : ''} at most`, 'bad'); return; }
   if (e.freightOnly && car.holds === 'pax') { toast(`${e.name} only pulls freight cars`, 'bad'); return; }
+  if (e.pulls && !e.pulls.includes(type)) { toast(`${e.name} only pulls ${e.pulls.map((k) => tailSpecs(v)[k].name.toLowerCase()).join(' and ')}s`, 'bad'); return; }
   if (!spend(car.price, car.level, car.name)) return;
   v.cars.push(type);
 }
@@ -785,6 +829,7 @@ export function upgradeEngine(v, model) {
   if (!v.city) return;
   if (e.maglev && !onMaglev(v.city)) { toast(`${cityById[v.city].name} isn’t on a maglev line`, 'bad'); return; }
   if (e.freightOnly && v.cars.some((c) => tailSpecs(v)[c].holds === 'pax')) { toast(`${e.name} only pulls freight cars. Sell the passenger cars first.`, 'bad'); return; }
+  if (e.pulls && v.cars.some((c) => !e.pulls.includes(c))) { toast(`${e.name} only pulls ${e.pulls.map((k) => TRAILERS[k].name.toLowerCase()).join(' and ')}s. Sell the other trailers first.`, 'bad'); return; }
   if (!spend(upgradeCost(v, model), e.level, e.name)) return;
   v.model = model;
   v.miles = 0;
@@ -803,7 +848,7 @@ export function finances(v, now = clock.now) {
 }
 
 export function serviceCost(v) {
-  return Math.ceil(spec(v).price * wear(v) * WEAR.service);
+  return Math.ceil(spec(v).price * wear(v) * WEAR.service * (game.depots[v.city] ? DEPOT.service : 1));
 }
 
 // a parked vehicle gets back to burning fuel like new
@@ -908,7 +953,7 @@ export function devSpawn(kind, model) {
   if (!shopHere(c)) return;
   if (!canBase(kind, model, c)) { toast(`${SPECS[kind][model].name} can’t be based at ${c.name}`, 'bad'); return; }
   const s = SPECS[kind][model];
-  const mix = kind === 'truck' ? ['van', 'dump', 'tank'] : kind === 'boat' ? ['deck', 'hopper', 'tank'] : s.freightOnly ? ['box', 'tank', 'hopper'] : ['pax', 'box', 'tank', 'hopper'];
+  const mix = kind === 'truck' ? s.pulls ?? ['van', 'dump', 'tank'] : kind === 'boat' ? ['deck', 'hopper', 'tank'] : s.freightOnly ? ['box', 'tank', 'hopper'] : ['pax', 'box', 'tank', 'hopper'];
   const v = newVehicle(game, kind, model, c.id, s.maxCars ? Array(s.maxCars).fill(0).map((_, i) => mix[i % mix.length]) : undefined);
   game.vehicles.push(v);
   toast(`${v.name} added at ${c.name}`, 'good');

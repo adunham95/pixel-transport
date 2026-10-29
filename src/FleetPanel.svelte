@@ -58,7 +58,7 @@
         <p class="muted small">{f.paidBack >= 1 ? 'Paid for itself' : `Paid back ${Math.max(0, Math.floor(f.paidBack * 100))}% of what it cost`}</p>
         {#if v.kind === 'plane'}<div class="meters"><span class="meter">Range {Math.round(PLANES[v.model].range * MI)} mi</span></div>{/if}
         <div class="row age">
-          <span class="grow"><b>{Math.round((v.miles ?? 0) * MI)} mi on it</b><small>{wr ? `Burns ${Math.round(wr * 100)}% more fuel with age. Service it, or sell it.` : 'Running like new. Burns more fuel as the miles add up.'}</small></span>
+          <span class="grow"><b>{Math.round((v.miles ?? 0) * MI)} mi on it</b><small>{wr ? `Burns ${Math.round(wr * 100)}% more fuel with age. Service it, or sell it.${game.depots[v.city] ? ' Half price at this depot.' : ''}` : 'Running like new. Burns more fuel as the miles add up.'}</small></span>
           {#if wr && v.city}<button class="btn small" disabled={game.coins < serviceCost(v)} onclick={() => service(v)}>Service ${fmt(serviceCost(v))}</button>{/if}
         </div>
 
@@ -81,7 +81,7 @@
             <div class="grid3">
               {#each Object.entries(tails) as [k, c]}
                 {@const locked = game.level < c.level}
-                {@const nope = e.freightOnly && c.holds === 'pax'}
+                {@const nope = (e.freightOnly && c.holds === 'pax') || (e.pulls && !e.pulls.includes(k))}
                 <button class="btn small" disabled={locked || nope || v.cars.length >= e.maxCars || game.coins < c.price} onclick={() => addCar(v, k)}>
                   {locked ? `${c.short} at Lv ${c.level}` : nope ? `No ${c.short}` : `+ ${c.short} $${c.price}`}
                 </button>

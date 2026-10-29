@@ -1,9 +1,9 @@
 <script>
   import Icon from './Icon.svelte';
-  import { cityById, fmt, clock, JOB_TTL } from './game.svelte.js';
+  import { cityById, fmt, clock, jobTtl } from './game.svelte.js';
   import { TYPE_LABEL } from './data.js';
   let { job, at = null, note = '', onclick = null, disabled = false, loaded = false, action = '' } = $props();
-  const leaving = $derived(at === job.from && job.at && clock.now - job.at > JOB_TTL - 60000);
+  const leaving = $derived(at === job.from && job.at && clock.now - job.at > jobTtl(job) - 60000);
   const sub = $derived([at && job.from !== at ? `Dropped off here, from ${cityById[job.from].name}` : TYPE_LABEL[job.type], leaving && 'Leaving soon', note].filter(Boolean).join('. '));
 </script>
 

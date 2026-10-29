@@ -13,7 +13,7 @@
     const list = Object.entries(g.specs).filter(([k]) => canBase(g.kind, k, c));
     return { ...g, list, some: list.length < Object.keys(g.specs).length };
   }));
-  const demo = (kind, s) => (kind === 'truck' ? ['van', 'dump', 'tank'] : kind === 'boat' ? ['deck', 'hopper', 'tank'] : s.freightOnly ? ['box', 'hopper', 'tank'] : ['pax', 'box', 'tank']).slice(0, Math.min(3, s.maxCars));
+  const demo = (kind, s) => (kind === 'truck' ? s.pulls ?? ['van', 'dump', 'tank'] : kind === 'boat' ? ['deck', 'hopper', 'tank'] : s.freightOnly ? ['box', 'hopper', 'tank'] : ['pax', 'box', 'tank']).slice(0, Math.min(3, s.maxCars));
 </script>
 
 <p class="note">Dev mode is for trying things out. Spawned vehicles are free and ignore levels.</p>
