@@ -1,7 +1,9 @@
-import { CITIES, RAILS, ROADS, ROAD_OFF, LANE, roadSide, ENGINES, CARS, PLANES, BOATS, TRUCKS, TRAILERS, LEVELS, RATES, SPEED, CITY_PRICE, START_CITIES, JOB_TYPES, MAGLEV_LINES } from './data.js';
+import { CITIES, RAILS, ROADS, ROAD_OFF, LANE, roadSide, ENGINES, CARS, PLANES, BOATS, TRUCKS, TRAILERS, LEVELS, RATES, SPEED, CITY_PRICE, START_CITIES, JOB_TYPES, MAGLEV_LINES, REPEAT_ROUTES } from './data.js';
 import { seaLane } from './sea.js';
 
 const KEY = 'pixel-transport-save-v1';
+// a repeating vehicle with nothing to carry anywhere on its loop checks again this often (game time)
+const LOOP_WAIT = 30 * 1000;
 const JOB_CAP = 6;
 // a job left waiting at its town this long (game time) goes elsewhere, so towns can't clog up
 export const JOB_TTL = 15 * 60 * 1000;
@@ -305,7 +307,7 @@ function load() {
 const loaded = load();
 export const game = $state(loaded ?? fresh());
 export const ui = $state({
-  tab: 'city', sheetOpen: true, activeVehicle: null, picking: false, plan: [],
+  tab: 'city', sheetOpen: true, activeVehicle: null, picking: false, plan: [], repeat: false,
   focusVehicle: null, toasts: [], focus: null, follow: null, track: null,
 });
 // Game time runs ahead of the wall clock when dev mode speeds it up. The extra is kept
@@ -373,7 +375,7 @@ export function tripInfo(v, now = clock.now) {
 }
 
 function unlocksAt(level) {
-  const out = [];
+  const out = level === REPEAT_ROUTES.level ? ['Repeating routes'] : [];
   for (const s of [...Object.values(PLANES), ...Object.values(ENGINES), ...Object.values(CARS), ...Object.values(BOATS), ...Object.values(TRUCKS), ...Object.values(TRAILERS)]) if (s.level === level) out.push(s.short ?? s.name);
   return out;
 }
@@ -414,6 +416,7 @@ function arrive(v, at) {
   const name = cityById[to].name;
   const next = v.next?.shift();
   if (next) {
+    if (v.loop) pickUp(v, to);
     v.trip = { ...next, startAt: at };
     if (n) toast(`${v.name} dropped off ${n} at ${name}. +$${fmt(total)}`, 'good');
     return;
@@ -421,6 +424,12 @@ function arrive(v, at) {
   v.city = to;
   v.trip = null;
   delete v.depart;
+  if (v.loop) {
+    // back home: load up and go round again, without a toast every lap
+    if (n) toast(`${v.name} delivered ${n} at ${name}. +$${fmt(total)}`, 'good');
+    runLoop(v, at);
+    return;
+  }
   if (ui.track === v.id) ui.track = null;
   if (n) toast(`${v.name} delivered ${n} at ${name}. +$${fmt(total)}`, 'good');
   else toast(`${v.name} arrived at ${name}`);
@@ -471,6 +480,7 @@ function step() {
     if (!v) break;
     arrive(v, tripEnd(v));
   }
+  for (const v of game.vehicles) if (v.loop && v.city && !v.trip && now >= (v.loop.wait ?? 0)) runLoop(v, now);
   for (const c of CITIES) {
     // jobs are stamped the first time they're seen waiting; ones dropped off for a transfer never expire
     const list = game.jobs[c.id];
@@ -558,21 +568,71 @@ export function toggleStop(v, id) {
   else toast(`${v.name} can’t reach ${cityById[id].name} from ${cityById[p.length ? p[p.length - 1] : v.city].name}`, 'bad');
 }
 
-// fuel for the whole route is paid up front
-export function dispatch(v, stops) {
+// the stops of a repeating route: always ending back where it started
+export function loopStops(v, stops) {
+  return stops.length && stops[stops.length - 1] !== v.city ? [...stops, v.city] : stops;
+}
+
+// fuel for the whole route is paid up front. With repeat, the vehicle comes back to where it
+// started and goes round again; lap is for those later laps, which set off at a given time quietly.
+export function dispatch(v, stops, { repeat = false, lap = null } = {}) {
+  if (repeat && !game.repeatRoutes) { toast('Repeating routes aren’t unlocked yet', 'bad'); return false; }
+  if (repeat) stops = loopStops(v, stops);
   const legs = planLegs(v, stops);
   const bad = legs.findIndex((l) => !l);
   if (!legs.length || bad >= 0) { toast(`${v.name} can’t reach ${cityById[stops[Math.max(0, bad)]].name} on this route`, 'bad'); return false; }
   const cost = legs.reduce((s, l) => s + l.cost, 0);
-  if (game.coins < cost) { toast(`Not enough coins for fuel. You need $${fmt(cost)}.`, 'bad'); return false; }
+  if (game.coins < cost) { toast(lap == null ? `Not enough coins for fuel. You need $${fmt(cost)}.` : `${v.name} stopped repeating. It needs $${fmt(cost)} for fuel.`, 'bad'); return false; }
   game.coins -= cost;
   const [first, ...rest] = legs.map((l) => ({ from: l.from, to: l.to, pts: l.pts, len: l.len, dur: l.time * 1000, cost: l.cost }));
-  v.trip = { ...first, startAt: gameNow() };
+  v.trip = { ...first, startAt: lap ?? gameNow() };
   v.next = rest;
   v.depart = { from: v.city, at: v.trip.startAt, len: legs.reduce((s, l) => s + l.len, 0) };
+  if (repeat) v.loop = { stops };
+  else if (lap == null) delete v.loop;
   v.city = null;
-  toast(rest.length ? `${v.name} left on a ${legs.length} stop route. Fuel $${fmt(cost)}` : `${v.name} left for ${cityById[first.to].name}. Fuel $${cost}`);
+  if (lap == null) toast(repeat ? `${v.name} is running a ${legs.length} stop loop. Fuel $${fmt(cost)} a lap` : rest.length ? `${v.name} left on a ${legs.length} stop route. Fuel $${fmt(cost)}` : `${v.name} left for ${cityById[first.to].name}. Fuel $${cost}`);
   return true;
+}
+
+// ---------- repeating routes ----------
+
+// load jobs here that are headed somewhere else on the loop, best paying first
+function pickUp(v, at) {
+  const ring = new Set(v.loop.stops), list = game.jobs[at];
+  for (const j of [...list].sort((a, b) => b.pay - a.pay)) {
+    if (j.to === at || !ring.has(j.to) || !canLoad(v, j)) continue;
+    list.splice(list.indexOf(j), 1);
+    v.cargo.push(j);
+  }
+}
+
+// is there anything waiting anywhere on the loop that this vehicle could carry along it?
+function loopHasWork(v) {
+  const ring = new Set(v.loop.stops), cap = capacity(v);
+  return v.loop.stops.some((id) => game.jobs[id].some((j) => j.to !== id && ring.has(j.to) && cap[j.type] > 0));
+}
+
+// start another lap from home, or wait a while if there's nothing to carry
+function runLoop(v, at) {
+  delete v.loop.wait;
+  pickUp(v, v.city);
+  if (!v.cargo.length && !loopHasWork(v)) { v.loop.wait = at + LOOP_WAIT; return; }
+  if (!dispatch(v, v.loop.stops, { repeat: true, lap: at })) delete v.loop;
+}
+
+export function buyRepeatRoutes() {
+  if (game.repeatRoutes) return;
+  if (!spend(REPEAT_ROUTES.price, REPEAT_ROUTES.level, 'Repeating routes')) return;
+  game.repeatRoutes = true;
+  toast('Repeating routes unlocked. Turn on Repeat when you plan a route.', 'good');
+}
+
+// finish the lap it's on and then stop
+export function stopRepeating(v) {
+  if (!v.loop) return;
+  delete v.loop;
+  toast(v.trip ? `${v.name} will stop repeating at the end of this lap` : `${v.name} stopped repeating`);
 }
 
 // drop the rest of the route after the current leg, refunding fuel for legs not flown or driven
@@ -580,6 +640,7 @@ export function endRoute(v) {
   if (!v.next?.length) return;
   const refund = v.next.reduce((s, l) => s + l.cost, 0);
   v.next = [];
+  delete v.loop;
   game.coins += refund;
   toast(`${v.name} will stop at ${cityById[v.trip.to].name}. Refunded $${fmt(refund)}`);
 }
@@ -708,6 +769,7 @@ export function driveOn(f, t) {
   if (!canBoard(f, t)) { toast(`No room for ${t.name} on the deck`, 'bad'); return; }
   t.aboard = f.id;
   t.city = null;
+  delete t.loop;
   if (ui.activeVehicle === t.id) ui.activeVehicle = f.id;
 }
 
@@ -728,7 +790,7 @@ export function resetGame() {
   reachCache.clear();
   skew = 0;
   dev.speed = 1;
-  Object.assign(ui, { tab: 'city', sheetOpen: true, activeVehicle: null, picking: false, plan: [], focusVehicle: null, follow: null, track: null, focus: { x: cityById.bay.x, y: cityById.bay.y, t: Date.now() } });
+  Object.assign(ui, { tab: 'city', sheetOpen: true, activeVehicle: null, picking: false, plan: [], repeat: false, focusVehicle: null, follow: null, track: null, focus: { x: cityById.bay.x, y: cityById.bay.y, t: Date.now() } });
   save();
 }
 

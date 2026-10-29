@@ -1,6 +1,6 @@
 <script>
-  import { game, cityById, buyPlane, buyEngine, buyBoat, buyTruck, isOpen, canBase, fmt } from './game.svelte.js';
-  import { ENGINES, CARS, PLANES, BOATS, TRUCKS, TRAILERS, MI, TYPE_LABEL, JOB_TYPES } from './data.js';
+  import { game, cityById, buyPlane, buyEngine, buyBoat, buyTruck, buyRepeatRoutes, isOpen, canBase, fmt } from './game.svelte.js';
+  import { ENGINES, CARS, PLANES, BOATS, TRUCKS, TRAILERS, MI, TYPE_LABEL, JOB_TYPES, REPEAT_ROUTES } from './data.js';
   const UNIT = { pax: 'seats', cargo: 'cargo', fuel: 'fuel', bulk: 'bulk' };
   const holds = (cap) => JOB_TYPES.filter((t) => cap[t]).map((t) => `${cap[t]} ${UNIT[t]}`).join(', ');
   // demo consist for the shop picture: freight engines don't get a passenger car
@@ -17,6 +17,16 @@
   {#if !c.port} It has no port, so select a port city to buy boats.{/if}
   {#if !c.road} It has no roads, so select a mainland town to buy trucks.{/if}
 </p>
+
+<h3>Upgrades</h3>
+<div class="shop" class:locked={game.level < REPEAT_ROUTES.level}>
+  <span class="grow">
+    <b>Repeating routes</b>
+    <small>For the whole fleet. Vehicles loop a planned route on their own, picking up jobs at every stop.</small>
+  </span>
+  {#if game.repeatRoutes}<span class="pay">Owned</span>
+  {:else}<button class="btn primary" disabled={game.level < REPEAT_ROUTES.level || game.coins < REPEAT_ROUTES.price} onclick={buyRepeatRoutes}>{game.level < REPEAT_ROUTES.level ? `Lv ${REPEAT_ROUTES.level}` : `$${fmt(REPEAT_ROUTES.price)}`}</button>{/if}
+</div>
 
 <h3>Planes</h3>
 {#each Object.entries(PLANES) as [k, p]}

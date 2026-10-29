@@ -1,7 +1,8 @@
 <script>
-  import { game, ui, dev, clock, cityById, spec, tripInfo, fmt, fmtTime } from './game.svelte.js';
+  import { game, ui, dev, clock, cityById, spec, tripInfo, fmt, fmtTime, stopRepeating } from './game.svelte.js';
   import { MI } from './data.js';
   import Sprite from './Sprite.svelte';
+  import LoadBadges from './LoadBadges.svelte';
   import { fly, fade } from './motion.js';
 
   const v = $derived(ui.track != null ? game.vehicles.find((x) => x.id === ui.track && x.trip) : null);
@@ -21,6 +22,7 @@
       <span class="grow">
         <b>{v.name}</b>
         <small>{KIND[v.kind]} · {spec(v).name}{info.stops ? ` · ${info.stops + 1} stops` : ''}</small>
+        <LoadBadges {v} />
       </span>
       {#if ui.follow !== v.id}<button class="btn small" onclick={() => (ui.follow = v.id)}>Follow</button>{/if}
       <button class="x" aria-label="Close" onclick={() => (ui.track = ui.follow = null)}>×</button>
@@ -37,8 +39,9 @@
       <small>{fmt(info.left * MI)} mi to go</small>
     </div>
 
-    {#if info.stops || v.cargo.length}
+    {#if info.stops || v.cargo.length || v.loop}
       <div class="foot">
+        {#if v.loop}<small><b>Repeating</b> · <button class="link" onclick={() => stopRepeating(v)}>Stop after this lap</button></small>{/if}
         {#if info.stops}<small>Next stop <b>{cityById[info.next].name}</b> in {fmtTime((info.nextAt - clock.now) / 1000)}</small>{/if}
         {#if v.cargo.length}<small>{v.cargo.length} on board · <b>${fmt(value)}</b></small>{/if}
       </div>
@@ -63,6 +66,7 @@
   .prog span::after { content: ''; position: absolute; inset: -5px; border-radius: 50%; border: 2px solid var(--accent); animation: ping 1.6s ease-out infinite; }
   @keyframes ping { from { transform: scale(.5); opacity: .9; } to { transform: scale(1.4); opacity: 0; } }
   .dist, .foot { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+  .link { border: 0; background: none; padding: 0; font: inherit; color: var(--ink); text-decoration: underline; cursor: pointer; }
   .foot { margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--line); }
   @media (prefers-reduced-motion: reduce) { .prog span::after { animation: none; display: none; } }
 </style>

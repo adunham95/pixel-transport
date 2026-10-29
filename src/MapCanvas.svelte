@@ -1,6 +1,6 @@
 <script>
   import { onMount } from 'svelte';
-  import { game, ui, cityById, leg, planLegs, toggleStop, selectCity, posAt, tripProgress, gameNow, isOpen, fx, darkness } from './game.svelte.js';
+  import { game, ui, cityById, leg, planLegs, toggleStop, selectCity, posAt, tripProgress, gameNow, isOpen, fx, darkness, loopStops } from './game.svelte.js';
   import { CITIES, ENGINES, PLANES, CARS, W, H } from './data.js';
   import { buildTerrain, makeWaterPattern, R } from './terrain.js';
   import { drawArt, drawConsistRow, trainUnits, consistBox, artSize, loadArt } from './sprites.js';
@@ -356,7 +356,7 @@
         // the route being planned, as marching dashes
         b.save();
         b.lineWidth = 2; b.setLineDash([4, 3]); b.lineDashOffset = -Math.floor(now / 80) % 7;
-        for (const l of planLegs(pv, ui.plan)) {
+        for (const l of planLegs(pv, ui.repeat && game.repeatRoutes ? loopStops(pv, ui.plan) : ui.plan)) {
           if (!l) continue;
           b.strokeStyle = 'rgba(18,22,38,0.6)'; path(l.pts, 1);
           b.strokeStyle = '#ffd23f'; path(l.pts);

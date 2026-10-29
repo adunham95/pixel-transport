@@ -49,7 +49,7 @@
   {#each here as v (v.id)}
     <button class="row vrow" animate:flip transition:slide={{ duration: 200 }} onclick={() => { ui.activeVehicle = v.id; ui.picking = false; }}>
       <span class="pv"><Sprite kind={v.kind} model={v.model} cars={v.cars ?? []} scale={3} /></span>
-      <span class="grow"><b>{v.name}</b><small>{v.cargo.length ? `${v.cargo.length} on board` : 'Empty'}</small></span>
+      <span class="grow"><b>{v.name}</b><small>{v.loop ? 'Repeating, waiting for jobs' : v.cargo.length ? `${v.cargo.length} on board` : 'Empty'}</small></span>
       <span class="act">Load</span>
     </button>
   {:else}

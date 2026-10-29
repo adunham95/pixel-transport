@@ -1,13 +1,15 @@
 <script>
-  import { game, ui, dev, setDev, cityById, capacity, used, endRoute, addCar, removeCar, canRemoveCar, upgradeEngine, upgradeCost, sellVehicle, sellValue, resetGame, openLoad, followVehicle, etaText, fmt, spec, tailSpecs, aboard, carrierOf, deckUsed } from './game.svelte.js';
+  import { game, ui, dev, setDev, cityById, capacity, endRoute, addCar, removeCar, canRemoveCar, upgradeEngine, upgradeCost, sellVehicle, sellValue, resetGame, openLoad, followVehicle, etaText, fmt, stopRepeating, spec, tailSpecs, aboard, carrierOf, deckUsed } from './game.svelte.js';
   import { ENGINES, TRUCKS, BOATS, PLANES, MI, JOB_TYPES } from './data.js';
   import Sprite from './Sprite.svelte';
-  import Icon from './Icon.svelte';
+  import LoadBadges from './LoadBadges.svelte';
   import { slide } from './motion.js';
   const LEADS = { train: ENGINES, truck: TRUCKS };
+  // which vehicle's upgrade list is dropped down, if any
+  let upgrading = $state(null);
   // where a vehicle is when it isn't moving: parked in town, or riding a car ferry
   function where(v) {
-    if (v.city) return `Parked at ${cityById[v.city].name}`;
+    if (v.city) return v.loop ? `Repeating, waiting for jobs at ${cityById[v.city].name}` : `Parked at ${cityById[v.city].name}`;
     const f = carrierOf(v);
     return f.trip ? `On ${f.name}, to ${cityById[f.trip.to].name}` : `On ${f.name} at ${cityById[f.city].name}`;
   }
@@ -16,24 +18,19 @@
 <p class="muted small">Tap a vehicle to swap cars, upgrade or sell it.</p>
 {#each game.vehicles as v (v.id)}
   {@const open = ui.focusVehicle === v.id}
-  {@const cap = capacity(v)}
   <div class="card" class:open>
     <button class="row vrow card-head" onclick={() => (ui.focusVehicle = open ? null : v.id)}>
       <span class="pv"><Sprite kind={v.kind} model={v.model} cars={v.cars ?? []} scale={3} /></span>
       <span class="grow">
-        <b>{v.name}</b>
+        <b>{v.name}{#if v.loop}<span class="tag hub mini">Repeating</span>{/if}</b>
         <small>{v.trip ? `To ${cityById[v.trip.to].name}, ${etaText(v)} left${v.next?.length ? `, then ${v.next.length} more stop${v.next.length > 1 ? 's' : ''}` : ''}` : where(v)}</small>
+        <LoadBadges {v} />
       </span>
       <span class="chev">+</span>
     </button>
     {#if open}
       <div class="card-body" transition:slide={{ duration: 220 }}>
-        <div class="meters">
-          {#each JOB_TYPES as t}
-            {#if cap[t]}<span class="meter t-{t}"><Icon name={t} size={14} />{used(v)[t]}/{cap[t]}</span>{/if}
-          {/each}
-          {#if v.kind === 'plane'}<span class="meter">Range {Math.round(PLANES[v.model].range * MI)} mi</span>{/if}
-        </div>
+        {#if v.kind === 'plane'}<div class="meters"><span class="meter">Range {Math.round(PLANES[v.model].range * MI)} mi</span></div>{/if}
 
         {#if v.cars && spec(v).maxCars}
           {@const e = spec(v)}
@@ -62,8 +59,12 @@
             </div>
             {@const ups = Object.entries(LEADS[v.kind]).filter(([, x]) => x.maxCars > e.maxCars)}
             {#if ups.length}
-              <h4>Upgrade {v.kind === 'truck' ? 'tractor' : 'engine'}</h4>
-              <p class="muted small">Trade in your {e.name} and keep the {what}s.</p>
+              {@const shown = upgrading === v.id}
+              <button class="row drop" class:shown aria-expanded={shown} onclick={() => (upgrading = shown ? null : v.id)}>
+                <span class="grow"><b>Upgrade {v.kind === 'truck' ? 'tractor' : 'engine'}</b><small>{ups.length} option{ups.length > 1 ? 's' : ''}. Trade in your {e.name} and keep the {what}s.</small></span>
+                <span class="chev">+</span>
+              </button>
+              {#if shown}<div transition:slide={{ duration: 200 }}>
               {#each ups as [k, x]}
                 {@const locked = game.level < x.level}
                 {@const cost = upgradeCost(v, k)}
@@ -73,6 +74,7 @@
                   <span class="pay">{locked ? `Lv ${x.level}` : `$${fmt(cost)}`}</span>
                 </button>
               {/each}
+              </div>{/if}
             {/if}
           {:else}
             <p class="muted small">{what === 'car' ? 'Cars' : 'Trailers'} can be changed once it’s parked.</p>
@@ -90,6 +92,7 @@
         {/if}
 
         <div class="actions">
+          {#if v.loop}<button class="btn ghost" onclick={() => stopRepeating(v)}>Stop repeating</button>{/if}
           {#if v.city}
             <button class="btn primary" onclick={() => openLoad(v)}>Load at {cityById[v.city].name}</button>
             <button class="btn ghost" disabled={v.cargo.length > 0 || aboard(v).length > 0 || game.vehicles.length <= 1} onclick={() => sellVehicle(v)}>Sell for ${fmt(sellValue(v))}</button>
@@ -99,7 +102,7 @@
             {:else}<button class="btn primary" onclick={() => openLoad(f)}>Drive off at {cityById[f.city].name}</button>{/if}
           {:else}
             <button class="btn primary" onclick={() => followVehicle(v)}>Follow on map</button>
-            {#if v.next?.length}<button class="btn ghost" onclick={() => endRoute(v)}>End route at {cityById[v.trip.to].name}</button>{/if}
+            {#if v.next?.length && !v.loop}<button class="btn ghost" onclick={() => endRoute(v)}>End route at {cityById[v.trip.to].name}</button>{/if}
           {/if}
         </div>
       </div>
@@ -109,3 +112,10 @@
 
 <button class="btn ghost reset" onclick={resetGame}>Start a new game</button>
 <button class="btn ghost reset" onclick={() => setDev(!dev.on)}>{dev.on ? 'Turn off dev mode' : 'Dev mode'}</button>
+
+<style>
+  .drop { margin-top: 10px; }
+  /* the open card turns every chevron inside it, so set this one by its own state */
+  .drop .chev { transform: none; }
+  .drop.shown .chev { transform: rotate(45deg); }
+</style>

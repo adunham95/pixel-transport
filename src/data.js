@@ -235,6 +235,9 @@ export function roadSide(ax, ay, bx, by) {
 
 export { ENGINES, CARS, PLANES, BOATS, TRUCKS, TRAILERS } from "./vehicles.js";
 
+// repeating routes are bought once, for the whole fleet, from this level on
+export const REPEAT_ROUTES = { level: 3, price: 4000 };
+
 // xp needed to reach level i+1
 export const LEVELS = [0, 400, 1000, 2000, 3500, 5500, 8500, 12500, 18000];
 // job types; bulk (coal, grain, ore) turns up in batches and pays less per load

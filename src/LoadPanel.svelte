@@ -1,10 +1,10 @@
 <script>
-  import { game, ui, cityById, capacity, used, loadJob, unloadJob, autoLoad, destinations, dispatch, route, canReach, planLegs, autoPlan, toggleStop, fmt, fmtTime, aboard, canBoard, deckSize, deckUsed, driveOn, driveOff } from './game.svelte.js';
+  import { game, ui, cityById, capacity, used, loadJob, unloadJob, autoLoad, destinations, dispatch, route, canReach, planLegs, autoPlan, toggleStop, fmt, fmtTime, loopStops, buyRepeatRoutes, aboard, canBoard, deckSize, deckUsed, driveOn, driveOff } from './game.svelte.js';
   import Icon from './Icon.svelte';
   import Sprite from './Sprite.svelte';
   import JobRow from './JobRow.svelte';
   import { send, receive, flip, fly } from './motion.js';
-  import { TYPE_LABEL, JOB_TYPES, ENGINES, TRUCKS, BOATS } from './data.js';
+  import { TYPE_LABEL, JOB_TYPES, ENGINES, TRUCKS, BOATS, REPEAT_ROUTES } from './data.js';
   let { v } = $props();
   const cap = $derived(capacity(v));
   const u = $derived(used(v));
@@ -13,7 +13,9 @@
   const waiting = $derived([...(game.jobs[v.city] ?? [])].sort((a, b) => score(b) - score(a)));
 
   // route planning
-  const legs = $derived(planLegs(v, ui.plan));
+  // a repeating route also drives back to where it started
+  const looping = $derived(ui.repeat && game.repeatRoutes);
+  const legs = $derived(planLegs(v, looping ? loopStops(v, ui.plan) : ui.plan));
   const last = $derived(ui.plan.length ? ui.plan[ui.plan.length - 1] : v.city);
   const total = $derived(legs.reduce((s, l) => ({ cost: s.cost + (l?.cost ?? 0), time: s.time + (l?.time ?? 0) }), { cost: 0, time: 0 }));
   const broken = $derived(legs.some((l) => !l));
@@ -61,7 +63,7 @@
   const onDeck = $derived(deck ? aboard(v) : []);
   const ashore = $derived(deck ? game.vehicles.filter((t) => t.kind === 'truck' && t.city === v.city) : []);
   function plan() { ui.plan = autoPlan(v); ui.picking = true; }
-  function go() { if (dispatch(v, ui.plan)) { ui.picking = false; ui.activeVehicle = null; ui.plan = []; } }
+  function go() { if (dispatch(v, ui.plan, { repeat: looping })) { ui.picking = false; ui.activeVehicle = null; ui.plan = []; } }
 </script>
 
 <div class="loadhead">
@@ -91,6 +93,14 @@
           <button class="x" aria-label="Remove {cityById[id].name}" onclick={() => ui.plan.splice(i, 1)}>×</button>
         </li>
       {/each}
+      {#if legs.length > ui.plan.length}
+        {@const l = legs[legs.length - 1]}
+        <li class="row stop" class:bad={!l}>
+          <span class="num">↻</span>
+          <span class="grow"><b>Back to {city.name}</b><small>{l ? 'Then round again' : 'Out of reach from the last stop'}</small></span>
+          {#if l}<span class="right"><b>{fmtTime(l.time)}</b><small>Fuel ${l.cost}</small></span>{/if}
+        </li>
+      {/if}
     </ol>
   {:else}
     <p class="muted small">Add stops in order. At each one, anything on board for that city is dropped off before moving on. Tap cities below or ones with a yellow ring on the map.</p>
@@ -109,11 +119,23 @@
   {:else}
     <p class="muted">Nowhere in range from {cityById[last].name}.</p>
   {/each}
+  {#if game.repeatRoutes}
+    <label class="row repeat">
+      <input type="checkbox" bind:checked={ui.repeat} />
+      <span class="grow"><b>Repeat this route</b><small>Picks up jobs for the loop at every stop, comes back to {city.name} and goes round again. Fuel is paid each lap.</small></span>
+    </label>
+  {:else}
+    {@const locked = game.level < REPEAT_ROUTES.level}
+    <div class="row repeat">
+      <span class="grow"><b>Repeating routes</b><small>{locked ? `Unlocks at level ${REPEAT_ROUTES.level}. Sends vehicles round the same loop on their own.` : 'Send vehicles round the same loop on their own, for the whole fleet.'}</small></span>
+      <button class="btn small" disabled={locked || game.coins < REPEAT_ROUTES.price} onclick={buyRepeatRoutes}>{locked ? `Lv ${REPEAT_ROUTES.level}` : `$${fmt(REPEAT_ROUTES.price)}`}</button>
+    </div>
+  {/if}
   <div class="footer">
     <button class="btn" onclick={() => { ui.picking = false; ui.plan = []; }}>Back</button>
     {#if unrouted}<button class="btn" onclick={plan}>Route cargo</button>{/if}
     <button class="btn primary" disabled={!ui.plan.length || broken || game.coins < total.cost} onclick={go}>
-      {ui.plan.length ? `Go ${fmtTime(total.time)}, $${fmt(total.cost)}` : 'Go'}
+      {!ui.plan.length ? 'Go' : looping ? `Loop ${fmtTime(total.time)}, $${fmt(total.cost)} a lap` : `Go ${fmtTime(total.time)}, $${fmt(total.cost)}`}
     </button>
   </div>
 {:else}
@@ -154,3 +176,8 @@
     <button class="btn primary" onclick={() => { ui.plan = []; ui.picking = true; }}>Plan route</button>
   </div>
 {/if}
+
+<style>
+  .repeat { margin-top: 10px; cursor: pointer; }
+  .repeat input { width: 20px; height: 20px; flex: none; accent-color: var(--accent); }
+</style>
