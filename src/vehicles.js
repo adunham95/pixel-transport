@@ -1073,8 +1073,8 @@ export const TRUCKS = {
     name: "Large Box Truck",
     short: "Large Box",
     level: 3,
-    price: 2200,
-    cap: { cargo: 8 },
+    price: 1100,
+    cap: { cargo: 4 },
     maxCars: 0,
     speed: 5,
     run: 0.08,
@@ -1112,7 +1112,7 @@ export const TRUCKS = {
   semi: {
     name: "Semi",
     level: 2,
-    price: 1100,
+    price: 1400,
     maxCars: 1,
     speed: 6,
     run: 0.05,
@@ -1157,7 +1157,7 @@ export const TRAILERS = {
     level: 2,
     price: 200,
     holds: "cargo",
-    cap: 5,
+    cap: 4,
     deck: 2,
     color: "#f4f6f8",
     art: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-4 -1.9 8 3.8">
@@ -1172,7 +1172,7 @@ export const TRAILERS = {
     level: 2,
     price: 200,
     holds: "bulk",
-    cap: 6,
+    cap: 3,
     deck: 2,
     color: "#e08a2c",
     art: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-4 -1.9 8 3.8">
@@ -1188,7 +1188,7 @@ export const TRAILERS = {
     level: 3,
     price: 300,
     holds: "fuel",
-    cap: 4,
+    cap: 2,
     deck: 2,
     color: "#a7b0ba",
     art: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-4 -1.9 8 3.8">
