@@ -1,0 +1,58 @@
+# logs and temp
+*.log
+**/*.log
+*.cpuprofile
+**/*.cpuprofile
+temp
+**/temp
+logs
+**/logs
+*.tmp
+**/*.tmp
+.eslintcache
+
+# build and dist
+build
+**/build
+dist
+**/dist
+.svelte
+.svelte-kit
+**/.svelte
+**/.svelte-kit
+
+# env and local
+*.local
+**/*.local
+.env
+**/.env
+
+#node_modules and pnpm
+node_modules
+**/node_modules
+# only workspace root has a lock
+**/pnpm-lock.yaml
+.pnpm-store
+**/.pnpm-store
+
+#ide
+.idea
+**/.idea
+.vscode
+**/.vscode
+
+# macos
+.DS_Store
+._.DS_Store
+**/.DS_Store
+**/._.DS_Store
+
+# other
+coverage
+
+# playgrounds
+packages/playground/**/*
+!packages/playground/README.md
+
+# vite plugin inspect
+.vite-inspect
