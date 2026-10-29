@@ -52,7 +52,8 @@
       dpr = Math.min(window.devicePixelRatio || 1, 3);
       canvas.width = Math.max(1, Math.round(r.width * dpr));
       canvas.height = Math.max(1, Math.round(r.height * dpr));
-      const base = Math.max(1, Math.floor(canvas.width / 300));
+      // sized off the shorter side, so a wide desktop map isn't zoomed right in
+      const base = Math.max(1, Math.floor(Math.min(canvas.width, canvas.height) / 300));
       levels = [...new Set(ZOOMS.map((m) => Math.max(1, Math.round(base * m))))];
       baseAt = levels.indexOf(base);
       at = Math.min(levels.length - 1, Math.max(0, baseAt + zoomStep));

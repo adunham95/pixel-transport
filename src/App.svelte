@@ -15,11 +15,21 @@
 
   let sheetPx = $state(0);
   onMount(start);
+  // on wide screens the panel sits beside the map as a sidebar instead of a sheet over it
+  const wideQuery = typeof matchMedia === 'function' ? matchMedia('(min-width: 900px)') : null;
+  let wide = $state(wideQuery?.matches ?? false);
+  $effect(() => {
+    if (!wideQuery) return;
+    const on = (e) => (wide = e.matches);
+    wideQuery.addEventListener('change', on);
+    return () => wideQuery.removeEventListener('change', on);
+  });
+  const open = $derived(wide || ui.sheetOpen);
   const maxed = $derived(game.level >= LEVELS.length);
   const pct = $derived(maxed ? 100 : Math.min(100, ((game.xp - LEVELS[game.level - 1]) / (LEVELS[game.level] - LEVELS[game.level - 1])) * 100));
   const moving = $derived(game.vehicles.filter((v) => v.trip).length);
   function setTab(t) {
-    if (ui.tab === t && ui.sheetOpen) { ui.sheetOpen = false; return; }
+    if (ui.tab === t && ui.sheetOpen && !wide) { ui.sheetOpen = false; return; }
     ui.tab = t;
     ui.sheetOpen = true;
   }
@@ -58,7 +68,7 @@
   let sheetFrac = $state((() => { try { return Number(localStorage.getItem(SHEET_KEY)) || 0.56; } catch { return 0.56; } })());
   let dragH = $state(null), drag = null, dragged = false;
   function headDown(e) {
-    if (e.button) return;
+    if (e.button || wide) return;
     drag = { y0: e.clientY, h0: sheetEl.offsetHeight, y: e.clientY, t: performance.now(), v: 0 };
     dragged = false;
   }
@@ -113,15 +123,17 @@
   </header>
 
   <main class="stage" bind:this={stageEl}>
-    <MapCanvas {sheetPx} />
-    <div class="toasts" aria-live="polite">
-      <VehicleCard />
-      {#each ui.toasts as t (t.id)}
-        <div class="toast {t.kind}" animate:flip in:fly={{ y: -12, duration: 220 }} out:fade={{ duration: 180 }}>{t.text}</div>
-      {/each}
+    <div class="mapwrap">
+      <MapCanvas sheetPx={wide ? 0 : sheetPx} />
+      <div class="toasts" aria-live="polite">
+        <VehicleCard />
+        {#each ui.toasts as t (t.id)}
+          <div class="toast {t.kind}" animate:flip in:fly={{ y: -12, duration: 220 }} out:fade={{ duration: 180 }}>{t.text}</div>
+        {/each}
+      </div>
     </div>
-    <section class="sheet" class:open={ui.sheetOpen} class:dragging={dragH != null} bind:this={sheetEl} bind:offsetHeight={sheetPx}
-      style:height={dragH != null ? `${dragH}px` : ui.sheetOpen ? `${sheetFrac * 100}%` : null}>
+    <section class="sheet" class:open class:dragging={dragH != null} bind:this={sheetEl} bind:offsetHeight={sheetPx}
+      style:height={wide ? null : dragH != null ? `${dragH}px` : ui.sheetOpen ? `${sheetFrac * 100}%` : null}>
       <div class="sheet-head" role="presentation" onpointerdown={headDown} onclickcapture={headClick}>
         <button class="grab" aria-label={ui.sheetOpen ? 'Hide panel' : 'Show panel'} onclick={() => (ui.sheetOpen = !ui.sheetOpen)}><span></span></button>
         <nav class="tabs" class:dev={dev.on}>
@@ -132,7 +144,7 @@
           {#if dev.on}<button bind:this={tabEls.dev} class:on={ui.tab === 'dev'} onclick={() => setTab('dev')}>Dev{dev.speed > 1 ? ` ${dev.speed}×` : ''}</button>{/if}
         </nav>
       </div>
-      {#if ui.sheetOpen}
+      {#if open}
         <div class="body">
           {#key ui.tab}
             <div in:fly={{ y: 10, duration: 200 }}>

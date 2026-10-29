@@ -50,7 +50,7 @@ body::after { content: ""; position: fixed; inset: auto 0 0; height: env(safe-ar
 button { font: inherit; color: inherit; }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
-.app { height: 100%; max-width: 480px; margin: 0 auto; display: flex; flex-direction: column; background: var(--panel); position: relative; }
+.app { height: 100%; display: flex; flex-direction: column; background: var(--panel); position: relative; }
 
 .hud { display: flex; align-items: center; gap: 12px; padding: 10px 14px; background: var(--hud); color: var(--hud-ink); }
 .brand { display: flex; gap: 5px; font-weight: 700; font-size: 16px; margin-right: auto; }
@@ -71,6 +71,8 @@ button { font: inherit; color: inherit; }
 .bar i { display: block; height: 100%; background: var(--accent); border-radius: 3px; transition: width .4s ease; }
 
 .stage { flex: 1; position: relative; overflow: hidden; min-height: 0; background: #2d5d9c; }
+.mapwrap { position: absolute; inset: 0; }
+.toasts > * { max-width: 460px; }
 
 .toasts { position: absolute; top: 10px; left: 10px; right: 10px; display: flex; flex-direction: column; gap: 6px; pointer-events: none; z-index: 5; align-items: center; }
 .toast { background: rgba(28,32,48,.92); color: #f6f4ee; padding: 8px 14px; font-size: 14px; border-radius: 999px; box-shadow: 0 4px 14px rgba(0,0,0,.25); max-width: 100%; display: flex; align-items: center; gap: 8px; backdrop-filter: blur(6px); }
@@ -187,4 +189,19 @@ button.row:disabled { opacity: .5; cursor: default; }
   .sheet, .bar i, .btn, button.row, .tabs .pill, .tabs button, .chev, .card, .grab span { transition: none; }
   .coin .spin, .lvnum, .delta { animation: none; }
   .delta { display: none; }
+}
+
+/* ---------- bigger screens ---------- */
+/* tablets: the map runs edge to edge, the sheet stays a comfortable width in the middle */
+@media (min-width: 600px) {
+  .sheet { left: 50%; right: auto; width: min(560px, 100%); transform: translateX(-50%); }
+}
+/* desktop: the panel is a sidebar beside the map, always open, and can't be dragged */
+@media (min-width: 900px) {
+  .stage { display: flex; }
+  .mapwrap { position: relative; inset: auto; flex: 1; min-width: 0; }
+  .sheet { position: relative; left: auto; transform: none; width: clamp(360px, 32vw, 440px); height: auto; flex: none; border-radius: 0; box-shadow: -6px 0 24px rgba(10,16,30,.18); transition: none; }
+  .sheet-head { cursor: default; padding-top: 10px; }
+  .grab { display: none; }
+  .hud { padding: 10px 20px; }
 }
