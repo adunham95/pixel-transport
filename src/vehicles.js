@@ -516,7 +516,10 @@ export const PLANES = {
     color: "#5b6b3a",
     trim: "#3f4a28",
     vtol: true,
-    rotors: [[5.6, 0, 6.9], [-6.2, 0, 6.9]],
+    rotors: [
+      [5.6, 0, 6.9],
+      [-6.2, 0, 6.9],
+    ],
     art: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-13 -8 26 16">
       <path d="M-8.6 -2Q-9.4 -2 -9.4 -1.2L-9.4 1.2Q-9.4 2 -8.6 2L7 2Q9.4 2 9.6 0Q9.4 -2 7 -2Z" fill="#5b6b3a" stroke="rgba(18,24,38,0.9)" stroke-width="1" stroke-linejoin="round"/>
       <rect x="-8.6" y="-1.5" width="15" height="0.5" fill="rgba(255,255,255,0.18)"/>
@@ -574,7 +577,10 @@ export const PLANES = {
     color: "#8a949e",
     trim: "#4a525a",
     vtol: true,
-    rotors: [[0.5, -6.2, 4.7], [0.5, 6.2, 4.7]],
+    rotors: [
+      [0.5, -6.2, 4.7],
+      [0.5, 6.2, 4.7],
+    ],
     art: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-11 -11.5 22 23">
       <path d="M1.6 -1.4L1.6 -6.2L-1.4 -6.2L-1.4 -1.4ZM1.6 1.4L1.6 6.2L-1.4 6.2L-1.4 1.4ZM-6 -0.6L-7.4 -3.4L-8.8 -3.4L-8.6 -0.6ZM-6 0.6L-7.4 3.4L-8.8 3.4L-8.6 0.6ZM-8.8 -1.2Q-9.3 0 -8.8 1.2L5 1.55Q8.6 1.35 9 0Q8.6 -1.35 5 -1.55Z" fill="none" stroke="rgba(18,24,38,0.9)" stroke-width="1.2" stroke-linejoin="round"/>
       <path d="M1.6 -1.4L1.6 -6.2L-1.4 -6.2L-1.4 -1.4ZM1.6 1.4L1.6 6.2L-1.4 6.2L-1.4 1.4ZM-6 -0.6L-7.4 -3.4L-8.8 -3.4L-8.6 -0.6ZM-6 0.6L-7.4 3.4L-8.8 3.4L-8.6 0.6Z" fill="#79838d"/>
@@ -915,8 +921,8 @@ export const BOATS = {
     cap: {},
     deck: 8,
     deckFor: "plane",
-    speed: 5,
-    run: 0.12,
+    speed: 2,
+    run: 0.6, // a floating airfield burns through fuel
     pips: 2,
     art: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-18 -5 36 10">
       <path d="M-16.4 -3.4H8L16.8 -0.6Q17.4 0 16.8 0.6L8 3.4H-16.4Q-17 3.4 -17 2.8V-2.8Q-17 -3.4 -16.4 -3.4Z" fill="#6f7682" stroke="rgba(18,24,38,0.9)" stroke-width="0.7" stroke-linejoin="round"/>
