@@ -268,6 +268,14 @@ export const SIZE_NAME = ["Village", "Town", "City", "Big city", "Metropolis"];
 // a depot at a town: servicing there costs `service` of the usual, and vehicles parked
 // there slowly lose their age, `repair` world units of it each game minute
 export const DEPOT = { level: 3, price: 3000, service: 0.5, repair: 150 };
+// contracts: deliver n jobs of one type to one town before time runs out (perJob each, plus
+// extra), for a bonus on top of what the jobs pay. Up to `offers` wait on the board, each for
+// offerTtl, a new one turning up every `every`, and up to `active` can be taken on at once.
+// size is the [min, max] jobs for each type (game time throughout).
+export const CONTRACTS = {
+  level: 3, offers: 3, active: 2, every: 45 * 1000, offerTtl: 10 * 60 * 1000, perJob: 75 * 1000, extra: 3 * 60 * 1000,
+  size: { pax: [5, 9], cargo: [4, 8], mail: [4, 7], fuel: [3, 6], bulk: [6, 12], wide: [2, 3] },
+};
 
 // xp needed to reach level i+1
 export const LEVELS = [0, 850, 2500, 4400, 6350, 8400, 10850, 13800, 17250, 21350, 26350, 31950];

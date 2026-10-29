@@ -7,10 +7,11 @@
   import FleetPanel from './FleetPanel.svelte';
   import ShopPanel from './ShopPanel.svelte';
   import DevPanel from './DevPanel.svelte';
+  import ContractsPanel from './ContractsPanel.svelte';
   import VehicleCard from './VehicleCard.svelte';
   import Icon from './Icon.svelte';
   import { game, ui, dev, start, fmt, cityById } from './game.svelte.js';
-  import { LEVELS } from './data.js';
+  import { LEVELS, CONTRACTS } from './data.js';
   import { fly, fade, flip, reduced } from './motion.js';
 
   let sheetPx = $state(0);
@@ -140,6 +141,7 @@
           {#if pill}<span class="pill" style:width="{pill.w}px" style:transform="translateX({pill.x}px)"></span>{/if}
           <button bind:this={tabEls.city} class:on={ui.tab === 'city'} onclick={() => setTab('city')}>{cityById[game.selected].name}</button>
           <button bind:this={tabEls.fleet} class:on={ui.tab === 'fleet'} onclick={() => setTab('fleet')}>Fleet <em>{game.vehicles.length}{moving ? `, ${moving} out` : ''}</em></button>
+          <button bind:this={tabEls.contracts} class:on={ui.tab === 'contracts'} onclick={() => setTab('contracts')}>Contracts{#if game.contracts.active.length}<em> {game.contracts.active.length}</em>{:else if game.level >= CONTRACTS.level && game.contracts.offers.length}<em class="dot"></em>{/if}</button>
           <button bind:this={tabEls.shop} class:on={ui.tab === 'shop'} onclick={() => setTab('shop')}>Shop</button>
           {#if dev.on}<button bind:this={tabEls.dev} class:on={ui.tab === 'dev'} onclick={() => setTab('dev')}>Dev{dev.speed > 1 ? ` ${dev.speed}×` : ''}</button>{/if}
         </nav>
@@ -148,7 +150,7 @@
         <div class="body">
           {#key ui.tab}
             <div in:fly={{ y: 10, duration: 200 }}>
-              {#if ui.tab === 'city'}<CityPanel />{:else if ui.tab === 'fleet'}<FleetPanel />{:else if ui.tab === 'dev'}<DevPanel />{:else}<ShopPanel />{/if}
+              {#if ui.tab === 'city'}<CityPanel />{:else if ui.tab === 'fleet'}<FleetPanel />{:else if ui.tab === 'contracts'}<ContractsPanel />{:else if ui.tab === 'dev'}<DevPanel />{:else}<ShopPanel />{/if}
             </div>
           {/key}
         </div>
