@@ -254,6 +254,23 @@ export const CARS = {
       <rect x="-1" y="-1.3" width="2" height="2.6" rx="0.2" fill="#1d4f9c"/>
     </svg>`,
   },
+  vault: {
+    name: "Vault car",
+    short: "Vault",
+    level: 11,
+    price: 450,
+    holds: "secure",
+    cap: 2,
+    color: "#4a5260",
+    dark: "#2a2f38",
+    art: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-3.9 -2.6 7.8 5.2">
+      <rect x="-3.5" y="-2.1" width="7" height="4.2" rx="0.6" fill="#4a5260" stroke="rgba(18,24,38,0.9)" stroke-width="0.8"/>
+      <rect x="-3.1" y="-1.7" width="6.2" height="3.4" rx="0.3" fill="#5d6675"/>
+      <g fill="#2a2f38">${[-2.6, -1.3, 1.3, 2.6].map((x) => `<circle cx="${x}" cy="-1.35" r="0.18"/><circle cx="${x}" cy="1.35" r="0.18"/>`).join("")}</g>
+      <rect x="-0.9" y="-1.2" width="1.8" height="2.4" rx="0.3" fill="#a8801a" stroke="#2a2f38" stroke-width="0.25"/>
+      <circle cx="0" cy="0" r="0.45" fill="#e6c35a" stroke="#2a2f38" stroke-width="0.15"/>
+    </svg>`,
+  },
   flat: {
     name: "Flatcar",
     short: "Flatcar",
@@ -752,6 +769,32 @@ export const PLANES = {
       <rect x="13.9" y="-1" width="0.7" height="0.45" fill="rgba(170,215,255,0.85)"/>
     </svg>`,
   },
+  courierjet: {
+    name: "Courier Jet",
+    short: "Courier",
+    level: 11,
+    price: 9500,
+    pax: 0,
+    cargo: 0,
+    hold: { secure: 2 },
+    range: 450,
+    speed: 19,
+    fuel: 0.8,
+    pips: 4,
+    deckSpace: 2,
+    color: "#2a2f38",
+    trim: "#e6c35a",
+    art: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-10 -10 20 20">
+      <path d="M2 -1.3L-3.4 -7.6L-4.8 -7.6L-2.4 -1.3ZM2 1.3L-3.4 7.6L-4.8 7.6L-2.4 1.3ZM-6.6 -0.5L-8.8 -3.4L-9.6 -3.4L-8.6 -0.5ZM-6.6 0.5L-8.8 3.4L-9.6 3.4L-8.6 0.5ZM-8.8 -1Q-9.4 0 -8.8 1L5.4 1.4Q9 1.2 9.6 0Q9 -1.2 5.4 -1.4Z" fill="none" stroke="rgba(18,24,38,0.9)" stroke-width="1.2" stroke-linejoin="round"/>
+      <path d="M2 -1.3L-3.4 -7.6L-4.8 -7.6L-2.4 -1.3ZM2 1.3L-3.4 7.6L-4.8 7.6L-2.4 1.3ZM-6.6 -0.5L-8.8 -3.4L-9.6 -3.4L-8.6 -0.5ZM-6.6 0.5L-8.8 3.4L-9.6 3.4L-8.6 0.5Z" fill="#3a404c"/>
+      <path d="M-8.8 -1Q-9.4 0 -8.8 1L5.4 1.4Q9 1.2 9.6 0Q9 -1.2 5.4 -1.4Z" fill="#2a2f38"/>
+      <rect x="-8.2" y="-0.22" width="14.6" height="0.44" fill="#e6c35a"/>
+      <rect x="-4.8" y="-7.6" width="1.4" height="0.6" fill="#e6c35a"/><rect x="-4.8" y="7" width="1.4" height="0.6" fill="#e6c35a"/>
+      <rect x="-7" y="-2.5" width="2.6" height="1.2" rx="0.6" fill="#5d6675" stroke="rgba(18,24,38,0.9)" stroke-width="0.35"/><rect x="-7" y="1.3" width="2.6" height="1.2" rx="0.6" fill="#5d6675" stroke="rgba(18,24,38,0.9)" stroke-width="0.35"/>
+      <path d="M6 -1Q8.3 -0.9 8.8 0Q8.3 0.9 6 1Z" fill="#111318"/>
+      <rect x="6.5" y="-0.75" width="0.6" height="0.35" fill="rgba(170,215,255,0.85)"/>
+    </svg>`,
+  },
   machdart: {
     name: "Mach Dart",
     level: 12,
@@ -1023,6 +1066,24 @@ export const BOATS = {
       <rect x="5.2" y="-1.4" width="0.6" height="2.8" fill="#23344f"/>
     </svg>`,
   },
+  launch: {
+    name: "Courier Launch",
+    short: "Launch",
+    level: 11,
+    price: 2600,
+    cap: { secure: 2 },
+    speed: 7.5,
+    run: 0.06,
+    pips: 3,
+    art: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-6.5 -2.4 13 4.8">
+      <path d="M-5.6 -1.9L2.4 -1.9Q6.2 -1.4 6.4 0Q6.2 1.4 2.4 1.9L-5.6 1.9Q-6 1.9 -6 1.5L-6 -1.5Q-6 -1.9 -5.6 -1.9Z" fill="#2a2f38" stroke="rgba(18,24,38,0.9)" stroke-width="0.6" stroke-linejoin="round"/>
+      <path d="M-5.4 -1.3L2.2 -1.3Q5 -0.9 5.2 0Q5 0.9 2.2 1.3L-5.4 1.3Z" fill="#3a404c"/>
+      <rect x="-5.6" y="-0.2" width="11.4" height="0.4" fill="#e6c35a"/>
+      <rect x="-2.6" y="-1.1" width="3" height="2.2" rx="0.4" fill="#5d6675" stroke="rgba(18,24,38,0.9)" stroke-width="0.35"/>
+      <rect x="-0.1" y="-0.9" width="0.4" height="1.8" fill="#9fd0ff"/>
+      <rect x="-5.4" y="-0.9" width="1.4" height="1.8" rx="0.2" fill="#a8801a" stroke="#2a2f38" stroke-width="0.2"/>
+    </svg>`,
+  },
   megatanker: {
     name: "Mega Tanker",
     short: "Mega Tanker",
@@ -1129,7 +1190,8 @@ export const BARGES = {
 // but rides along in a superload's convoy (see SUPERLOAD in data.js). hitch is where, in the art's
 // sub pixel units, the front of the first trailer sits: over the fifth wheel, just behind the cab.
 // superload: true means it carries nothing but one superload at a time, which brings its own
-// trailer (see SUPERLOAD_TRAILERS below).
+// trailer (see SUPERLOAD_TRAILERS below). escortedBy: an escort kind that can ride along if you like
+// (valuables pay more with one).
 export const TRUCKS = {
   pickup: {
     name: "Pickup",
@@ -1248,6 +1310,28 @@ export const TRUCKS = {
       <rect x="-3.5" y="-1.05" width="4.5" height="0.45" rx="0.22" fill="#eef1f4"/>
       <rect x="-3.5" y="-0.12" width="4.5" height="0.24" fill="#7b4fc9"/>
       <circle cx="-1.25" cy="0" r="0.4" fill="#6d7680"/>
+    </svg>`,
+  },
+  armored: {
+    name: "Armored Car",
+    short: "Armored",
+    level: 11,
+    price: 1800,
+    cap: { secure: 2 },
+    escortedBy: "police",
+    maxCars: 0,
+    speed: 6.5,
+    run: 0.05,
+    deck: 1,
+    pips: 2,
+    art: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-3.4 -1.8 6.8 3.6">
+      <rect x="-3" y="-1.45" width="6" height="2.9" rx="0.5" fill="#4a5a4a" stroke="rgba(18,24,38,0.9)" stroke-width="0.6"/>
+      <rect x="-2.7" y="-1.1" width="3.6" height="2.2" rx="0.3" fill="#5c6e5c"/>
+      <g fill="#2f3a2f">${[-2.3, -1.3, -0.3, 0.7].map((x) => `<circle cx="${x}" cy="-0.85" r="0.13"/><circle cx="${x}" cy="0.85" r="0.13"/>`).join("")}</g>
+      <rect x="-1.6" y="-0.45" width="1.6" height="0.9" rx="0.15" fill="#a8801a"/>
+      <rect x="1.4" y="-1.1" width="0.5" height="2.2" fill="#7fa8c8"/>
+      <rect x="2" y="-1.15" width="0.7" height="2.3" fill="#4a5a4a"/>
+      <g fill="#fff3a8"><rect x="2.7" y="-1.05" width="0.3" height="0.4"/><rect x="2.7" y="0.65" width="0.3" height="0.4"/></g>
     </svg>`,
   },
   superload: {

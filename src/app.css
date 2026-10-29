@@ -5,7 +5,7 @@
   --line: #d9dee6; --line-strong: #b9c1cd;
   --accent: #ffcf33; --accent-ink: #2a2310; --accent-soft: #fff4cc;
   --good: #2f9a5a; --bad: #d6453a;
-  --pax: #d6453a; --cargo: #a36a33; --fuel: #7b4fc9; --bulk: #4f6d7a; --mail: #2a6fd6; --wide: #d9822b;
+  --pax: #d6453a; --cargo: #a36a33; --fuel: #7b4fc9; --bulk: #4f6d7a; --mail: #2a6fd6; --wide: #d9822b; --secure: #a8801a;
   --shadow: 0 1px 2px rgba(20,28,45,.08), 0 2px 8px rgba(20,28,45,.06);
   --r: 12px;
   color-scheme: light;
@@ -21,7 +21,7 @@
     --line: #2f3448; --line-strong: #454c66;
     --accent-soft: #3a3320;
     --good: #4cc27a; --bad: #f06a5e;
-    --pax: #f07468; --cargo: #d39a5e; --fuel: #a98af0; --bulk: #8fb3c4; --mail: #6a9ff0; --wide: #f0a35e;
+    --pax: #f07468; --cargo: #d39a5e; --fuel: #a98af0; --bulk: #8fb3c4; --mail: #6a9ff0; --wide: #f0a35e; --secure: #e6c35a;
     --shadow: 0 1px 2px rgba(0,0,0,.3);
     color-scheme: dark;
   }
@@ -33,7 +33,7 @@
   --line: #2f3448; --line-strong: #454c66;
   --accent-soft: #3a3320;
   --good: #4cc27a; --bad: #f06a5e;
-  --pax: #f07468; --cargo: #d39a5e; --fuel: #a98af0; --bulk: #8fb3c4; --mail: #6a9ff0; --wide: #f0a35e;
+  --pax: #f07468; --cargo: #d39a5e; --fuel: #a98af0; --bulk: #8fb3c4; --mail: #6a9ff0; --wide: #f0a35e; --secure: #e6c35a;
   --shadow: 0 1px 2px rgba(0,0,0,.3);
   color-scheme: dark;
 }
@@ -139,7 +139,7 @@ button.row:disabled { opacity: .5; cursor: default; }
 .act { font-size: 12px; font-weight: 600; padding: 5px 10px; border-radius: 999px; background: var(--accent); color: var(--accent-ink); }
 .right { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; text-align: right; }
 .ticon { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 10px; flex: none; background: color-mix(in srgb, currentColor 13%, transparent); }
-.t-pax { color: var(--pax); } .t-cargo { color: var(--cargo); } .t-fuel { color: var(--fuel); } .t-bulk { color: var(--bulk); } .t-mail { color: var(--mail); } .t-wide { color: var(--wide); }
+.t-pax { color: var(--pax); } .t-cargo { color: var(--cargo); } .t-fuel { color: var(--fuel); } .t-bulk { color: var(--bulk); } .t-mail { color: var(--mail); } .t-wide { color: var(--wide); } .t-secure { color: var(--secure); }
 .pv { width: 64px; height: 34px; display: grid; place-items: center; background: #3567a8; border-radius: 9px; flex: none; overflow: hidden; }
 .pv.wide { width: 84px; height: 48px; }
 
@@ -150,10 +150,10 @@ button.row:disabled { opacity: .5; cursor: default; }
 .loadhead { display: flex; align-items: center; gap: 10px; margin: 2px 0 10px; }
 .meters { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 4px; }
 .meter { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; font-weight: 500; font-size: 14px; font-variant-numeric: tabular-nums; background: color-mix(in srgb, currentColor 12%, var(--panel-2)); border-radius: 999px; color: var(--ink); }
-.meter.t-pax { color: var(--pax); } .meter.t-cargo { color: var(--cargo); } .meter.t-fuel { color: var(--fuel); } .meter.t-bulk { color: var(--bulk); } .meter.t-mail { color: var(--mail); } .meter.t-wide { color: var(--wide); }
+.meter.t-pax { color: var(--pax); } .meter.t-cargo { color: var(--cargo); } .meter.t-fuel { color: var(--fuel); } .meter.t-bulk { color: var(--bulk); } .meter.t-mail { color: var(--mail); } .meter.t-wide { color: var(--wide); } .meter.t-secure { color: var(--secure); }
 .meter.full { background: currentColor; }
 .meter.full, .meter.full :is(svg) { color: var(--panel-2); }
-.meter.t-pax.full { background: var(--pax); } .meter.t-cargo.full { background: var(--cargo); } .meter.t-fuel.full { background: var(--fuel); } .meter.t-bulk.full { background: var(--bulk); } .meter.t-mail.full { background: var(--mail); } .meter.t-wide.full { background: var(--wide); }
+.meter.t-pax.full { background: var(--pax); } .meter.t-cargo.full { background: var(--cargo); } .meter.t-fuel.full { background: var(--fuel); } .meter.t-bulk.full { background: var(--bulk); } .meter.t-mail.full { background: var(--mail); } .meter.t-wide.full { background: var(--wide); } .meter.t-secure.full { background: var(--secure); }
 .footer { position: sticky; bottom: 0; display: flex; gap: 8px; padding: 12px 0 8px; background: linear-gradient(transparent, var(--panel) 30%); margin-top: 4px; }
 .footer .btn { flex: 1; }
 

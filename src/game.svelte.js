@@ -1,4 +1,4 @@
-import { CITIES, RAILS, ROADS, ROAD_OFF, LANE, roadSide, ENGINES, CARS, PLANES, BOATS, BARGES, TRUCKS, TRAILERS, LEVELS, RATES, SPEED, CITY_PRICE, START_CITIES, JOB_TYPES, MAGLEV_LINES, REPEAT_ROUTES, WEAR, MAIL, WIDE, GROWTH, SIZE_NAME, DEPOT, TYPE_LABEL, CONTRACTS, SUPERLOAD, ESCORT_LABEL } from './data.js';
+import { CITIES, RAILS, ROADS, ROAD_OFF, LANE, roadSide, ENGINES, CARS, PLANES, BOATS, BARGES, TRUCKS, TRAILERS, LEVELS, RATES, SPEED, CITY_PRICE, START_CITIES, JOB_TYPES, MAGLEV_LINES, REPEAT_ROUTES, WEAR, MAIL, WIDE, SECURE, GROWTH, SIZE_NAME, DEPOT, TYPE_LABEL, CONTRACTS, SUPERLOAD, ESCORT_LABEL } from './data.js';
 import { seaLane } from './sea.js';
 
 const KEY = 'pixel-transport-save-v1';
@@ -7,7 +7,7 @@ const LOOP_WAIT = 30 * 1000;
 const JOB_CAP = 6;
 // a job left waiting at its town this long (game time) goes elsewhere, so towns can't clog up
 export const JOB_TTL = 15 * 60 * 1000;
-export const jobTtl = (j) => (j.type === 'mail' ? MAIL.ttl : JOB_TTL);
+export const jobTtl = (j) => (j.type === 'mail' ? MAIL.ttl : j.type === 'secure' ? SECURE.ttl : JOB_TTL);
 
 export const cityById = Object.fromEntries(CITIES.map((c) => [c.id, c]));
 
@@ -245,8 +245,8 @@ function pickWeighted(items) {
 }
 
 // the level each job type starts turning up at, and how often it does after that
-const TYPE_LEVEL = { pax: 1, cargo: 1, bulk: 4, fuel: 6, mail: MAIL.level, wide: WIDE.level };
-const TYPE_WEIGHT = { pax: 5, cargo: 4, fuel: 2, bulk: 2, mail: 3, wide: 1 };
+const TYPE_LEVEL = { pax: 1, cargo: 1, bulk: 4, fuel: 6, mail: MAIL.level, wide: WIDE.level, secure: SECURE.level };
+const TYPE_WEIGHT = { pax: 5, cargo: 4, fuel: 2, bulk: 2, mail: 3, wide: 1, secure: 2 };
 
 // the job types town A turns up, as [type, weight] pairs
 function jobTypes(g, A) {
@@ -255,6 +255,7 @@ function jobTypes(g, A) {
   if ((A.rail || A.port) && g.level >= TYPE_LEVEL.fuel) types.push(['fuel', TYPE_WEIGHT.fuel]);
   if ((A.rail || A.port) && g.level >= TYPE_LEVEL.bulk) types.push(['bulk', TYPE_WEIGHT.bulk]);
   if (g.level >= MAIL.level) types.push(['mail', TYPE_WEIGHT.mail]);
+  if (g.level >= SECURE.level) types.push(['secure', TYPE_WEIGHT.secure]);
   if (A.road && g.level >= WIDE.level && jobDests(g, A, 'wide').length) types.push(['wide', TYPE_WEIGHT.wide]);
   return types;
 }
@@ -342,7 +343,7 @@ function load() {
 const loaded = load();
 export const game = $state(loaded ?? fresh());
 export const ui = $state({
-  tab: 'city', sheetOpen: true, activeVehicle: null, picking: false, plan: [], repeat: false, sendJob: null,
+  tab: 'city', sheetOpen: true, activeVehicle: null, picking: false, plan: [], repeat: false, escort: false, sendJob: null,
   focusVehicle: null, toasts: [], focus: null, follow: null, track: null,
 });
 // Game time runs ahead of the wall clock when dev mode speeds it up. The extra is kept
@@ -436,8 +437,9 @@ function books(v) { return (v.books ??= { earned: 0, fuel: 0, since: gameNow() }
 // hand over everything on board that's for this town, and get paid for it; at is when (game time)
 function dropOff(v, to, at = gameNow()) {
   let total = 0, n = 0;
+  const pay = (j) => Math.round(j.pay * payBoost(v, j));
   v.cargo = v.cargo.filter((j) => {
-    if (j.to === to) { total += j.pay; n++; grow(j.to); grow(j.from); countToward(j, at); return false; }
+    if (j.to === to) { total += pay(j); n++; grow(j.to); grow(j.from); countToward(j, at); return false; }
     return true;
   });
   if (n) { earn(total); books(v).earned += total; }
@@ -714,6 +716,17 @@ export function escortText(needs) {
 export function escortsOf(v) { return game.vehicles.filter((x) => x.escorting === v.id); }
 export function escortee(x) { return x.escorting != null ? game.vehicles.find((v) => v.id === x.escorting) : null; }
 
+// valuables pay more with a police car riding along
+export function payBoost(v, j) {
+  return j.type === 'secure' && escortsOf(v).some((x) => escortKind(x) === 'police') ? 1 + SECURE.escortBonus : 1;
+}
+
+// a free escort here that this vehicle can take along if it likes (an armored car's police car), or null
+export function optionalEscort(v) {
+  const kind = v.kind === 'truck' ? TRUCKS[v.model].escortedBy : null;
+  return kind ? freeEscorts(v.city, v.id).find((x) => escortKind(x) === kind) ?? null : null;
+}
+
 // the convoy breaks up where the route ends
 function releaseEscorts(v, at) {
   for (const x of escortsOf(v)) { delete x.escorting; x.city = at; }
@@ -886,7 +899,9 @@ export function loopStops(v, stops) {
 
 // fuel for the whole route is paid up front. With repeat, the vehicle comes back to where it
 // started and goes round again; lap is for those later laps, which set off at a given time quietly.
-export function dispatch(v, stops, { repeat = false, lap = null } = {}) {
+// escort: take along the optional escort parked here (see optionalEscort); on later laps it just
+// comes if it's still free
+export function dispatch(v, stops, { repeat = false, lap = null, escort = false } = {}) {
   if (repeat && !game.repeatRoutes) { toast('Repeating routes aren’t unlocked yet', 'bad'); return false; }
   if (repeat) stops = loopStops(v, stops);
   // a carrier takes the planes that need it along, and waits for any still flying in to land
@@ -907,6 +922,10 @@ export function dispatch(v, stops, { repeat = false, lap = null } = {}) {
     const { picked, missing } = pickEscorts(v);
     if (missing.length) { toast(`${v.name} needs ${escortText(Object.fromEntries(missing))} more parked at ${cityById[v.city].name} to set off`, 'bad'); return false; }
     escorts = picked.map((x) => ({ x, cost: planLegs(x, stops).reduce((s, l) => s + (l?.cost ?? 0), 0) }));
+  } else if (escort) {
+    const x = optionalEscort(v);
+    if (!x && lap == null) { toast(`No free ${ESCORT_LABEL[TRUCKS[v.model].escortedBy]} parked at ${cityById[v.city].name} to ride along`, 'bad'); return false; }
+    if (x) escorts = [{ x, cost: planLegs(x, stops).reduce((s, l) => s + (l?.cost ?? 0), 0) }];
   }
   const cost = legs.reduce((s, l) => s + l.cost, 0) + escorts.reduce((s, e) => s + e.cost, 0);
   if (game.coins < cost) { toast(lap == null ? `Not enough coins for fuel. You need $${fmt(cost)}.` : `${v.name} stopped repeating. It needs $${fmt(cost)} for fuel.`, 'bad'); return false; }
@@ -926,7 +945,7 @@ export function dispatch(v, stops, { repeat = false, lap = null } = {}) {
   v.trip = { ...first, startAt: lap ?? gameNow() };
   v.next = rest;
   v.depart = { from: v.city, at: v.trip.startAt, len: legs.reduce((s, l) => s + l.len, 0) };
-  if (repeat) v.loop = { stops };
+  if (repeat) v.loop = escort ? { stops, escort } : { stops };
   else if (lap == null) delete v.loop;
   v.city = null;
   if (lap == null) toast(repeat ? `${v.name} is running a ${legs.length} stop loop. Fuel $${fmt(cost)} a lap` : rest.length ? `${v.name} left on a ${legs.length} stop route. Fuel $${fmt(cost)}` : `${v.name} left for ${cityById[first.to].name}. Fuel $${cost}`);
@@ -1014,7 +1033,7 @@ function runLoop(v, at) {
   delete v.loop.wait;
   pickUp(v, v.city);
   if (!v.cargo.length && !loopHasWork(v)) { v.loop.wait = at + LOOP_WAIT; return; }
-  if (!dispatch(v, v.loop.stops, { repeat: true, lap: at })) delete v.loop;
+  if (!dispatch(v, v.loop.stops, { repeat: true, lap: at, escort: !!v.loop.escort })) delete v.loop;
 }
 
 export function buyRepeatRoutes() {

@@ -1,10 +1,10 @@
 <script>
-  import { game, ui, cityById, capacity, used, loadJob, unloadJob, autoLoad, destinations, dispatch, route, canReach, planLegs, autoPlan, toggleStop, fmt, fmtTime, loopStops, buyRepeatRoutes, aboard, canBoard, fitsAboard, deckFor, deckSize, deckUsed, deckRoom, driveOn, driveOff, wear, fetcher, convoyNeeds, pickEscorts, escortText, consistOf } from './game.svelte.js';
+  import { game, ui, cityById, capacity, used, loadJob, unloadJob, autoLoad, destinations, dispatch, route, canReach, planLegs, autoPlan, toggleStop, fmt, fmtTime, loopStops, buyRepeatRoutes, aboard, canBoard, fitsAboard, deckFor, deckSize, deckUsed, deckRoom, driveOn, driveOff, wear, fetcher, convoyNeeds, pickEscorts, escortText, consistOf, optionalEscort } from './game.svelte.js';
   import Icon from './Icon.svelte';
   import Sprite from './Sprite.svelte';
   import JobRow from './JobRow.svelte';
   import { send, receive, flip, fly } from './motion.js';
-  import { TYPE_LABEL, JOB_TYPES, ENGINES, TRUCKS, REPEAT_ROUTES, ESCORT_LABEL } from './data.js';
+  import { TYPE_LABEL, JOB_TYPES, ENGINES, TRUCKS, REPEAT_ROUTES, ESCORT_LABEL, SECURE } from './data.js';
   let { v } = $props();
   const cap = $derived(capacity(v));
   const u = $derived(used(v));
@@ -15,12 +15,18 @@
   // route planning
   // a repeating route also drives back to where it started
   const looping = $derived(ui.repeat && game.repeatRoutes);
-  const legs = $derived(planLegs(v, looping ? loopStops(v, ui.plan) : ui.plan));
+  const stops = $derived(looping ? loopStops(v, ui.plan) : ui.plan);
+  const legs = $derived(planLegs(v, stops));
   const last = $derived(ui.plan.length ? ui.plan[ui.plan.length - 1] : v.city);
   // a superload's convoy: the escorts it needs, which are parked here, and their fuel for the route
   const needs = $derived(convoyNeeds(v));
   const convoy = $derived(pickEscorts(v));
-  const escFuel = $derived(convoy.picked.reduce((s, x) => s + planLegs(x, ui.plan).reduce((a, l) => a + (l?.cost ?? 0), 0), 0));
+  // an armored car can take a police car along if one's parked here, and valuables pay more for it
+  const optKind = $derived(v.kind === 'truck' ? TRUCKS[v.model].escortedBy ?? null : null);
+  const sidekick = $derived(optKind ? optionalEscort(v) : null);
+  const riding = $derived(ui.escort && sidekick ? [sidekick] : []);
+  const boost = (j) => (j.type === 'secure' && riding.length ? 1 + SECURE.escortBonus : 1);
+  const escFuel = $derived([...convoy.picked, ...riding].reduce((s, x) => s + planLegs(x, stops).reduce((a, l) => a + (l?.cost ?? 0), 0), 0));
   const total = $derived(legs.reduce((s, l) => ({ cost: s.cost + (l?.cost ?? 0), time: s.time + (l?.time ?? 0) }), { cost: escFuel, time: 0 }));
   const broken = $derived(legs.some((l) => !l));
   // what this route makes: drop off pay against fuel
@@ -30,7 +36,7 @@
     const out = ui.plan.map(() => ({ n: 0, pay: 0 }));
     for (const j of v.cargo) {
       const i = ui.plan.indexOf(j.to);
-      if (i >= 0) { out[i].n++; out[i].pay += j.pay; }
+      if (i >= 0) { out[i].n++; out[i].pay += Math.round(j.pay * boost(j)); }
     }
     return out;
   });
@@ -45,7 +51,7 @@
   );
   const unrouted = $derived(v.cargo.filter((j) => !routed.has(j.to) && canReach(v, j.to)).length);
 
-  const NEEDS = { pax: 'passenger car', cargo: 'boxcar', fuel: 'tanker', bulk: 'hopper car', mail: 'mail car', wide: 'flatcar' };
+  const NEEDS = { pax: 'passenger car', cargo: 'boxcar', fuel: 'tanker', bulk: 'hopper car', mail: 'mail car', wide: 'flatcar', secure: 'vault car' };
   const TRAILER_NEEDS = { cargo: 'van trailer', fuel: 'tank trailer', bulk: 'dump trailer', wide: 'lowboy trailer' };
   function blocker(j) {
     const f = fetcher(j);
@@ -60,6 +66,7 @@
       const what = TYPE_LABEL[j.type].toLowerCase();
       if (j.type === 'wide' && v.kind !== 'truck' && v.kind !== 'train') return { block: true, text: 'Wide loads only go overland, on a lowboy trailer or flatcar' };
       if (j.type === 'mail' && v.kind === 'truck') return { block: true, text: 'Mail needs a mail van' };
+      if (j.type === 'secure' && v.kind === 'truck') return { block: true, text: 'Valuables need an armored car' };
       if (v.kind === 'plane') return { block: true, text: `No room for ${what} on this plane` };
       if (v.kind === 'boat') return { block: true, text: `No room for ${what} on this boat` };
       if (v.kind === 'truck') {
@@ -83,7 +90,7 @@
   const WORDS = { truck: { on: 'Drive on', off: 'Drive off', big: 'Too long to carry', none: 'trucks', aboard: 'drive it aboard' }, plane: { on: 'Take aboard', off: 'Launch', big: 'Too big for a carrier', none: 'planes', aboard: 'take it aboard' } };
   const w = $derived(WORDS[rides ?? 'truck']);
   function plan() { ui.plan = autoPlan(v); ui.picking = true; }
-  function go() { if (dispatch(v, ui.plan, { repeat: looping })) { ui.picking = false; ui.activeVehicle = null; ui.plan = []; } }
+  function go() { if (dispatch(v, ui.plan, { repeat: looping, escort: riding.length > 0 })) { ui.picking = false; ui.activeVehicle = null; ui.plan = []; } }
 </script>
 
 <div class="loadhead">
@@ -151,6 +158,12 @@
   {:else}
     <p class="muted">Nowhere in range from {cityById[last].name}.</p>
   {/each}
+  {#if optKind}
+    <label class="row repeat" class:off={!sidekick}>
+      <input type="checkbox" bind:checked={ui.escort} disabled={!sidekick} />
+      <span class="grow"><b>{ESCORT_LABEL[optKind][0].toUpperCase() + ESCORT_LABEL[optKind].slice(1)} escort</b><small>{sidekick ? `${sidekick.name} rides along in convoy. Valuables pay +${Math.round(SECURE.escortBonus * 100)}%.` : `Park a ${ESCORT_LABEL[optKind]} at ${city.name} to bring one along. Valuables pay +${Math.round(SECURE.escortBonus * 100)}% with it.`}</small></span>
+    </label>
+  {/if}
   {#if game.repeatRoutes}
     <label class="row repeat">
       <input type="checkbox" bind:checked={ui.repeat} />
@@ -230,5 +243,6 @@
   .chips { display: flex; flex-wrap: wrap; gap: 6px; }
   .chip { font-size: 12px; font-weight: 600; padding: 2px 9px; border-radius: 999px; background: color-mix(in srgb, var(--good) 18%, transparent); text-transform: capitalize; }
   .chip.short { background: color-mix(in srgb, var(--bad) 18%, transparent); }
+  .repeat.off { opacity: .6; cursor: default; }
   .repeat input { width: 20px; height: 20px; flex: none; accent-color: var(--accent); }
 </style>

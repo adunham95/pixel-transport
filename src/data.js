@@ -261,6 +261,10 @@ export const MAIL = { level: 2, ttl: 4 * 60 * 1000 };
 // wide loads (turbine blades, boat hulls, little houses) only go overland, on lowboy trailers or
 // flatcars, between mainland towns on the same landmass
 export const WIDE = { level: 8 };
+// valuables (gold, cash, art) turn up everywhere from this level, in armored cars, vault cars,
+// courier launches and courier jets. They pay the most per mile but, like mail, only wait ttl.
+// With a police car riding along an armored car (escortedBy in TRUCKS), they pay escortBonus more.
+export const SECURE = { level: 11, ttl: 3 * 60 * 1000, escortBonus: 0.3 };
 // towns grow as jobs to and from them are delivered: GROWTH[i] deliveries to reach size i + 1.
 // Each size up adds jobs, spawns them faster and pays 10% more for jobs leaving the town.
 export const GROWTH = [0, 25, 75, 175, 350];
@@ -298,16 +302,16 @@ export const SUPERLOAD = {
 export const ESCORT_LABEL = { pilot: "pilot car", police: "police car", pusher: "push truck", bucket: "bucket truck" };
 export const CONTRACTS = {
   level: 3, offers: 3, active: 2, every: 45 * 1000, offerTtl: 10 * 60 * 1000,
-  size: { pax: [5, 9], cargo: [4, 8], mail: [4, 7], fuel: [3, 6], bulk: [6, 12], wide: [2, 3] },
+  size: { pax: [5, 9], cargo: [4, 8], mail: [4, 7], fuel: [3, 6], bulk: [6, 12], wide: [2, 3], secure: [2, 4] },
   waitSlack: 2, trips: 2, speed: 5, speedUp: 0.6, extra: 2 * 60 * 1000, perMin: 30, payUp: 0.1,
 };
 
 // xp needed to reach level i+1
 export const LEVELS = [0, 850, 2500, 4400, 6350, 8400, 10850, 13800, 17250, 21350, 26350, 31950];
 // job types; bulk (coal, grain, ore) turns up in batches and pays less per load
-export const JOB_TYPES = ["pax", "cargo", "fuel", "bulk", "mail", "wide"];
-export const RATES = { pax: 0.9, cargo: 0.8, fuel: 1.3, bulk: 0.45, mail: 1.6, wide: 2.6 };
-export const TYPE_LABEL = { pax: "Passengers", cargo: "Cargo", fuel: "Fuel", bulk: "Bulk", mail: "Mail", wide: "Wide load" };
+export const JOB_TYPES = ["pax", "cargo", "fuel", "bulk", "mail", "wide", "secure"];
+export const RATES = { pax: 0.9, cargo: 0.8, fuel: 1.3, bulk: 0.45, mail: 1.6, wide: 2.6, secure: 3 };
+export const TYPE_LABEL = { pax: "Passengers", cargo: "Cargo", fuel: "Fuel", bulk: "Bulk", mail: "Mail", wide: "Wide load", secure: "Valuables" };
 // maglev express lines: each is a list of towns, joined in order by an elevated guideway.
 // Maglev trains only run on these and only stop at their towns.
 export const MAGLEV_LINES = [

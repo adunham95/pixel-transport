@@ -14,6 +14,8 @@
     <rect x="3" y="5.5" width="18" height="13" rx="2" /><path d="m3.5 7 8.5 6.5L20.5 7" />
   {:else if name === 'wide'}
     <rect x="7" y="8" width="10" height="8" rx="1" /><path d="M2 12h3M19 12h3M4 10l-2 2 2 2M20 10l2 2-2 2" />
+  {:else if name === 'secure'}
+    <rect x="4.5" y="10.5" width="15" height="10" rx="2" /><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3M12 14.5v2.5" />
   {:else if name === 'coin'}
     <circle cx="12" cy="12" r="9" fill="currentColor" stroke="none" /><path d="M12 7.5v9M14.5 9.5c-.5-1-1.4-1.5-2.5-1.5-1.5 0-2.5.8-2.5 2s1 1.6 2.5 2 2.5.8 2.5 2-1 2-2.5 2c-1.2 0-2.1-.6-2.6-1.6" stroke="#5a4314" stroke-width="1.8" />
   {/if}

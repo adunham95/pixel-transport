@@ -1,7 +1,7 @@
 <script>
   import { game, cityById, buyPlane, buyEngine, buyBoat, buyTruck, buyRepeatRoutes, isOpen, canBase, fmt } from './game.svelte.js';
   import { ENGINES, CARS, PLANES, BOATS, BARGES, TRUCKS, TRAILERS, MI, TYPE_LABEL, JOB_TYPES, REPEAT_ROUTES, ESCORT_LABEL } from './data.js';
-  const UNIT = { pax: 'seats', cargo: 'cargo', fuel: 'fuel', bulk: 'bulk', mail: 'mail', wide: 'wide load' };
+  const UNIT = { pax: 'seats', cargo: 'cargo', fuel: 'fuel', bulk: 'bulk', mail: 'mail', wide: 'wide load', secure: 'valuables' };
   const holds = (cap) => JOB_TYPES.filter((t) => cap[t]).map((t) => `${cap[t]} ${UNIT[t]}`).join(', ');
   // demo consist for the shop picture: freight engines don't get a passenger car
   const demo = (e) => (e.freightOnly ? ['box', 'hopper', 'tank'] : ['pax', 'box', 'tank']).slice(0, Math.min(3, e.maxCars));
