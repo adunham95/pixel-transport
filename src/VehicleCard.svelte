@@ -18,12 +18,14 @@
   <div class="track" transition:fly={{ y: -20, duration: 240 }}>
     {#key v.id}<div in:fade={{ duration: 180 }}>
     <div class="track-head">
-      <span class="pv"><Sprite kind={v.kind} model={v.model} cars={v.cars ?? []} scale={3} /></span>
-      <span class="grow">
-        <b>{v.name}</b>
-        <small>{KIND[v.kind]} · {spec(v).name}{info.stops ? ` · ${info.stops + 1} stops` : ''}</small>
-        <LoadBadges {v} />
-      </span>
+      <button class="open" aria-label="Open {v.name} in Fleet" onclick={() => Object.assign(ui, { tab: 'fleet', sheetOpen: true, focusVehicle: v.id })}>
+        <span class="pv"><Sprite kind={v.kind} model={v.model} cars={v.cars ?? []} scale={3} /></span>
+        <span class="grow">
+          <b>{v.name} <span class="chev">›</span></b>
+          <small>{KIND[v.kind]} · {spec(v).name}{info.stops ? ` · ${info.stops + 1} stops` : ''}</small>
+          <LoadBadges {v} />
+        </span>
+      </button>
       {#if ui.follow !== v.id}<button class="btn small" onclick={() => (ui.follow = v.id)}>Follow</button>{/if}
       <button class="x" aria-label="Close" onclick={() => (ui.track = ui.follow = null)}>×</button>
     </div>
@@ -53,6 +55,10 @@
 <style>
   .track { pointer-events: auto; width: 100%; background: var(--panel-2); color: var(--ink); border-radius: 14px; box-shadow: 0 6px 20px rgba(10,16,30,.28); padding: 10px 12px; }
   .track-head { display: flex; align-items: center; gap: 10px; }
+  /* the vehicle itself opens its card in the Fleet tab */
+  .open { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; border: 0; background: none; padding: 4px; margin: -4px; font: inherit; color: inherit; text-align: left; cursor: pointer; border-radius: 10px; transition: background .15s; }
+  .open:hover { background: var(--panel-3); }
+  .chev { color: var(--ink-soft); font-weight: 600; }
   .x { border: 0; background: var(--panel-3); width: 28px; height: 28px; flex: none; cursor: pointer; border-radius: 50%; font-weight: 600; font-size: 16px; }
   .ends { display: flex; justify-content: space-between; gap: 12px; margin-top: 10px; }
   .ends div { display: flex; flex-direction: column; gap: 1px; min-width: 0; }

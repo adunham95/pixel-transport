@@ -251,6 +251,9 @@ export { ENGINES, CARS, PLANES, BOATS, BARGES, TRUCKS, TRAILERS } from "./vehicl
 
 // repeating routes are bought once, for the whole fleet, from this level on
 export const REPEAT_ROUTES = { level: 3, price: 4000 };
+// vehicles age as they travel: fuel costs step more for every `per` world units, up to max.
+// A service resets it, costing the vehicle's price times its wear times `service`.
+export const WEAR = { per: 2500, step: 0.1, max: 0.5, service: 0.5 };
 
 // xp needed to reach level i+1
 export const LEVELS = [0, 400, 1000, 2000, 3500, 5500, 8500, 12500, 18000];

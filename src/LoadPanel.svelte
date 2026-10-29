@@ -1,5 +1,5 @@
 <script>
-  import { game, ui, cityById, capacity, used, loadJob, unloadJob, autoLoad, destinations, dispatch, route, canReach, planLegs, autoPlan, toggleStop, fmt, fmtTime, loopStops, buyRepeatRoutes, aboard, canBoard, fitsAboard, deckFor, deckSize, deckUsed, deckRoom, driveOn, driveOff } from './game.svelte.js';
+  import { game, ui, cityById, capacity, used, loadJob, unloadJob, autoLoad, destinations, dispatch, route, canReach, planLegs, autoPlan, toggleStop, fmt, fmtTime, loopStops, buyRepeatRoutes, aboard, canBoard, fitsAboard, deckFor, deckSize, deckUsed, deckRoom, driveOn, driveOff, wear } from './game.svelte.js';
   import Icon from './Icon.svelte';
   import Sprite from './Sprite.svelte';
   import JobRow from './JobRow.svelte';
@@ -19,6 +19,8 @@
   const last = $derived(ui.plan.length ? ui.plan[ui.plan.length - 1] : v.city);
   const total = $derived(legs.reduce((s, l) => ({ cost: s.cost + (l?.cost ?? 0), time: s.time + (l?.time ?? 0) }), { cost: 0, time: 0 }));
   const broken = $derived(legs.some((l) => !l));
+  // what this route makes: drop off pay against fuel
+  const pay = $derived(drops.reduce((s, d) => s + d.pay, 0));
   // what gets dropped where: cargo leaves at the first planned stop that matches
   const drops = $derived.by(() => {
     const out = ui.plan.map(() => ({ n: 0, pay: 0 }));
@@ -135,6 +137,14 @@
       <button class="btn small" disabled={locked || game.coins < REPEAT_ROUTES.price} onclick={buyRepeatRoutes}>{locked ? `Lv ${REPEAT_ROUTES.level}` : `$${fmt(REPEAT_ROUTES.price)}`}</button>
     </div>
   {/if}
+  {#if ui.plan.length && !broken}
+    <div class="profit">
+      <div><small>Drop offs</small><b>+${fmt(pay)}</b></div>
+      <div><small>Fuel{#if wear(v)} (+{Math.round(wear(v) * 100)}% age){/if}</small><b>−${fmt(total.cost)}</b></div>
+      <div><small>{looping ? 'First lap' : 'Profit'}</small><b class:loss={pay < total.cost}>{pay < total.cost ? '−' : '+'}${fmt(Math.abs(pay - total.cost))}</b></div>
+    </div>
+    {#if looping}<p class="muted small">Later laps earn from whatever they pick up along the way.</p>{/if}
+  {/if}
   <div class="footer">
     <button class="btn" onclick={() => { ui.picking = false; ui.plan = []; }}>Back</button>
     {#if unrouted}<button class="btn" onclick={plan}>Route cargo</button>{/if}
@@ -183,5 +193,10 @@
 
 <style>
   .repeat { margin-top: 10px; cursor: pointer; }
+  .profit { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin: 12px 0 4px; padding: 8px 10px; background: var(--panel-3); border-radius: var(--r); }
+  .profit div { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+  .profit small { color: var(--ink-soft); font-size: 12px; }
+  .profit b { font-weight: 600; font-variant-numeric: tabular-nums; }
+  .profit .loss { color: var(--bad); }
   .repeat input { width: 20px; height: 20px; flex: none; accent-color: var(--accent); }
 </style>

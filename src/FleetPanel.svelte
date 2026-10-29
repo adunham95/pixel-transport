@@ -1,12 +1,18 @@
 <script>
-  import { game, ui, dev, setDev, cityById, capacity, endRoute, addCar, removeCar, canRemoveCar, upgradeEngine, upgradeCost, sellVehicle, sellValue, resetGame, openLoad, followVehicle, etaText, fmt, stopRepeating, spec, tailSpecs, tailName, aboard, carrierOf, deckUsed, deckRoom, deckFor, finances, clock } from './game.svelte.js';
+  import { game, ui, dev, setDev, cityById, capacity, endRoute, addCar, removeCar, canRemoveCar, upgradeEngine, upgradeCost, sellVehicle, sellValue, resetGame, openLoad, followVehicle, etaText, fmt, stopRepeating, spec, tailSpecs, tailName, aboard, carrierOf, deckUsed, deckRoom, deckFor, finances, clock, wear, service, serviceCost } from './game.svelte.js';
   import { ENGINES, TRUCKS, BOATS, PLANES, MI, JOB_TYPES } from './data.js';
   import Sprite from './Sprite.svelte';
   import LoadBadges from './LoadBadges.svelte';
-  import { slide } from './motion.js';
+  import { slide, reduced } from './motion.js';
   const LEADS = { train: ENGINES, truck: TRUCKS, boat: BOATS };
   // which vehicle's upgrade list is dropped down, if any
   let upgrading = $state(null);
+  // bring a card into view when it's opened, including from the map's route card
+  function reveal(node, on) {
+    const go = (on) => on && setTimeout(() => node.scrollIntoView({ block: 'nearest', behavior: reduced ? 'auto' : 'smooth' }), 80);
+    go(on);
+    return { update: go };
+  }
   const money = (n) => `${n < 0 ? '−' : ''}$${fmt(Math.abs(n))}`;
   // the whole fleet's takings, for the summary up top
   const books = $derived(game.vehicles.map((v) => finances(v, clock.now)));
@@ -29,11 +35,12 @@
 {#each game.vehicles as v, i (v.id)}
   {@const open = ui.focusVehicle === v.id}
   {@const f = books[i]}
-  <div class="card" class:open>
+  {@const wr = wear(v)}
+  <div class="card" class:open use:reveal={open}>
     <button class="row vrow card-head" onclick={() => (ui.focusVehicle = open ? null : v.id)}>
       <span class="pv"><Sprite kind={v.kind} model={v.model} cars={v.cars ?? []} scale={3} /></span>
       <span class="grow">
-        <b>{v.name}{#if v.loop}<span class="tag hub mini">Repeating</span>{/if}{#if f.perHour != null}<span class="tag mini" class:loss={f.perHour < 0}>{money(f.perHour)}/h</span>{/if}</b>
+        <b>{v.name}{#if v.loop}<span class="tag hub mini">Repeating</span>{/if}{#if f.perHour != null}<span class="tag mini" class:loss={f.perHour < 0}>{money(f.perHour)}/h</span>{/if}{#if wr >= 0.3}<span class="tag mini loss">Needs service</span>{/if}</b>
         <small>{v.trip ? `To ${cityById[v.trip.to].name}, ${etaText(v)} left${v.next?.length ? `, then ${v.next.length} more stop${v.next.length > 1 ? 's' : ''}` : ''}` : where(v)}</small>
         <LoadBadges {v} />
       </span>
@@ -50,6 +57,10 @@
         <div class="payback"><i style:width="{Math.min(100, Math.max(0, f.paidBack * 100))}%"></i></div>
         <p class="muted small">{f.paidBack >= 1 ? 'Paid for itself' : `Paid back ${Math.max(0, Math.floor(f.paidBack * 100))}% of what it cost`}</p>
         {#if v.kind === 'plane'}<div class="meters"><span class="meter">Range {Math.round(PLANES[v.model].range * MI)} mi</span></div>{/if}
+        <div class="row age">
+          <span class="grow"><b>{Math.round((v.miles ?? 0) * MI)} mi on it</b><small>{wr ? `Burns ${Math.round(wr * 100)}% more fuel with age. Service it, or sell it.` : 'Running like new. Burns more fuel as the miles add up.'}</small></span>
+          {#if wr && v.city}<button class="btn small" disabled={game.coins < serviceCost(v)} onclick={() => service(v)}>Service ${fmt(serviceCost(v))}</button>{/if}
+        </div>
 
         {#if v.cars && spec(v).maxCars}
           {@const e = spec(v)}
@@ -138,6 +149,7 @@
 
 <style>
   .drop { margin-top: 10px; }
+  .age { margin: 8px 0; }
   .books { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin: 6px 0 10px; padding: 10px 12px; background: var(--panel-2); border: 1px solid var(--line); border-radius: var(--r); }
   .books.small { margin: 0 0 6px; padding: 8px 10px; background: var(--panel-3); border: 0; }
   .books div { display: flex; flex-direction: column; gap: 1px; min-width: 0; }

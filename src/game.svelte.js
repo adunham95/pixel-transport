@@ -1,4 +1,4 @@
-import { CITIES, RAILS, ROADS, ROAD_OFF, LANE, roadSide, ENGINES, CARS, PLANES, BOATS, BARGES, TRUCKS, TRAILERS, LEVELS, RATES, SPEED, CITY_PRICE, START_CITIES, JOB_TYPES, MAGLEV_LINES, REPEAT_ROUTES } from './data.js';
+import { CITIES, RAILS, ROADS, ROAD_OFF, LANE, roadSide, ENGINES, CARS, PLANES, BOATS, BARGES, TRUCKS, TRAILERS, LEVELS, RATES, SPEED, CITY_PRICE, START_CITIES, JOB_TYPES, MAGLEV_LINES, REPEAT_ROUTES, WEAR } from './data.js';
 import { seaLane } from './sea.js';
 
 const KEY = 'pixel-transport-save-v1';
@@ -134,6 +134,12 @@ export function canLoad(v, job) {
   return used(v)[job.type] < capacity(v)[job.type];
 }
 
+// how much extra fuel a vehicle burns from the miles on it, from 0 up to WEAR.max
+export function wear(v) {
+  return Math.min(WEAR.max, Math.floor((v.miles ?? 0) / WEAR.per) * WEAR.step);
+}
+const fuel = (v, base) => Math.max(1, Math.ceil(base * (1 + wear(v))));
+
 // one hop between two cities for this vehicle, or null if it can't make it
 export function leg(v, from, to) {
   // vehicles can't stop at locked towns (trains may still roll through them on the way)
@@ -145,7 +151,7 @@ export function leg(v, from, to) {
     return {
       from, to, len: p.len,
       pts: p.ids.map((id) => [cityById[id].x, cityById[id].y]),
-      cost: Math.max(1, Math.ceil(p.len * (e.run + 0.04 * v.cars.length))),
+      cost: fuel(v, p.len * (e.run + 0.04 * v.cars.length)),
       time: p.len / (e.speed * SPEED),
     };
   }
@@ -154,7 +160,7 @@ export function leg(v, from, to) {
     if (!p) return null;
     return {
       from, to, len: p.len, pts: roadPts(p.ids),
-      cost: Math.max(1, Math.ceil(p.len * (t.run + 0.03 * v.cars.length))),
+      cost: fuel(v, p.len * (t.run + 0.03 * v.cars.length)),
       time: p.len / (t.speed * SPEED),
     };
   }
@@ -163,13 +169,13 @@ export function leg(v, from, to) {
     if (!canBase('boat', v.model, cityById[from]) || !canBase('boat', v.model, cityById[to])) return null;
     const lane = seaLane(from, to);
     if (!lane) return null;
-    return { from, to, len: lane.len, pts: lane.pts, cost: Math.max(1, Math.ceil(lane.len * (b.run + 0.02 * (v.cars?.length ?? 0)))), time: lane.len / (b.speed * SPEED) };
+    return { from, to, len: lane.len, pts: lane.pts, cost: fuel(v, lane.len * (b.run + 0.02 * (v.cars?.length ?? 0))), time: lane.len / (b.speed * SPEED) };
   }
   const A = cityById[from], B = cityById[to], p = PLANES[v.model];
   if (!canBase('plane', v.model, A) || !canBase('plane', v.model, B)) return null;
   const d = Math.hypot(A.x - B.x, A.y - B.y);
   if (d > p.range) return null;
-  return { from, to, len: d, pts: [[A.x, A.y], [B.x, B.y]], cost: Math.max(1, Math.ceil(d * p.fuel)), time: d / (p.speed * SPEED) };
+  return { from, to, len: d, pts: [[A.x, A.y], [B.x, B.y]], cost: fuel(v, d * p.fuel), time: d / (p.speed * SPEED) };
 }
 
 export function route(v, to) {
@@ -626,6 +632,7 @@ export function dispatch(v, stops, { repeat = false, lap = null } = {}) {
   if (game.coins < cost) { toast(lap == null ? `Not enough coins for fuel. You need $${fmt(cost)}.` : `${v.name} stopped repeating. It needs $${fmt(cost)} for fuel.`, 'bad'); return false; }
   game.coins -= cost;
   books(v).fuel += cost;
+  v.miles = (v.miles ?? 0) + legs.reduce((s, l) => s + l.len, 0);
   for (const p of stow) { p.aboard = v.id; p.city = null; delete p.loop; }
   if (v.kind === 'boat' && isCarrier(v.model)) reachCache.clear();
   const [first, ...rest] = legs.map((l) => ({ from: l.from, to: l.to, pts: l.pts, len: l.len, dur: l.time * 1000, cost: l.cost }));
@@ -683,6 +690,7 @@ export function stopRepeating(v) {
 export function endRoute(v) {
   if (!v.next?.length) return;
   const refund = v.next.reduce((s, l) => s + l.cost, 0);
+  v.miles -= v.next.reduce((s, l) => s + l.len, 0);
   v.next = [];
   delete v.loop;
   game.coins += refund;
@@ -779,6 +787,7 @@ export function upgradeEngine(v, model) {
   if (e.freightOnly && v.cars.some((c) => tailSpecs(v)[c].holds === 'pax')) { toast(`${e.name} only pulls freight cars. Sell the passenger cars first.`, 'bad'); return; }
   if (!spend(upgradeCost(v, model), e.level, e.name)) return;
   v.model = model;
+  v.miles = 0;
   const n = game.vehicles.filter((x) => x.model === model && x.id !== v.id).length + 1;
   v.name = `${e.name} ${n}`;
   toast(`Swapped in a ${e.name}`, 'good');
@@ -791,6 +800,20 @@ export function finances(v, now = clock.now) {
   const b = v.books ?? { earned: 0, fuel: 0, since: now }, profit = b.earned - b.fuel, age = now - b.since;
   const cost = spec(v).price + (v.cars ?? []).reduce((s, c) => s + tailSpecs(v)[c].price, 0);
   return { ...b, profit, perHour: age > 3 * 60 * 1000 ? profit / (age / 3.6e6) : null, paidBack: profit / cost };
+}
+
+export function serviceCost(v) {
+  return Math.ceil(spec(v).price * wear(v) * WEAR.service);
+}
+
+// a parked vehicle gets back to burning fuel like new
+export function service(v) {
+  if (!v.city || !wear(v)) return;
+  const cost = serviceCost(v);
+  if (game.coins < cost) { toast(`You need $${fmt(cost)} for that`, 'bad'); return; }
+  game.coins -= cost;
+  v.miles = 0;
+  toast(`${v.name} is serviced and running like new`, 'good');
 }
 
 export function sellValue(v) {
