@@ -1,7 +1,7 @@
 <script>
   import { onMount } from 'svelte';
-  import { game, ui, cityById, leg, planLegs, toggleStop, selectCity, posAt, tripProgress, gameNow, isOpen, fx } from './game.svelte.js';
-  import { CITIES, ENGINES, PLANES, W, H } from './data.js';
+  import { game, ui, cityById, leg, planLegs, toggleStop, selectCity, posAt, tripProgress, gameNow, isOpen, fx, darkness } from './game.svelte.js';
+  import { CITIES, ENGINES, PLANES, CARS, W, H } from './data.js';
   import { buildTerrain, makeWaterPattern, R } from './terrain.js';
   import { drawArt, drawConsistRow, trainUnits, consistBox, artSize, loadArt } from './sprites.js';
   import { dockOf } from './sea.js';
@@ -220,11 +220,102 @@
       }
     }
 
+    // ---------- night lights ----------
+    // the sky's tint, multiplied over the map: white by day, warm at dusk, deep blue at night
+    const mix = (a, c, t) => a.map((v, i) => Math.round(v + (c[i] - v) * t));
+    const tint = (k) => `rgb(${k < 0.35 ? mix([255, 255, 255], [255, 205, 170], k / 0.35) : mix([255, 205, 170], [70, 90, 165], (k - 0.35) / 0.65)})`;
+    // a spot on a vehicle's art (sub pixels, front toward +x) out on the map
+    const onArt = (x, y, ang, lx, ly) => [x + V * (lx * Math.cos(ang) - ly * Math.sin(ang)), y + V * (lx * Math.sin(ang) + ly * Math.cos(ang))];
+    function glow(x, y, r, rgb, a) {
+      const g = b.createRadialGradient(x, y, 0, x, y, r);
+      g.addColorStop(0, `rgba(${rgb},${a})`); g.addColorStop(1, `rgba(${rgb},0)`);
+      b.fillStyle = g; b.fillRect(x - r, y - r, r * 2, r * 2);
+    }
+    // a small bright lamp with a halo
+    function lamp([x, y], rgb, a = 1) {
+      glow(x, y, 3.5, rgb, 0.6 * a);
+      b.fillStyle = `rgba(${rgb},${a})`; b.fillRect(Math.floor(x), Math.floor(y), 1, 1);
+    }
+    // a headlight beam fanning out ahead
+    function beam([x, y], ang, len, spread) {
+      const dx = Math.cos(ang), dy = Math.sin(ang), nx = -dy, ny = dx;
+      const g = b.createLinearGradient(x, y, x + dx * len, y + dy * len);
+      g.addColorStop(0, 'rgba(255,236,170,0.5)'); g.addColorStop(1, 'rgba(255,236,170,0)');
+      b.fillStyle = g;
+      b.beginPath();
+      b.moveTo(x + nx * 1.5, y + ny * 1.5);
+      b.lineTo(x + dx * len + nx * spread, y + dy * len + ny * spread);
+      b.lineTo(x + dx * len - nx * spread, y + dy * len - ny * spread);
+      b.lineTo(x - nx * 1.5, y - ny * 1.5);
+      b.fill();
+    }
+    // lit windows, a warm glow over town and runway edge lights; locked towns stay dark
+    function townLights(c, now) {
+      const x = c.x * R, y = c.y * R;
+      glow(x, y - 3, 18, '255,190,110', 0.3);
+      b.fillStyle = '#ffd86b';
+      if (c.island) { b.fillRect(x - 3, y + 1, 1, 1); b.fillRect(x + 2, y + 1, 1, 1); }
+      else for (const [dx, dy, w, rh, wh] of BUILDINGS) {
+        const bx = x + dx, by = y + dy;
+        for (let wy = by + rh + 1; wy < by + rh + wh - 1; wy += 2)
+          for (let wx = bx + 1; wx < bx + w - 1; wx += 2) if ((wx + wy) % 3) b.fillRect(wx, wy, 1, 1);
+      }
+      if (c.air) for (let i = 0; i < 7; i++) {
+        const on = reduced || Math.floor(now / 140) % 7 !== i;
+        for (const ry of [y + 8, y + 13]) lamp([x - 12 + i * 4, ry], on ? '150,200,255' : '60,90,140', 0.8);
+      }
+    }
+    // nav lights: red on the left wingtip, green on the right, a white strobe on the tail
+    function planeLights(x, y, ang, model, now) {
+      const s = artSize('plane', model), p = PLANES[model];
+      lamp(onArt(x, y, ang, 0, -s.h * 0.44), '255,70,60');
+      lamp(onArt(x, y, ang, 0, s.h * 0.44), '80,255,120');
+      const t = now % 1300;
+      if (reduced || t < 70 || (t > 180 && t < 250)) { const tail = onArt(x, y, ang, -s.w * 0.44, 0); lamp(tail, '255,255,255'); glow(tail[0], tail[1], 7, '255,255,255', 0.35); }
+      // helicopters also carry a slow red beacon
+      if (p.rotors && (reduced || now % 1000 < 450)) { const c = onArt(x, y, ang, 0, 0); lamp(c, '255,60,50'); glow(c[0], c[1], 6, '255,60,50', 0.4); }
+    }
+    // red and green at the bow, white on the mast and stern, a glow from the cabin
+    function boatLights(x, y, ang, model) {
+      const s = artSize('boat', model);
+      glow(x, y, 6, '255,210,130', 0.3);
+      lamp(onArt(x, y, ang, s.w * 0.15, 0), '255,255,235');
+      lamp(onArt(x, y, ang, s.w * 0.32, -s.h * 0.4), '255,70,60');
+      lamp(onArt(x, y, ang, s.w * 0.32, s.h * 0.4), '80,255,120');
+      lamp(onArt(x, y, ang, -s.w * 0.48, 0), '255,255,235', 0.7);
+    }
+    // trains: a headlight, lit passenger windows, a red lamp on the last car, maglevs glowing underneath.
+    // trucks and buses: headlights, and tail lights on the back of each trailer (or the truck itself)
+    function consistLights(v, placed) {
+      const pos = (u, lx, ly) => onArt(u.p.x * R, u.p.y * R, u.p.ang, lx, ly);
+      placed.forEach((u, i) => {
+        const s = artSize(u.kind, u.model), last = i === placed.length - 1;
+        if (u.off === 0) {
+          if (v.kind === 'truck') {
+            beam(pos(u, s.w / 2, 0), u.p.ang, 14, 5);
+            for (const side of [-1, 1]) lamp(pos(u, s.w / 2, side * s.h * 0.3), '255,245,200');
+          } else {
+            beam(pos(u, s.w / 2, 0), u.p.ang, 20, 4);
+            lamp(pos(u, s.w / 2, 0), '255,245,200');
+          }
+        }
+        if (v.kind === 'train') {
+          if (ENGINES[v.model].maglev) { const c = pos(u, 0, 0); glow(c[0], c[1], 6, '80,210,255', 0.35); }
+          if (u.kind === 'car' && CARS[u.model].holds === 'pax') { const c = pos(u, 0, 0); glow(c[0], c[1], 6, '255,210,120', 0.5); }
+          if (last) lamp(pos(u, -s.w / 2, 0), '255,60,50');
+        } else if (u.kind === 'trailer' || (last && u.off === 0)) {
+          for (const side of [-1, 1]) lamp(pos(u, -s.w / 2, side * s.h * 0.35), '255,50,40', 0.9);
+        }
+      });
+    }
+
     let raf;
     function frame() {
       raf = requestAnimationFrame(frame);
       if (!bw) return;
       const now = Date.now(), gnow = gameNow(); // now drives animation, gnow drives where vehicles are
+      const dk = darkness(gnow);
+      const lights = []; // drawn over the night sky once everything else is down
 
       if (!centered && sheetPx > 0) { centered = true; const c = cityById[game.selected]; ({ x: camX, y: camY } = aim(c.x, c.y)); }
       if (ui.focus && ui.focus.t !== lastFocus) { lastFocus = ui.focus.t; target = aim(ui.focus.x, ui.focus.y); vx = vy = 0; }
@@ -280,6 +371,7 @@
         if (c.port) pier(c);
         drawCity(c);
         b.globalAlpha = 1;
+        if (dk && isOpen(c.id)) lights.push(() => townLights(c, now));
         if (pv && leg(pv, lastStop, c.id)) ring(c, now);
         if (c.id === game.selected && (blink || pv)) brackets(c);
       }
@@ -301,6 +393,7 @@
           const x = d[0] * R + nx * side * gap, y = d[1] * R + ny * side * gap;
           big(x + 0.7 * V, y + V, () => drawArt(b, 0, 0, ang, 'boat', v.model, { shadow: true }));
           big(x, y, () => drawArt(b, 0, 0, ang, 'boat', v.model));
+          if (dk) lights.push(() => lamp([x, y], '255,255,235', 0.8));
         });
       }
       for (const id in pt) {
@@ -339,6 +432,7 @@
         for (const u of placed.slice().reverse()) big(u.p.x * R, u.p.y * R, () => drawArt(b, 0, 0, u.p.ang, u.kind, u.model));
         const e = placed[0];
         if (e && v.kind === 'train' && ENGINES[v.model].steam != null) steam(e.p.x * R, e.p.y * R, e.p.ang, ENGINES[v.model].steam, now);
+        if (dk) lights.push(() => consistLights(v, placed));
         if (e) hits.push({ id: v.id, x: e.p.x * R, y: e.p.y * R });
         if (e && marked(v)) marker(e.p.x * R, e.p.y * R - 6);
       }
@@ -350,6 +444,7 @@
         wake(x, y, p.ang, artSize('boat', v.model).w, now);
         big(x + 0.7 * V, y + V, () => drawArt(b, 0, 0, p.ang, 'boat', v.model, { shadow: true }));
         big(x, y, () => drawArt(b, 0, 0, p.ang, 'boat', v.model));
+        if (dk) lights.push(() => boatLights(x, y, p.ang, v.model));
         hits.push({ id: v.id, x, y });
         if (marked(v)) marker(x, y - 10);
       }
@@ -363,8 +458,18 @@
         const x = p.x * R, y = p.y * R;
         big(x + 2 + lift * 0.4, y + 3 + lift * 0.8, () => drawArt(b, 0, 0, p.ang, 'plane', v.model, { shadow: true }));
         big(x, y - lift, () => drawArt(b, 0, 0, p.ang, 'plane', v.model, { spin: now / 45 }));
+        if (dk) lights.push(() => planeLights(x, y - lift, p.ang, v.model, now));
         hits.push({ id: v.id, x, y: y - lift });
         if (marked(v)) marker(x, y - lift - 18);
+      }
+      if (dk) {
+        b.globalCompositeOperation = 'multiply';
+        b.fillStyle = tint(dk); b.fillRect(cx, cy, bw, bh);
+        b.globalCompositeOperation = 'lighter';
+        b.globalAlpha = dk;
+        for (const f of lights) f();
+        b.globalAlpha = 1;
+        b.globalCompositeOperation = 'source-over';
       }
       drawRipples(now);
       b.restore();

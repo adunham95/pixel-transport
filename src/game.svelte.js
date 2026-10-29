@@ -320,6 +320,16 @@ export function gameNow() {
 }
 export const clock = $state({ now: gameNow() });
 
+// one whole day and night, in game time
+export const DAY_LEN = 8 * 60 * 1000;
+// how dark it is, from 0 through the day to 1 in the dead of night, easing in at dusk and out at dawn
+export function darkness(now) {
+  const t = (((now + (game.dayShift ?? 0)) % DAY_LEN) + DAY_LEN) % DAY_LEN / DAY_LEN;
+  const d = 0.5 - 0.5 * Math.cos(2 * Math.PI * t); // 0 at noon, 1 at midnight
+  const k = Math.min(1, Math.max(0, (d - 0.45) / 0.35));
+  return k * k * (3 - 2 * k);
+}
+
 export function save() {
   try { game.saved = Date.now(); game.skew = skew; localStorage.setItem(KEY, JSON.stringify($state.snapshot(game))); } catch {}
 }
@@ -731,6 +741,9 @@ export function setDev(on) {
 }
 
 export function devCoins(n) { game.coins += n; }
+
+// jump the sky half a day on, without moving anything else
+export function devSkipHalfDay() { game.dayShift = ((game.dayShift ?? 0) + DAY_LEN / 2) % DAY_LEN; }
 
 export function devMaxLevel() {
   game.level = LEVELS.length;
