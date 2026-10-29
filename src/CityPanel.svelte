@@ -1,9 +1,10 @@
 <script>
-  import { game, ui, cityById, etaText, fmtTime, clock, followVehicle, isOpen, connections, unlockPrice, unlockCity, carrierAt, fmt, townSize, sizeName, growthOf, buyDepot } from './game.svelte.js';
+  import { game, ui, cityById, etaText, fmtTime, clock, followVehicle, isOpen, connections, unlockPrice, unlockCity, carrierAt, fmt, townSize, sizeName, growthOf, buyDepot, fetcher } from './game.svelte.js';
   import { CITY_PRICE, DEPOT } from './data.js';
   import Sprite from './Sprite.svelte';
   import JobRow from './JobRow.svelte';
   import LoadPanel from './LoadPanel.svelte';
+  import SendPanel from './SendPanel.svelte';
   import { fly, slide, flip } from './motion.js';
   const c = $derived(cityById[game.selected]);
   const here = $derived(game.vehicles.filter((v) => v.city === c.id));
@@ -11,18 +12,21 @@
   const incoming = $derived(game.vehicles.flatMap((v) => {
     if (!v.trip) return [];
     let t = v.trip.startAt + v.trip.dur;
-    if (v.trip.to === c.id) return [{ v, at: t, later: 0 }];
+    if (v.trip.to === c.id) return [{ v, at: t, later: 0, pick: v.trip.pick != null }];
     const i = (v.next ?? []).findIndex((l) => l.to === c.id);
     if (i < 0) return [];
     for (let k = 0; k <= i; k++) t += v.next[k].dur;
-    return [{ v, at: t, later: i + 1 }];
+    return [{ v, at: t, later: i + 1, pick: v.next[i].pick != null }];
   }).sort((a, b) => a.at - b.at));
   const jobs = $derived([...(game.jobs[c.id] ?? [])].sort((a, b) => b.pay - a.pay));
   const active = $derived(game.vehicles.find((v) => v.id === ui.activeVehicle && v.city === c.id));
+  const sending = $derived(jobs.find((j) => j.id === ui.sendJob && !fetcher(j)));
 </script>
 
 {#if active}
   <div in:fly={{ x: 28, duration: 220 }}><LoadPanel v={active} /></div>
+{:else if sending}
+  <div in:fly={{ x: 28, duration: 220 }}><SendPanel job={sending} at={c.id} /></div>
 {:else}
   <div in:fly={{ x: -28, duration: 220 }}>
   <div class="cityhead">
@@ -83,10 +87,10 @@
 
   {#if incoming.length}
     <h3>On the way</h3>
-    {#each incoming as { v, at, later } (v.id)}
+    {#each incoming as { v, at, later, pick } (v.id)}
       <button class="row vrow" animate:flip transition:slide={{ duration: 200 }} onclick={() => followVehicle(v)}>
         <span class="pv"><Sprite kind={v.kind} model={v.model} cars={v.cars ?? []} scale={3} /></span>
-        <span class="grow"><b>{v.name}</b><small>{later ? `Stops here in ${fmtTime((at - clock.now) / 1000)}, after ${later} other stop${later > 1 ? 's' : ''}` : `Arrives in ${etaText(v)}`}</small></span>
+        <span class="grow"><b>{v.name}</b><small>{pick ? 'Coming to pick up. ' : ''}{later ? `Stops here in ${fmtTime((at - clock.now) / 1000)}, after ${later} other stop${later > 1 ? 's' : ''}` : `Arrives in ${etaText(v)}`}</small></span>
         <span class="act">Watch</span>
       </button>
     {/each}
@@ -95,7 +99,11 @@
   {#if !c.anchor}
   <h3>Waiting at {c.name} ({jobs.length})</h3>
   {#each jobs as j (j.id)}
-    <div animate:flip transition:slide={{ duration: 200 }}><JobRow job={j} at={c.id} /></div>
+    {@const f = fetcher(j)}
+    <div animate:flip transition:slide={{ duration: 200 }}>
+      {#if f}<JobRow job={j} at={c.id} note="{f.name} is on its way for it" action="Watch" onclick={() => followVehicle(f)} />
+      {:else}<JobRow job={j} at={c.id} action="Send" onclick={() => (ui.sendJob = j.id)} />{/if}
+    </div>
   {:else}
     <p class="muted">No jobs right now. New ones turn up every few seconds.</p>
   {/each}

@@ -1,4 +1,4 @@
-import { CITIES, RAILS, ROADS, ROAD_OFF, LANE, roadSide, ENGINES, CARS, PLANES, BOATS, BARGES, TRUCKS, TRAILERS, LEVELS, RATES, SPEED, CITY_PRICE, START_CITIES, JOB_TYPES, MAGLEV_LINES, REPEAT_ROUTES, WEAR, MAIL, WIDE, GROWTH, SIZE_NAME, DEPOT } from './data.js';
+import { CITIES, RAILS, ROADS, ROAD_OFF, LANE, roadSide, ENGINES, CARS, PLANES, BOATS, BARGES, TRUCKS, TRAILERS, LEVELS, RATES, SPEED, CITY_PRICE, START_CITIES, JOB_TYPES, MAGLEV_LINES, REPEAT_ROUTES, WEAR, MAIL, WIDE, GROWTH, SIZE_NAME, DEPOT, TYPE_LABEL } from './data.js';
 import { seaLane } from './sea.js';
 
 const KEY = 'pixel-transport-save-v1';
@@ -322,7 +322,7 @@ function load() {
 const loaded = load();
 export const game = $state(loaded ?? fresh());
 export const ui = $state({
-  tab: 'city', sheetOpen: true, activeVehicle: null, picking: false, plan: [], repeat: false,
+  tab: 'city', sheetOpen: true, activeVehicle: null, picking: false, plan: [], repeat: false, sendJob: null,
   focusVehicle: null, toasts: [], focus: null, follow: null, track: null,
 });
 // Game time runs ahead of the wall clock when dev mode speeds it up. The extra is kept
@@ -429,10 +429,11 @@ export const fx = [];
 
 // at is when the leg finished, so chained legs line up even when catching up after time away
 function arrive(v, at) {
-  const to = v.trip.to;
+  const to = v.trip.to, pick = v.trip.pick;
   const { n, total } = dropOff(v, to);
   const name = cityById[to].name;
   const next = v.next?.shift();
+  if (pick != null) collect(v, to, pick, next);
   if (next) {
     if (v.loop) pickUp(v, to);
     v.trip = { ...next, startAt: at };
@@ -549,6 +550,7 @@ export function unlockCity(id) {
 
 function step() {
   const now = gameNow();
+  const taken = fetching();
   // earliest arrival first, again and again, since one arrival can start a leg that's also done
   for (;;) {
     let v = null;
@@ -559,10 +561,11 @@ function step() {
   for (const v of game.vehicles) books(v);
   for (const v of game.vehicles) if (v.loop && v.city && !v.trip && now >= (v.loop.wait ?? 0)) runLoop(v, now);
   for (const c of CITIES) {
-    // jobs are stamped the first time they're seen waiting; ones dropped off for a transfer never expire
-    const list = game.jobs[c.id];
+    // jobs are stamped the first time they're seen waiting; ones dropped off for a transfer, or with
+    // a vehicle on its way to fetch them, never expire
+    const list = game.jobs[c.id], stale = (j) => j.from === c.id && !taken.has(j.id) && now - j.at > jobTtl(j);
     for (const j of list) j.at ??= now;
-    if (list.some((j) => j.from === c.id && now - j.at > jobTtl(j))) game.jobs[c.id] = list.filter((j) => j.from !== c.id || now - j.at <= jobTtl(j));
+    if (list.some(stale)) game.jobs[c.id] = list.filter((j) => !stale(j));
     if (now >= game.spawnAt[c.id]) {
       // bigger towns turn up jobs faster
       game.spawnAt[c.id] = now + (7000 + Math.random() * 8000) / (1 + 0.25 * (townSize(c.id) - 1));
@@ -599,6 +602,7 @@ export function selectCity(id, focus = false) {
   ui.sheetOpen = true;
   ui.picking = false;
   ui.plan = [];
+  ui.sendJob = null;
   const av = game.vehicles.find((v) => v.id === ui.activeVehicle);
   if (!av || av.city !== id) ui.activeVehicle = null;
   if (focus) ui.focus = { x: cityById[id].x, y: cityById[id].y, t: Date.now() };
@@ -618,7 +622,7 @@ export function followVehicle(v) {
 export function loadJob(v, job) {
   const list = game.jobs[v.city];
   const i = list.findIndex((j) => j.id === job.id);
-  if (i < 0 || !canLoad(v, job)) return;
+  if (i < 0 || !canLoad(v, job) || fetcher(job)) return;
   const [j] = list.splice(i, 1);
   v.cargo.push(j);
 }
@@ -635,7 +639,8 @@ export function unloadJob(v, job) {
 
 export function autoLoad(v) {
   // only jobs this vehicle can get to their destination, best paying first
-  const list = [...game.jobs[v.city]].filter((j) => canReach(v, j.to)).sort((a, b) => b.pay - a.pay);
+  const taken = fetching();
+  const list = [...game.jobs[v.city]].filter((j) => canReach(v, j.to) && !taken.has(j.id)).sort((a, b) => b.pay - a.pay);
   let n = 0;
   for (const j of list) if (canLoad(v, j)) { loadJob(v, j); n++; }
   if (!n) toast(list.length ? 'Nothing more fits on board' : `No jobs here that ${v.name} can deliver`);
@@ -689,13 +694,70 @@ export function dispatch(v, stops, { repeat = false, lap = null } = {}) {
   return true;
 }
 
+// ---------- sending a parked vehicle to fetch a job from another town ----------
+
+// the stops from one town to another: straight there, or by way of fuel stops for planes
+function stopsTo(v, from, to) {
+  if (v.kind !== 'plane') return leg(v, from, to) ? [to] : null;
+  const h = hops(v, from);
+  return h.D[to] != null ? h.path(to) : null;
+}
+
+// which vehicle is on its way to fetch each job, by job id. A job is spoken for while some
+// route has a leg that picks it up, so ending that route early lets it go again.
+function fetching() {
+  const m = new Map();
+  for (const v of game.vehicles) if (v.trip) for (const l of [v.trip, ...(v.next ?? [])]) if (l.pick != null) m.set(l.pick, v);
+  return m;
+}
+export function fetcher(job) { return fetching().get(job.id) ?? null; }
+
+// how a parked vehicle would go and get a job waiting at another town and take it where it's
+// headed, or why it can't: { why } or { stops, pick (index of the pick up stop), cost, time, pickIn }
+export function fetchPlan(v, job, at) {
+  if (!v.city || v.trip) return { why: 'Out on a trip' };
+  if (v.loop) return { why: 'Running a repeating route' };
+  const cap = capacity(v)[job.type];
+  if (!cap) return { why: `Can’t carry ${TYPE_LABEL[job.type].toLowerCase()}` };
+  if (used(v)[job.type] >= cap) return { why: 'No room left on board' };
+  const there = stopsTo(v, v.city, at);
+  if (!there) return { why: `Can’t reach ${cityById[at].name}` };
+  const on = stopsTo(v, at, job.to);
+  if (!on) return { why: `Can’t get it to ${cityById[job.to].name}` };
+  const stops = [...there, ...on], legs = planLegs(v, stops);
+  if (legs.some((l) => !l)) return { why: `Can’t reach ${cityById[at].name}` };
+  const sum = (ls, k) => ls.reduce((s, l) => s + l[k], 0);
+  return { stops, pick: there.length - 1, cost: sum(legs, 'cost'), time: sum(legs, 'time'), pickIn: sum(legs.slice(0, there.length), 'time') };
+}
+
+export function sendFor(v, job, at) {
+  const p = fetchPlan(v, job, at), f = fetcher(job);
+  if (f) { toast(`${f.name} is already on its way for that`, 'bad'); return false; }
+  if (p.why) { toast(`${v.name}: ${p.why}`, 'bad'); return false; }
+  if (!dispatch(v, p.stops)) return false;
+  (p.pick ? v.next[p.pick - 1] : v.trip).pick = job.id;
+  return true;
+}
+
+// a vehicle sent to fetch a job loads it, along with anything else here headed for its later stops that fits
+function collect(v, at, id, next) {
+  const list = game.jobs[at], i = list.findIndex((j) => j.id === id);
+  if (i >= 0 && canLoad(v, list[i])) v.cargo.push(...list.splice(i, 1));
+  const ahead = new Set([next, ...(v.next ?? [])].filter(Boolean).map((l) => l.to)), taken = fetching();
+  for (const j of [...list].sort((a, b) => b.pay - a.pay)) {
+    if (!ahead.has(j.to) || taken.has(j.id) || !canLoad(v, j)) continue;
+    list.splice(list.indexOf(j), 1);
+    v.cargo.push(j);
+  }
+}
+
 // ---------- repeating routes ----------
 
 // load jobs here that are headed somewhere else on the loop, best paying first
 function pickUp(v, at) {
-  const ring = new Set(v.loop.stops), list = game.jobs[at];
+  const ring = new Set(v.loop.stops), list = game.jobs[at], taken = fetching();
   for (const j of [...list].sort((a, b) => b.pay - a.pay)) {
-    if (j.to === at || !ring.has(j.to) || !canLoad(v, j)) continue;
+    if (j.to === at || !ring.has(j.to) || taken.has(j.id) || !canLoad(v, j)) continue;
     list.splice(list.indexOf(j), 1);
     v.cargo.push(j);
   }
@@ -703,8 +765,8 @@ function pickUp(v, at) {
 
 // is there anything waiting anywhere on the loop that this vehicle could carry along it?
 function loopHasWork(v) {
-  const ring = new Set(v.loop.stops), cap = capacity(v);
-  return v.loop.stops.some((id) => game.jobs[id].some((j) => j.to !== id && ring.has(j.to) && cap[j.type] > 0));
+  const ring = new Set(v.loop.stops), cap = capacity(v), taken = fetching();
+  return v.loop.stops.some((id) => game.jobs[id].some((j) => j.to !== id && ring.has(j.to) && !taken.has(j.id) && cap[j.type] > 0));
 }
 
 // start another lap from home, or wait a while if there's nothing to carry
@@ -924,7 +986,7 @@ export function resetGame() {
   reachCache.clear();
   skew = 0;
   dev.speed = 1;
-  Object.assign(ui, { tab: 'city', sheetOpen: true, activeVehicle: null, picking: false, plan: [], repeat: false, focusVehicle: null, follow: null, track: null, focus: { x: cityById[g.selected].x, y: cityById[g.selected].y, t: Date.now() } });
+  Object.assign(ui, { tab: 'city', sheetOpen: true, activeVehicle: null, picking: false, plan: [], repeat: false, sendJob: null, focusVehicle: null, follow: null, track: null, focus: { x: cityById[g.selected].x, y: cityById[g.selected].y, t: Date.now() } });
   save();
 }
 
