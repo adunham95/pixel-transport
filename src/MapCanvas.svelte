@@ -1,14 +1,15 @@
 <script>
   import { onMount } from 'svelte';
-  import { game, ui, cityById, leg, planLegs, toggleStop, selectCity, posAt, tripProgress, gameNow, isOpen, fx, darkness, loopStops, isCarrier, carrierAt, landsWithout } from './game.svelte.js';
+  import { game, ui, cityById, leg, planLegs, toggleStop, selectCity, posAt, tripProgress, gameNow, isOpen, fx, darkness, loopStops, isCarrier, carrierAt } from './game.svelte.js';
   import { CITIES, ENGINES, PLANES, CARS, W, H } from './data.js';
   import { buildTerrain, makeWaterPattern, R } from './terrain.js';
-  import { drawArt, drawConsistRow, trainUnits, consistBox, artSize, loadArt } from './sprites.js';
+  import { drawArt, trainUnits, artSize, loadArt } from './sprites.js';
   import { dockOf } from './sea.js';
   import { reduced } from './motion.js';
 
   let { sheetPx = 0 } = $props();
   const V = 1.6; // vehicles are drawn a bit larger than the map grid so their detail reads
+  const TRAY_ORDER = { train: 0, truck: 1, boat: 2, plane: 3 };
   let canvas;
 
   // zoom levels as multiples of the screen's natural scale, rounded so pixels stay square
@@ -392,60 +393,17 @@
       if (tv) trackedRoute(tv, gnow);
       hits = [];
 
-      // parked vehicles
-      const pt = {}, pp = {}, pb = {}, pk = {};
-      for (const v of game.vehicles) if (!v.trip && v.city) ({ train: pt, plane: pp, boat: pb, truck: pk }[v.kind][v.city] ??= []).push(v);
-      const decks = {}; // where a carrier sits in each town, for planes parked on it: [x, y, ang]
-      for (const id in pb) {
-        // moored side by side at the end of the pier, bows pointing out to sea; out at an
-        // anchorage there's no pier, so they just face east. A carrier takes the middle spot.
-        const c = cityById[id], d = dockOf(id);
+      // parked vehicles show as minis under their town (drawn with the labels). Aircraft
+      // carriers stay on the map at full size, since planes land on them.
+      for (const v of game.vehicles) {
+        if (v.trip || !v.city || v.kind !== 'boat' || !isCarrier(v.model)) continue;
+        const c = cityById[v.city], d = dockOf(v.city);
         if (!d) continue;
-        const ang = c.anchor ? 0 : Math.atan2(d[1] - c.y, d[0] - c.x), nx = -Math.sin(ang), ny = Math.cos(ang);
-        pb[id].sort((a, z) => isCarrier(z.model) - isCarrier(a.model));
-        if (isCarrier(pb[id][0].model)) decks[id] = [d[0] * R, d[1] * R, ang];
-        pb[id].slice(0, 3).forEach((v, i) => {
-          const side = i === 0 ? 0 : i === 1 ? 1 : -1, gap = (artSize('boat', v.model).h + 1) * V;
-          const x = d[0] * R + nx * side * gap, y = d[1] * R + ny * side * gap;
-          // a tug noses up to the pier with its barges strung out to sea behind it
-          if (v.cars?.length) big(x, y, () => { b.rotate(ang + Math.PI); drawConsistRow(b, 0, 0, 'boat', v.model, v.cars); });
-          else {
-            big(x + 0.7 * V, y + V, () => drawArt(b, 0, 0, ang, 'boat', v.model, { shadow: true }));
-            big(x, y, () => drawArt(b, 0, 0, ang, 'boat', v.model));
-          }
-          if (dk) lights.push(() => (isCarrier(v.model) ? boatLights(x, y, ang, v.model) : lamp([x, y], '255,255,235', 0.8)));
-        });
-      }
-      for (const id in pt) {
-        const c = cityById[id];
-        pt[id].slice(0, 2).forEach((v, i) => {
-          const cars = v.cars.slice(0, 4);
-          big(c.x * R + 12 + (consistBox('train', v.model, cars).w - 1) * V, c.y * R - 3 + i * 8, () => drawConsistRow(b, 0, 0, 'train', v.model, cars));
-        });
-      }
-      for (const id in pk) {
-        // trucks line up on the west side of town, cabs toward the buildings
-        const c = cityById[id];
-        pk[id].slice(0, 2).forEach((v, i) => {
-          const cars = v.cars.slice(0, 2);
-          big(c.x * R - 10 - (artSize('truck', v.model).w / 2) * V, c.y * R + 1 + i * 7, () => drawConsistRow(b, 0, 0, 'truck', v.model, cars));
-        });
-      }
-      for (const id in pp) {
-        const c = cityById[id], dk0 = decks[id];
-        // planes that are only here thanks to a carrier sit on its flight deck, drawn small
-        const onDeck = dk0 ? pp[id].filter((v) => !landsWithout(v.model, c)) : [];
-        onDeck.slice(0, 3).forEach((v, i) => {
-          const along = (i - (Math.min(3, onDeck.length) - 1) / 2) * 18;
-          const x = dk0[0] + Math.cos(dk0[2]) * along, y = dk0[1] + Math.sin(dk0[2]) * along;
-          b.save(); b.translate(x, y); b.scale(V * 0.75, V * 0.75); drawArt(b, 0, 0, dk0[2], 'plane', v.model, { shadow: true }); b.translate(-0.6, -0.8); drawArt(b, 0, 0, dk0[2], 'plane', v.model); b.restore();
-        });
-        pp[id].filter((v) => !onDeck.includes(v)).slice(0, 2).forEach((v, i) => {
-          // seaplanes at a town with no runway float at the end of the pier
-          const d = !c.air && PLANES[v.model].seaplane && dockOf(id);
-          if (d) big(d[0] * R + i * 14, d[1] * R + 6, () => drawArt(b, 0, 0, Math.atan2(d[1] - c.y, d[0] - c.x), 'plane', v.model));
-          else big(c.x * R - 2 - i * 20, c.y * R + 11, () => drawArt(b, 0, 0, 0, 'plane', v.model));
-        });
+        // bow pointing out to sea; out at an anchorage there's no pier, so it just faces east
+        const ang = c.anchor ? 0 : Math.atan2(d[1] - c.y, d[0] - c.x), x = d[0] * R, y = d[1] * R;
+        big(x + 0.7 * V, y + V, () => drawArt(b, 0, 0, ang, 'boat', v.model, { shadow: true }));
+        big(x, y, () => drawArt(b, 0, 0, ang, 'boat', v.model));
+        if (dk) lights.push(() => boatLights(x, y, ang, v.model));
       }
 
       // trains and trucks on the move
@@ -565,6 +523,38 @@
           ctx.font = font(600, fs);
         }
       }
+
+      // what's parked in each town: a row of mini vehicles over its name, then +N for the rest
+      const parked = {};
+      for (const v of game.vehicles) if (!v.trip && v.city) (parked[v.city] ??= []).push(v);
+      const ih = fs * 0.9, iw = ih * 1.8, gap = 2 * dpr, pad = 4 * dpr, MAX = 4;
+      ctx.font = font(700, Math.round(fs * 0.8));
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      for (const id in parked) {
+        const c = cityById[id];
+        if (!inView(c.x, c.y)) continue;
+        const vs = parked[id].sort((a, z) => TRAY_ORDER[a.kind] - TRAY_ORDER[z.kind]);
+        const shown = vs.length > MAX ? vs.slice(0, MAX - 1) : vs;
+        const more = vs.length - shown.length ? `+${vs.length - shown.length}` : '';
+        const mw = more ? gap + ctx.measureText(more).width : 0;
+        const w = pad * 2 + shown.length * iw + (shown.length - 1) * gap + mw, h = ih + pad * 1.2;
+        // sits just above the name (whose baseline is 15 above the town) and its job badge
+        const x0 = (c.x * R - cx + 0.5) * scale - w / 2, y0 = (c.y * R - cy - 15) * scale - fs * 1.3 - h;
+        ctx.fillStyle = 'rgba(18,22,38,0.75)';
+        ctx.beginPath(); ctx.roundRect(x0, y0, w, h, h / 2); ctx.fill();
+        shown.forEach((v, i) => {
+          // every model is shrunk to fit the same slot, facing right
+          const s = artSize(v.kind, v.model), k = Math.min(iw / s.w, ih / s.h);
+          ctx.save();
+          ctx.translate(x0 + pad + i * (iw + gap) + iw / 2, y0 + h / 2);
+          ctx.scale(k, k);
+          drawArt(ctx, 0, 0, 0, v.kind, v.model);
+          ctx.restore();
+        });
+        if (more) { ctx.fillStyle = '#ffffff'; ctx.fillText(more, x0 + w - pad - mw + gap, y0 + h / 2 + dpr * 0.5); }
+      }
+      ctx.textAlign = 'center';
 
       if (zoomFx) {
         const a = (now - zoomFx.t) / 240;
