@@ -5,7 +5,7 @@
   let canvas;
   const maxW = $derived(scale >= 4 ? 78 : 58);
   const maxH = $derived(scale >= 4 ? 42 : 28);
-  const chain = $derived(kind === 'train' || kind === 'truck');
+  const chain = $derived(kind !== 'plane');
   const box = $derived(chain ? consistBox(kind, model, cars) : artSize(kind, model));
   const k = $derived(Math.min(scale * 1.4, maxW / (box.w + 2), maxH / (box.h + 2)));
   $effect(() => {

@@ -1,6 +1,6 @@
 <script>
   import { game, cityById, buyPlane, buyEngine, buyBoat, buyTruck, buyRepeatRoutes, isOpen, canBase, fmt } from './game.svelte.js';
-  import { ENGINES, CARS, PLANES, BOATS, TRUCKS, TRAILERS, MI, TYPE_LABEL, JOB_TYPES, REPEAT_ROUTES } from './data.js';
+  import { ENGINES, CARS, PLANES, BOATS, BARGES, TRUCKS, TRAILERS, MI, TYPE_LABEL, JOB_TYPES, REPEAT_ROUTES } from './data.js';
   const UNIT = { pax: 'seats', cargo: 'cargo', fuel: 'fuel', bulk: 'bulk' };
   const holds = (cap) => JOB_TYPES.filter((t) => cap[t]).map((t) => `${cap[t]} ${UNIT[t]}`).join(', ');
   // demo consist for the shop picture: freight engines don't get a passenger car
@@ -35,7 +35,7 @@
     <span class="pv wide"><Sprite kind="plane" model={k} scale={4} /></span>
     <span class="grow">
       <b>{p.name}</b>
-      <small>{holds({ pax: p.pax, cargo: p.cargo, ...p.hold })}{p.vtol ? '. Lands anywhere' : p.seaplane ? '. Lands at ports too' : ''}</small>
+      <small>{holds({ pax: p.pax, cargo: p.cargo, ...p.hold })}{p.deck ? `, ${p.deck} truck spaces` : ''}{p.vtol ? '. Lands anywhere' : p.seaplane ? '. Lands at ports too' : ''}</small>
       <small>Range {Math.round(p.range * MI)} mi. Speed <span class="pips">{#each [1, 2, 3, 4, 5] as n}<i class:on={n <= p.pips}></i>{/each}</span></small>
     </span>
     <button class="btn primary" disabled={locked || !isOpen(c.id) || !canBase('plane', k, c) || game.coins < p.price} onclick={() => buyPlane(k)}>{locked ? `Lv ${p.level}` : `$${fmt(p.price)}`}</button>
@@ -94,12 +94,21 @@
 {#each Object.entries(BOATS) as [k, bt]}
   {@const locked = game.level < bt.level}
   <div class="shop" class:locked>
-    <span class="pv wide"><Sprite kind="boat" model={k} scale={4} /></span>
+    <span class="pv wide"><Sprite kind="boat" model={k} cars={bt.maxCars ? ['deck', 'hopper', 'tank'].slice(0, bt.maxCars) : []} scale={4} /></span>
     <span class="grow">
       <b>{bt.name}</b>
-      <small>{holds(bt.cap)}{bt.deck ? `${holds(bt.cap) ? ', ' : ''}${bt.deck} truck spaces` : ''}{bt.harbor ? '. Ports with a station only' : ''}</small>
+      <small>{bt.maxCars ? `Tows up to ${bt.maxCars} barges` : ''}{holds(bt.cap)}{bt.deck ? `${holds(bt.cap) ? ', ' : ''}${bt.deck} truck spaces` : ''}{bt.harbor ? '. Ports with a station only' : ''}</small>
       <small>Speed <span class="pips">{#each [1, 2, 3, 4, 5] as n}<i class:on={n <= bt.pips}></i>{/each}</span></small>
     </span>
     <button class="btn primary" disabled={locked || !isOpen(c.id) || !canBase('boat', k, c) || game.coins < bt.price} onclick={() => buyBoat(k)}>{locked ? `Lv ${bt.level}` : `$${fmt(bt.price)}`}</button>
+  </div>
+{/each}
+
+<h3>Barges</h3>
+{#each Object.values(BARGES) as bg}
+  <div class="shop" class:locked={game.level < bg.level}>
+    <span class="swatch" style:--c={bg.color}></span>
+    <span class="grow"><b>{bg.name}</b><small>Holds {bg.cap} {TYPE_LABEL[bg.holds].toLowerCase()}. ${bg.price} each.</small></span>
+    <span class="pay">{game.level < bg.level ? `Lv ${bg.level}` : 'In Fleet'}</span>
   </div>
 {/each}

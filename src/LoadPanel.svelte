@@ -1,10 +1,10 @@
 <script>
-  import { game, ui, cityById, capacity, used, loadJob, unloadJob, autoLoad, destinations, dispatch, route, canReach, planLegs, autoPlan, toggleStop, fmt, fmtTime, loopStops, buyRepeatRoutes, aboard, canBoard, deckSize, deckUsed, driveOn, driveOff } from './game.svelte.js';
+  import { game, ui, cityById, capacity, used, loadJob, unloadJob, autoLoad, destinations, dispatch, route, canReach, planLegs, autoPlan, toggleStop, fmt, fmtTime, loopStops, buyRepeatRoutes, aboard, canBoard, deckSize, deckUsed, deckRoom, driveOn, driveOff } from './game.svelte.js';
   import Icon from './Icon.svelte';
   import Sprite from './Sprite.svelte';
   import JobRow from './JobRow.svelte';
   import { send, receive, flip, fly } from './motion.js';
-  import { TYPE_LABEL, JOB_TYPES, ENGINES, TRUCKS, BOATS, REPEAT_ROUTES } from './data.js';
+  import { TYPE_LABEL, JOB_TYPES, ENGINES, TRUCKS, REPEAT_ROUTES } from './data.js';
   let { v } = $props();
   const cap = $derived(capacity(v));
   const u = $derived(used(v));
@@ -58,8 +58,8 @@
     if (!route(v, j.to)) return { block: false, text: 'Needs fuel stops on the way' };
     return { block: false, text: '' };
   }
-  // car ferries: trucks on the deck, and ones parked here that could drive on
-  const deck = $derived(v.kind === 'boat' ? BOATS[v.model].deck ?? 0 : 0);
+  // car ferries and cargo planes: trucks on the deck, and ones parked here that could drive on
+  const deck = $derived(deckRoom(v));
   const onDeck = $derived(deck ? aboard(v) : []);
   const ashore = $derived(deck ? game.vehicles.filter((t) => t.kind === 'truck' && t.city === v.city) : []);
   function plan() { ui.plan = autoPlan(v); ui.picking = true; }
@@ -154,7 +154,7 @@
       </button>
     {/each}
     {#each ashore as t (t.id)}
-      {@const nope = TRUCKS[t.model].noFerry ? 'Too long for the ferry' : !canBoard(v, t) ? `Needs ${deckSize(t)} spaces` : ''}
+      {@const nope = TRUCKS[t.model].noFerry ? 'Too long to carry' : !canBoard(v, t) ? `Needs ${deckSize(t)} spaces` : ''}
       <button class="row vrow" disabled={!!nope} onclick={() => driveOn(v, t)}>
         <span class="pv"><Sprite kind="truck" model={t.model} cars={t.cars} scale={3} /></span>
         <span class="grow"><b>{t.name}</b><small>{nope || `Parked here, takes ${deckSize(t)} space${deckSize(t) > 1 ? 's' : ''}`}</small></span>

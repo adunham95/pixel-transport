@@ -245,6 +245,7 @@ export const CARS = {
 // rotors: [[x, y, radius], ...] in the art's sub pixel units. They're drawn on top of the
 // art and spin while flying, so leave them out of the svg itself.
 // hold: { fuel, bulk } extra room for heavy loads, on top of pax and cargo.
+// deck: room for trucks to drive aboard, like a car ferry (see TRUCKS).
 export const PLANES = {
   sparrow: {
     name: "Sparrow",
@@ -613,6 +614,32 @@ export const PLANES = {
       <rect x="10.4" y="-1.85" width="0.5" height="0.5" fill="rgba(170,215,255,0.85)"/>
     </svg>`,
   },
+  skywhale: {
+    name: "Skywhale",
+    level: 7,
+    price: 40000,
+    pax: 0,
+    cargo: 16,
+    deck: 4,
+    range: 450,
+    speed: 13,
+    fuel: 1.2,
+    pips: 4,
+    color: "#f4f6f8",
+    trim: "#2a6fd6",
+    art: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-17 -17 34 34">
+      <path d="M4 -3L-1 -15.5H-3.6L-2.6 -3V3L-3.6 15.5H-1L4 3Z" fill="rgb(219,221,223)" stroke="rgba(18,24,38,0.9)" stroke-width="1.2" stroke-linejoin="round"/>
+      <path d="M-11.6 -2L-14.4 -6.8H-15.6L-15.2 -2V2L-15.6 6.8H-14.4L-11.6 2Z" fill="rgb(219,221,223)" stroke="rgba(18,24,38,0.9)" stroke-width="1.1" stroke-linejoin="round"/>
+      <g stroke="rgba(18,24,38,0.9)" stroke-width="0.4"><rect x="-15.9" y="-7.6" width="1.6" height="1.4" rx="0.3" fill="#f4f6f8"/><rect x="-15.9" y="6.2" width="1.6" height="1.4" rx="0.3" fill="#f4f6f8"/></g>
+      <g fill="rgba(18,24,38,0.9)"><rect x="0.6" y="-10.4" width="3.4" height="2" rx="0.4"/><rect x="0.6" y="8.4" width="3.4" height="2" rx="0.4"/></g>
+      <g fill="#7d8693"><rect x="0.9" y="-10.15" width="2.9" height="1.5" rx="0.3"/><rect x="0.9" y="8.65" width="2.9" height="1.5" rx="0.3"/></g>
+      <path d="M-12.4 -2.2C-6 -3 -2 -4.6 6 -4.6C12 -4.6 15.6 -2.6 15.6 0C15.6 2.6 12 4.6 6 4.6C-2 4.6 -6 3 -12.4 2.2C-14.4 1.6 -14.4 -1.6 -12.4 -2.2Z" fill="#f4f6f8" stroke="rgba(18,24,38,0.9)" stroke-width="1.2" stroke-linejoin="round"/>
+      <path d="M-6 -1.1C0 -2.4 6 -3 10 -2.6" stroke="rgba(18,24,38,0.18)" stroke-width="0.5" fill="none"/>
+      <path d="M12.6 -2.2Q15 -1.4 15 0Q15 1.4 12.6 2.2Q14 0 12.6 -2.2Z" fill="#2a6fd6"/>
+      <g fill="#23344f"><rect x="13.1" y="-1.2" width="0.7" height="0.7" rx="0.2"/><rect x="13.1" y="0.5" width="0.7" height="0.7" rx="0.2"/></g>
+      <rect x="-11" y="-0.3" width="20" height="0.6" fill="#2a6fd6" opacity="0.55"/>
+    </svg>`,
+  },
   humpback: {
     name: "Humpback",
     level: 8,
@@ -670,6 +697,7 @@ export const PLANES = {
 // boats are slow but cheap to run; cap is how many of each job type fit on board (missing types are 0).
 // harbor: true means it only docks at ports that also have a rail station.
 // deck: room for trucks to drive aboard (see TRUCKS), on top of what cap holds.
+// maxCars: a tug that tows that many BARGES, like an engine pulls cars; run goes up 0.02 for each.
 export const BOATS = {
   coaster: {
     name: "Coaster",
@@ -763,6 +791,24 @@ export const BOATS = {
       <g fill="#d6dbe0" stroke="#6d7680" stroke-width="0.3"><circle cx="-0.8" cy="0" r="1.1"/><circle cx="2" cy="0" r="1.1"/></g>
     </svg>`,
   },
+  tug: {
+    name: "Tugboat",
+    level: 3,
+    price: 2500,
+    cap: {},
+    maxCars: 3,
+    speed: 3.5,
+    run: 0.04,
+    pips: 1,
+    art: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-4.4 -2.6 8.8 5.2">
+      <path d="M-3.6 -2H1.6Q4 -2 4 0Q4 2 1.6 2H-3.6Q-4 2 -4 1.6V-1.6Q-4 -2 -3.6 -2Z" fill="#d6453a" stroke="rgba(18,24,38,0.9)" stroke-width="0.6" stroke-linejoin="round"/>
+      <path d="M-3.6 -2H1.6Q4 -2 4 0Q4 2 1.6 2H-3.6" fill="none" stroke="#2d2a2e" stroke-width="0.5"/>
+      <rect x="-2.4" y="-1.3" width="3.2" height="2.6" rx="0.4" fill="#f4f6f8" stroke="rgba(18,24,38,0.9)" stroke-width="0.35"/>
+      <rect x="0.2" y="-1" width="0.4" height="2" fill="#23344f"/>
+      <rect x="-1.5" y="-0.55" width="1.1" height="1.1" rx="0.3" fill="#2d2a2e"/>
+      <rect x="-3.7" y="-0.5" width="0.6" height="1" fill="#ffd23f"/>
+    </svg>`,
+  },
   freighter: {
     name: "Freighter",
     level: 3,
@@ -794,7 +840,7 @@ export const BOATS = {
     run: 0.07,
     pips: 1,
     color: "#8b2f2a",
-    deck: "#4a4f55",
+    deckColor: "#4a4f55",
     art: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-15.5 -3.2 31 6.4">
       <path d="M-14.6 -2.6L12 -2.6Q15 -2.6 15 0Q15 2.6 12 2.6L-14.6 2.6Q-15 2.6 -15 2.1L-15 -2.1Q-15 -2.6 -14.6 -2.6Z" fill="#8b2f2a" stroke="rgba(18,24,38,0.9)" stroke-width="0.7" stroke-linejoin="round"/>
       <path d="M-14.2 -1.9L12 -1.9Q14 -1.9 14 0Q14 1.9 12 1.9L-14.2 1.9Z" fill="#4a4f55"/>
@@ -836,7 +882,7 @@ export const BOATS = {
     run: 0.2,
     pips: 2,
     color: "#23344f",
-    deck: "#5b6470",
+    deckColor: "#5b6470",
     harbor: true,
     art: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-17 -4.2 34 8.4">
       <path d="M-15.8 -3.6L10 -3.6Q16.5 -3.6 16.5 0Q16.5 3.6 10 3.6L-15.8 3.6Q-16.5 3.6 -16.5 2.9L-16.5 -2.9Q-16.5 -3.6 -15.8 -3.6Z" fill="#23344f" stroke="rgba(18,24,38,0.9)" stroke-width="0.7" stroke-linejoin="round"/>
@@ -865,6 +911,53 @@ export const BOATS = {
       <g fill="#d6453a" stroke="rgba(18,24,38,0.9)" stroke-width="0.3"><rect x="-6.6" y="-0.9" width="2.2" height="1.8" rx="0.6"/><rect x="-2.6" y="-0.9" width="2.2" height="1.8" rx="0.6"/><rect x="1.4" y="-0.9" width="2.2" height="1.8" rx="0.6"/></g>
       <g fill="#2d2a2e"><rect x="-6.1" y="-0.45" width="1.2" height="0.9" rx="0.3"/><rect x="-2.1" y="-0.45" width="1.2" height="0.9" rx="0.3"/><rect x="1.9" y="-0.45" width="1.2" height="0.9" rx="0.3"/></g>
       <rect x="5.2" y="-1.4" width="0.6" height="2.8" fill="#23344f"/>
+    </svg>`,
+  },
+};
+
+// barges for the tugboat in BOATS; same fields as CARS
+export const BARGES = {
+  deck: {
+    name: "Deck barge",
+    short: "Deck",
+    level: 3,
+    price: 300,
+    holds: "cargo",
+    cap: 6,
+    color: "#8b5a33",
+    art: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-5 -2.4 10 4.8">
+      <rect x="-4.6" y="-2" width="9.2" height="4" rx="0.6" fill="#4a4f55" stroke="rgba(18,24,38,0.9)" stroke-width="0.6"/>
+      <g fill="#8b5a33" stroke="rgba(18,24,38,0.7)" stroke-width="0.25"><rect x="-3.8" y="-1.4" width="2.2" height="1.3"/><rect x="-1.2" y="-1.4" width="2.2" height="1.3"/><rect x="-3.8" y="0.1" width="2.2" height="1.3"/><rect x="1.4" y="0.1" width="2.4" height="1.3" fill="#2a6fd6"/></g>
+    </svg>`,
+  },
+  hopper: {
+    name: "Hopper barge",
+    short: "Hopper",
+    level: 3,
+    price: 300,
+    holds: "bulk",
+    cap: 8,
+    color: "#5a4a3c",
+    art: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-5 -2.4 10 4.8">
+      <rect x="-4.6" y="-2" width="9.2" height="4" rx="0.6" fill="#5a6b3a" stroke="rgba(18,24,38,0.9)" stroke-width="0.6"/>
+      <rect x="-4" y="-1.4" width="8" height="2.8" rx="0.3" fill="#2a2420"/>
+      <g fill="#7a5a3a"><ellipse cx="-2" cy="0" rx="1.7" ry="1.1"/><ellipse cx="1.8" cy="0" rx="1.7" ry="1.1"/></g>
+      <g fill="#9a7650"><ellipse cx="-2.2" cy="-0.3" rx="0.8" ry="0.5"/><ellipse cx="1.6" cy="-0.3" rx="0.8" ry="0.5"/></g>
+    </svg>`,
+  },
+  tank: {
+    name: "Tank barge",
+    short: "Tank",
+    level: 3,
+    price: 400,
+    holds: "fuel",
+    cap: 6,
+    color: "#a7b0ba",
+    art: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-5 -2.4 10 4.8">
+      <rect x="-4.6" y="-2" width="9.2" height="4" rx="0.6" fill="#8b2f2a" stroke="rgba(18,24,38,0.9)" stroke-width="0.6"/>
+      <rect x="-4" y="-1.4" width="8" height="2.8" rx="0.3" fill="#4a4f55"/>
+      <g fill="#c9ced4" stroke="rgba(18,24,38,0.7)" stroke-width="0.25"><circle cx="-2.2" cy="0" r="1.1"/><circle cx="0.4" cy="0" r="1.1"/><circle cx="2.9" cy="0" r="0.9"/></g>
+      <rect x="-3.6" y="-0.1" width="7" height="0.2" fill="#6d7680"/>
     </svg>`,
   },
 };

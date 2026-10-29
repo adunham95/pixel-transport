@@ -1,13 +1,17 @@
 <script>
-  import { game, ui, dev, setDev, cityById, capacity, endRoute, addCar, removeCar, canRemoveCar, upgradeEngine, upgradeCost, sellVehicle, sellValue, resetGame, openLoad, followVehicle, etaText, fmt, stopRepeating, spec, tailSpecs, aboard, carrierOf, deckUsed } from './game.svelte.js';
+  import { game, ui, dev, setDev, cityById, capacity, endRoute, addCar, removeCar, canRemoveCar, upgradeEngine, upgradeCost, sellVehicle, sellValue, resetGame, openLoad, followVehicle, etaText, fmt, stopRepeating, spec, tailSpecs, tailName, aboard, carrierOf, deckUsed, deckRoom, finances, clock } from './game.svelte.js';
   import { ENGINES, TRUCKS, BOATS, PLANES, MI, JOB_TYPES } from './data.js';
   import Sprite from './Sprite.svelte';
   import LoadBadges from './LoadBadges.svelte';
   import { slide } from './motion.js';
-  const LEADS = { train: ENGINES, truck: TRUCKS };
+  const LEADS = { train: ENGINES, truck: TRUCKS, boat: BOATS };
   // which vehicle's upgrade list is dropped down, if any
   let upgrading = $state(null);
-  // where a vehicle is when it isn't moving: parked in town, or riding a car ferry
+  const money = (n) => `${n < 0 ? '−' : ''}$${fmt(Math.abs(n))}`;
+  // the whole fleet's takings, for the summary up top
+  const books = $derived(game.vehicles.map((v) => finances(v, clock.now)));
+  const total = $derived(books.reduce((s, b) => ({ earned: s.earned + b.earned, fuel: s.fuel + b.fuel, perHour: s.perHour + (b.perHour ?? 0) }), { earned: 0, fuel: 0, perHour: 0 }));
+  // where a vehicle is when it isn't moving: parked in town, or riding a car ferry or cargo plane
   function where(v) {
     if (v.city) return v.loop ? `Repeating, waiting for jobs at ${cityById[v.city].name}` : `Parked at ${cityById[v.city].name}`;
     const f = carrierOf(v);
@@ -15,14 +19,21 @@
   }
 </script>
 
+<div class="books">
+  <div><small>Earned</small><b>{money(total.earned)}</b></div>
+  <div><small>Fuel</small><b>{money(-total.fuel)}</b></div>
+  <div><small>Profit</small><b class:loss={total.earned < total.fuel}>{money(total.earned - total.fuel)}</b></div>
+  <div><small>Per hour</small><b class:loss={total.perHour < 0}>{money(total.perHour)}</b></div>
+</div>
 <p class="muted small">Tap a vehicle to swap cars, upgrade or sell it.</p>
-{#each game.vehicles as v (v.id)}
+{#each game.vehicles as v, i (v.id)}
   {@const open = ui.focusVehicle === v.id}
+  {@const f = books[i]}
   <div class="card" class:open>
     <button class="row vrow card-head" onclick={() => (ui.focusVehicle = open ? null : v.id)}>
       <span class="pv"><Sprite kind={v.kind} model={v.model} cars={v.cars ?? []} scale={3} /></span>
       <span class="grow">
-        <b>{v.name}{#if v.loop}<span class="tag hub mini">Repeating</span>{/if}</b>
+        <b>{v.name}{#if v.loop}<span class="tag hub mini">Repeating</span>{/if}{#if f.perHour != null}<span class="tag mini" class:loss={f.perHour < 0}>{money(f.perHour)}/h</span>{/if}</b>
         <small>{v.trip ? `To ${cityById[v.trip.to].name}, ${etaText(v)} left${v.next?.length ? `, then ${v.next.length} more stop${v.next.length > 1 ? 's' : ''}` : ''}` : where(v)}</small>
         <LoadBadges {v} />
       </span>
@@ -30,13 +41,21 @@
     </button>
     {#if open}
       <div class="card-body" transition:slide={{ duration: 220 }}>
+        <div class="books small">
+          <div><small>Earned</small><b>{money(f.earned)}</b></div>
+          <div><small>Fuel</small><b>{money(-f.fuel)}</b></div>
+          <div><small>Profit</small><b class:loss={f.profit < 0}>{money(f.profit)}</b></div>
+          <div><small>Per hour</small><b class:loss={f.perHour < 0}>{f.perHour == null ? 'Soon' : money(f.perHour)}</b></div>
+        </div>
+        <div class="payback"><i style:width="{Math.min(100, Math.max(0, f.paidBack * 100))}%"></i></div>
+        <p class="muted small">{f.paidBack >= 1 ? 'Paid for itself' : `Paid back ${Math.max(0, Math.floor(f.paidBack * 100))}% of what it cost`}</p>
         {#if v.kind === 'plane'}<div class="meters"><span class="meter">Range {Math.round(PLANES[v.model].range * MI)} mi</span></div>{/if}
 
         {#if v.cars && spec(v).maxCars}
           {@const e = spec(v)}
           {@const tails = tailSpecs(v)}
-          {@const what = v.kind === 'truck' ? 'trailer' : 'car'}
-          <h4>{what === 'car' ? 'Cars' : 'Trailers'} ({v.cars.length} of {e.maxCars})</h4>
+          {@const what = tailName(v)}
+          <h4>{what[0].toUpperCase() + what.slice(1)}s ({v.cars.length} of {e.maxCars})</h4>
           <div class="consist">
             {#each v.cars as t, i}
               <span class="unit" style:--c={tails[t].color}>
@@ -61,7 +80,7 @@
             {#if ups.length}
               {@const shown = upgrading === v.id}
               <button class="row drop" class:shown aria-expanded={shown} onclick={() => (upgrading = shown ? null : v.id)}>
-                <span class="grow"><b>Upgrade {v.kind === 'truck' ? 'tractor' : 'engine'}</b><small>{ups.length} option{ups.length > 1 ? 's' : ''}. Trade in your {e.name} and keep the {what}s.</small></span>
+                <span class="grow"><b>Upgrade {v.kind === 'truck' ? 'tractor' : v.kind === 'boat' ? 'tug' : 'engine'}</b><small>{ups.length} option{ups.length > 1 ? 's' : ''}. Trade in your {e.name} and keep the {what}s.</small></span>
                 <span class="chev">+</span>
               </button>
               {#if shown}<div transition:slide={{ duration: 200 }}>
@@ -77,13 +96,13 @@
               </div>{/if}
             {/if}
           {:else}
-            <p class="muted small">{what === 'car' ? 'Cars' : 'Trailers'} can be changed once it’s parked.</p>
+            <p class="muted small">{what[0].toUpperCase() + what.slice(1)}s can be changed once it’s parked.</p>
           {/if}
         {:else if v.kind === 'truck'}
           <p class="muted small">Drives the roads between mainland towns. Bigger trucks and buses are in the Shop.</p>
-        {:else if v.kind === 'boat' && BOATS[v.model].deck}
+        {:else if deckRoom(v)}
           {@const on = aboard(v)}
-          <p class="muted small">Carries trucks between ports: {deckUsed(v)} of {BOATS[v.model].deck} deck spaces used{on.length ? `, by ${on.map((t) => t.name).join(', ')}` : ''}. Drive trucks on and off from the Load screen.</p>
+          <p class="muted small">Carries trucks between {v.kind === 'boat' ? 'ports' : 'airports'}: {deckUsed(v)} of {deckRoom(v)} deck spaces used{on.length ? `, by ${on.map((t) => t.name).join(', ')}` : ''}. Drive trucks on and off from the Load screen.</p>
         {:else if v.kind === 'boat'}
           <p class="muted small">Boats sail between ports. Bigger boats are in the Shop.</p>
         {:else}
@@ -115,6 +134,14 @@
 
 <style>
   .drop { margin-top: 10px; }
+  .books { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin: 6px 0 10px; padding: 10px 12px; background: var(--panel-2); border: 1px solid var(--line); border-radius: var(--r); }
+  .books.small { margin: 0 0 6px; padding: 8px 10px; background: var(--panel-3); border: 0; }
+  .books div { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+  .books small { color: var(--ink-soft); font-size: 12px; }
+  .books b { font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .loss { color: #c0392b; }
+  .payback { height: 5px; background: var(--panel-3); border-radius: 3px; overflow: hidden; }
+  .payback i { display: block; height: 100%; background: var(--accent); border-radius: 3px; }
   /* the open card turns every chevron inside it, so set this one by its own state */
   .drop .chev { transform: none; }
   .drop.shown .chev { transform: rotate(45deg); }

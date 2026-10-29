@@ -233,7 +233,7 @@ export function roadSide(ax, ay, bx, by) {
   return [(-(by - ay) / L) * k, ((bx - ax) / L) * k];
 }
 
-export { ENGINES, CARS, PLANES, BOATS, TRUCKS, TRAILERS } from "./vehicles.js";
+export { ENGINES, CARS, PLANES, BOATS, BARGES, TRUCKS, TRAILERS } from "./vehicles.js";
 
 // repeating routes are bought once, for the whole fleet, from this level on
 export const REPEAT_ROUTES = { level: 3, price: 4000 };

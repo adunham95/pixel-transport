@@ -391,8 +391,12 @@
         pb[id].slice(0, 3).forEach((v, i) => {
           const side = i === 0 ? 0 : i === 1 ? 1 : -1, gap = (artSize('boat', v.model).h + 1) * V;
           const x = d[0] * R + nx * side * gap, y = d[1] * R + ny * side * gap;
-          big(x + 0.7 * V, y + V, () => drawArt(b, 0, 0, ang, 'boat', v.model, { shadow: true }));
-          big(x, y, () => drawArt(b, 0, 0, ang, 'boat', v.model));
+          // a tug noses up to the pier with its barges strung out to sea behind it
+          if (v.cars?.length) big(x, y, () => { b.rotate(ang + Math.PI); drawConsistRow(b, 0, 0, 'boat', v.model, v.cars); });
+          else {
+            big(x + 0.7 * V, y + V, () => drawArt(b, 0, 0, ang, 'boat', v.model, { shadow: true }));
+            big(x, y, () => drawArt(b, 0, 0, ang, 'boat', v.model));
+          }
           if (dk) lights.push(() => lamp([x, y], '255,255,235', 0.8));
         });
       }
@@ -440,11 +444,19 @@
       // boats on the move
       for (const v of game.vehicles) {
         if (!v.trip || v.kind !== 'boat') continue;
-        const t = v.trip, p = posAt(t.pts, tripProgress(t, gnow) * t.len), x = p.x * R, y = p.y * R;
+        const t = v.trip, d = tripProgress(t, gnow) * t.len, p = posAt(t.pts, d), x = p.x * R, y = p.y * R;
         wake(x, y, p.ang, artSize('boat', v.model).w, now);
+        // barges follow the tug along the lane, like cars behind an engine
+        const tow = trainUnits('boat', v.model, v.cars ?? []).slice(1).map((u) => ({ ...u, p: posAt(t.pts, d - (u.off * V) / R) })).filter((u) => d - (u.off * V) / R > 0.2);
+        for (const u of tow) big(u.p.x * R + 0.7 * V, u.p.y * R + V, () => drawArt(b, 0, 0, u.p.ang, 'barge', u.model, { shadow: true }));
+        for (const u of tow) big(u.p.x * R, u.p.y * R, () => drawArt(b, 0, 0, u.p.ang, 'barge', u.model));
         big(x + 0.7 * V, y + V, () => drawArt(b, 0, 0, p.ang, 'boat', v.model, { shadow: true }));
         big(x, y, () => drawArt(b, 0, 0, p.ang, 'boat', v.model));
-        if (dk) lights.push(() => boatLights(x, y, p.ang, v.model));
+        if (dk) lights.push(() => {
+          boatLights(x, y, p.ang, v.model);
+          const last = tow[tow.length - 1];
+          if (last) lamp(onArt(last.p.x * R, last.p.y * R, last.p.ang, -artSize('barge', last.model).w / 2, 0), '255,255,235', 0.8);
+        });
         hits.push({ id: v.id, x, y });
         if (marked(v)) marker(x, y - 10);
       }

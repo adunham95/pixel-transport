@@ -1,9 +1,9 @@
-import { ENGINES, CARS, PLANES, BOATS, TRUCKS, TRAILERS } from './data.js';
+import { ENGINES, CARS, PLANES, BOATS, BARGES, TRUCKS, TRAILERS } from './data.js';
 
 // Draws vehicle art from the SVGs in vehicles.js. Each SVG is rasterized once at a
 // high resolution, plus a flat silhouette of it for shadows.
 
-const SPECS = { train: ENGINES, car: CARS, plane: PLANES, boat: BOATS, truck: TRUCKS, trailer: TRAILERS };
+const SPECS = { train: ENGINES, car: CARS, plane: PLANES, boat: BOATS, barge: BARGES, truck: TRUCKS, trailer: TRAILERS };
 const RES = 8; // raster pixels per sub pixel
 const COUPLER = 0.2; // gap between train units
 
@@ -89,12 +89,12 @@ export function drawArt(ctx, x, y, ang, kind, model, { shadow = false, spin = 0 
   ctx.restore();
 }
 
-// ---------- trains, and trucks pulling trailers ----------
+// ---------- trains, trucks pulling trailers, and tugs towing barges ----------
 
 // what each kind of lead unit pulls
-const TAIL = { train: 'car', truck: 'trailer' };
+const TAIL = { train: 'car', truck: 'trailer', boat: 'barge' };
 
-// each unit of a train or truck, front first: its art, and how far its center sits behind the lead unit's center
+// each unit of a train, truck or tow, front first: its art, and how far its center sits behind the lead unit's center
 export function trainUnits(kind, model, cars) {
   const units = [{ kind, model, off: 0 }];
   let back = artSize(kind, model).w / 2;

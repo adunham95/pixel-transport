@@ -1,12 +1,12 @@
 <script>
-  import { capacity, used, deckUsed } from './game.svelte.js';
-  import { JOB_TYPES, BOATS } from './data.js';
+  import { capacity, used, deckUsed, deckRoom } from './game.svelte.js';
+  import { JOB_TYPES } from './data.js';
   import Icon from './Icon.svelte';
-  // small used/room badges for each hold, plus truck spaces on car ferries
+  // small used/room badges for each hold, plus truck spaces on car ferries and cargo planes
   let { v } = $props();
   const cap = $derived(capacity(v));
   const u = $derived(used(v));
-  const deck = $derived(v.kind === 'boat' ? BOATS[v.model].deck ?? 0 : 0);
+  const deck = $derived(deckRoom(v));
 </script>
 
 {#if JOB_TYPES.some((t) => cap[t]) || deck}

@@ -1,4 +1,4 @@
-import { CITIES, RAILS, ROADS, ROAD_OFF, LANE, roadSide, ENGINES, CARS, PLANES, BOATS, TRUCKS, TRAILERS, LEVELS, RATES, SPEED, CITY_PRICE, START_CITIES, JOB_TYPES, MAGLEV_LINES, REPEAT_ROUTES } from './data.js';
+import { CITIES, RAILS, ROADS, ROAD_OFF, LANE, roadSide, ENGINES, CARS, PLANES, BOATS, BARGES, TRUCKS, TRAILERS, LEVELS, RATES, SPEED, CITY_PRICE, START_CITIES, JOB_TYPES, MAGLEV_LINES, REPEAT_ROUTES } from './data.js';
 import { seaLane } from './sea.js';
 
 const KEY = 'pixel-transport-save-v1';
@@ -105,20 +105,21 @@ export function tripProgress(trip, now) {
 
 const SPECS = { train: ENGINES, plane: PLANES, boat: BOATS, truck: TRUCKS };
 export function spec(v) { return SPECS[v.kind][v.model]; }
-// what a train or truck hooks up behind it: cars or trailers
-const TAILS = { train: CARS, truck: TRAILERS };
+// what a train, truck or tug hooks up behind it: cars, trailers or barges
+const TAILS = { train: CARS, truck: TRAILERS, boat: BARGES };
+const TAIL_NAME = { train: 'car', truck: 'trailer', boat: 'barge' };
 export function tailSpecs(v) { return TAILS[v.kind]; }
+export function tailName(v) { return TAIL_NAME[v.kind]; }
 
 const none = () => Object.fromEntries(JOB_TYPES.map((t) => [t, 0]));
 
 export function capacity(v) {
   const cap = none();
   if (v.kind === 'plane') { const p = PLANES[v.model]; cap.pax = p.pax; cap.cargo = p.cargo; Object.assign(cap, p.hold); }
-  else if (v.kind === 'boat') Object.assign(cap, BOATS[v.model].cap);
   else {
-    if (v.kind === 'truck') Object.assign(cap, TRUCKS[v.model].cap);
+    Object.assign(cap, spec(v).cap);
     const tails = tailSpecs(v);
-    for (const c of v.cars) cap[tails[c].holds] += tails[c].cap;
+    for (const c of v.cars ?? []) cap[tails[c].holds] += tails[c].cap;
   }
   return cap;
 }
@@ -162,7 +163,7 @@ export function leg(v, from, to) {
     if (!canBase('boat', v.model, cityById[from]) || !canBase('boat', v.model, cityById[to])) return null;
     const lane = seaLane(from, to);
     if (!lane) return null;
-    return { from, to, len: lane.len, pts: lane.pts, cost: Math.max(1, Math.ceil(lane.len * b.run)), time: lane.len / (b.speed * SPEED) };
+    return { from, to, len: lane.len, pts: lane.pts, cost: Math.max(1, Math.ceil(lane.len * (b.run + 0.02 * (v.cars?.length ?? 0)))), time: lane.len / (b.speed * SPEED) };
   }
   const A = cityById[from], B = cityById[to], p = PLANES[v.model];
   if (!canBase('plane', v.model, A) || !canBase('plane', v.model, B)) return null;
@@ -256,7 +257,7 @@ function newVehicle(g, kind, model, city, cars) {
   const s = SPECS[kind][model];
   const n = g.vehicles.filter((v) => v.model === model).length + 1;
   const v = { id: g.nextId++, kind, model, name: `${s.name} ${n}`, city, cargo: [], trip: null };
-  if (kind === 'train' || kind === 'truck') v.cars = cars ?? [];
+  if (s.maxCars != null) v.cars = cars ?? [];
   return v;
 }
 
@@ -376,7 +377,7 @@ export function tripInfo(v, now = clock.now) {
 
 function unlocksAt(level) {
   const out = level === REPEAT_ROUTES.level ? ['Repeating routes'] : [];
-  for (const s of [...Object.values(PLANES), ...Object.values(ENGINES), ...Object.values(CARS), ...Object.values(BOATS), ...Object.values(TRUCKS), ...Object.values(TRAILERS)]) if (s.level === level) out.push(s.short ?? s.name);
+  for (const s of [...Object.values(PLANES), ...Object.values(ENGINES), ...Object.values(CARS), ...Object.values(BOATS), ...Object.values(BARGES), ...Object.values(TRUCKS), ...Object.values(TRAILERS)]) if (s.level === level) out.push(s.short ?? s.name);
   return out;
 }
 
@@ -394,6 +395,9 @@ function earn(amount) {
 
 const tripEnd = (v) => v.trip.startAt + v.trip.dur;
 
+// what a vehicle has earned and spent on fuel since it joined the fleet (game time)
+function books(v) { return (v.books ??= { earned: 0, fuel: 0, since: gameNow() }); }
+
 // hand over everything on board that's for this town, and get paid for it
 function dropOff(v, to) {
   let total = 0, n = 0;
@@ -401,7 +405,7 @@ function dropOff(v, to) {
     if (j.to === to) { total += j.pay; n++; return false; }
     return true;
   });
-  if (n) earn(total);
+  if (n) { earn(total); books(v).earned += total; }
   if (n && !quiet) fx.push({ x: cityById[to].x, y: cityById[to].y, text: `+$${fmt(total)}`, t: Date.now() });
   return { n, total };
 }
@@ -480,6 +484,7 @@ function step() {
     if (!v) break;
     arrive(v, tripEnd(v));
   }
+  for (const v of game.vehicles) books(v);
   for (const v of game.vehicles) if (v.loop && v.city && !v.trip && now >= (v.loop.wait ?? 0)) runLoop(v, now);
   for (const c of CITIES) {
     // jobs are stamped the first time they're seen waiting; ones dropped off for a transfer never expire
@@ -584,6 +589,7 @@ export function dispatch(v, stops, { repeat = false, lap = null } = {}) {
   const cost = legs.reduce((s, l) => s + l.cost, 0);
   if (game.coins < cost) { toast(lap == null ? `Not enough coins for fuel. You need $${fmt(cost)}.` : `${v.name} stopped repeating. It needs $${fmt(cost)} for fuel.`, 'bad'); return false; }
   game.coins -= cost;
+  books(v).fuel += cost;
   const [first, ...rest] = legs.map((l) => ({ from: l.from, to: l.to, pts: l.pts, len: l.len, dur: l.time * 1000, cost: l.cost }));
   v.trip = { ...first, startAt: lap ?? gameNow() };
   v.next = rest;
@@ -642,6 +648,7 @@ export function endRoute(v) {
   v.next = [];
   delete v.loop;
   game.coins += refund;
+  books(v).fuel -= refund;
   toast(`${v.name} will stop at ${cityById[v.trip.to].name}. Refunded $${fmt(refund)}`);
 }
 
@@ -671,7 +678,7 @@ export function buyBoat(model) {
   if (!spend(b.price, b.level, b.name)) return;
   const v = newVehicle(game, 'boat', model, c.id);
   game.vehicles.push(v);
-  toast(`${v.name} is moored at ${c.name}`, 'good');
+  toast(b.maxCars ? `${v.name} is moored at ${c.name}. Hook up some barges.` : `${v.name} is moored at ${c.name}`, 'good');
   ui.tab = 'fleet';
   ui.focusVehicle = v.id;
 }
@@ -701,7 +708,7 @@ export function buyEngine(model) {
 }
 
 export function addCar(v, type) {
-  const car = tailSpecs(v)[type], e = spec(v), what = v.kind === 'truck' ? 'trailer' : 'car';
+  const car = tailSpecs(v)[type], e = spec(v), what = tailName(v);
   if (!v.city) return;
   if (v.cars.length >= e.maxCars) { toast(`${e.name} can pull ${e.maxCars} ${what}${e.maxCars > 1 ? 's' : ''} at most`, 'bad'); return; }
   if (e.freightOnly && car.holds === 'pax') { toast(`${e.name} only pulls freight cars`, 'bad'); return; }
@@ -739,6 +746,15 @@ export function upgradeEngine(v, model) {
   toast(`Swapped in a ${e.name}`, 'good');
 }
 
+// money in and out for a vehicle: profit, profit per game hour once it's been around a few
+// minutes, and how much of what it cost (with its cars, trailers or barges) it has made back
+export function finances(v, now = clock.now) {
+  // read only: this runs while the page draws, and books are started in step()
+  const b = v.books ?? { earned: 0, fuel: 0, since: now }, profit = b.earned - b.fuel, age = now - b.since;
+  const cost = spec(v).price + (v.cars ?? []).reduce((s, c) => s + tailSpecs(v)[c].price, 0);
+  return { ...b, profit, perHour: age > 3 * 60 * 1000 ? profit / (age / 3.6e6) : null, paidBack: profit / cost };
+}
+
 export function sellValue(v) {
   const base = Math.floor(spec(v).price / 2);
   return v.cars ? base + v.cars.reduce((s, c) => s + Math.floor(tailSpecs(v)[c].price / 2), 0) : base;
@@ -752,20 +768,22 @@ export function sellVehicle(v) {
   toast(`Sold ${v.name}`);
 }
 
-// ---------- car ferries ----------
+// ---------- carrying trucks: car ferries and cargo planes ----------
 
-// trucks riding on this ferry
+// trucks riding on this ferry or plane
 export function aboard(f) { return game.vehicles.filter((t) => t.aboard === f.id); }
 export function carrierOf(t) { return t.aboard != null ? game.vehicles.find((f) => f.id === t.aboard) : null; }
 // how much ferry deck a truck takes up, trailers and all
 export function deckSize(t) { return TRUCKS[t.model].deck + t.cars.reduce((s, c) => s + TRAILERS[c].deck, 0); }
 export function deckUsed(f) { return aboard(f).reduce((s, t) => s + deckSize(t), 0); }
+// truck spaces on a car ferry or cargo plane (a truck's own deck is the room it takes up)
+export function deckRoom(f) { return f.kind === 'truck' ? 0 : spec(f).deck ?? 0; }
 export function canBoard(f, t) {
-  return !!f.city && t.city === f.city && t.kind === 'truck' && !TRUCKS[t.model].noFerry && deckUsed(f) + deckSize(t) <= (BOATS[f.model].deck ?? 0);
+  return !!f.city && t.city === f.city && t.kind === 'truck' && !TRUCKS[t.model].noFerry && deckUsed(f) + deckSize(t) <= deckRoom(f);
 }
 
 export function driveOn(f, t) {
-  if (TRUCKS[t.model].noFerry) { toast(`A ${TRUCKS[t.model].name} is too long for the ferry`, 'bad'); return; }
+  if (TRUCKS[t.model].noFerry) { toast(`A ${TRUCKS[t.model].name} is too long to carry`, 'bad'); return; }
   if (!canBoard(f, t)) { toast(`No room for ${t.name} on the deck`, 'bad'); return; }
   t.aboard = f.id;
   t.city = null;
@@ -773,7 +791,7 @@ export function driveOn(f, t) {
   if (ui.activeVehicle === t.id) ui.activeVehicle = f.id;
 }
 
-// a truck drives off wherever the ferry is docked, dropping off anything it has for this town
+// a truck drives off wherever its carrier is parked, dropping off anything it has for this town
 export function driveOff(f, t) {
   if (!f.city || t.aboard !== f.id) return;
   delete t.aboard;
@@ -819,7 +837,7 @@ export function devSpawn(kind, model) {
   if (!isOpen(c.id)) { toast(`Unlock ${c.name} first`, 'bad'); return; }
   if (!canBase(kind, model, c)) { toast(`${SPECS[kind][model].name} can’t be based at ${c.name}`, 'bad'); return; }
   const s = SPECS[kind][model];
-  const mix = kind === 'truck' ? ['van', 'dump', 'tank'] : s.freightOnly ? ['box', 'tank', 'hopper'] : ['pax', 'box', 'tank', 'hopper'];
+  const mix = kind === 'truck' ? ['van', 'dump', 'tank'] : kind === 'boat' ? ['deck', 'hopper', 'tank'] : s.freightOnly ? ['box', 'tank', 'hopper'] : ['pax', 'box', 'tank', 'hopper'];
   const v = newVehicle(game, kind, model, c.id, s.maxCars ? Array(s.maxCars).fill(0).map((_, i) => mix[i % mix.length]) : undefined);
   game.vehicles.push(v);
   toast(`${v.name} added at ${c.name}`, 'good');
