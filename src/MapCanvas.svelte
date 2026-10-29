@@ -11,6 +11,11 @@
   const V = 1.6; // vehicles are drawn a bit larger than the map grid so their detail reads
   let canvas;
 
+  // zoom levels as multiples of the screen's natural scale, rounded so pixels stay square
+  const ZOOMS = [0.5, 0.75, 1, 1.5, 2, 3];
+  const ZOOM_KEY = 'pixel-transport-zoom';
+  let canIn = $state(false), canOut = $state(false), zoomBy = $state(null);
+
   const BUILDINGS = [
     // dx, dy(top of roof), w, roofH, wallH, roof, roofLight, wall
     [-8, -6, 6, 3, 5, '#c9553f', '#e2735c', '#efe6d2'],
@@ -27,6 +32,9 @@
     const water = b.createPattern(makeWaterPattern(), 'repeat');
     const WS = W * R, HS = H * R;
     let dpr = 1, scale = 2, bw = 0, bh = 0;
+    let levels = [1], at = 0, baseAt = 0, zoomFx = null;
+    let zoomStep = (() => { try { return Number(localStorage.getItem(ZOOM_KEY)) || 0; } catch { return 0; } })();
+    const snap = document.createElement('canvas');
     let camX = 0, camY = 0, vx = 0, vy = 0, drag = null, target = null, lastFocus = 0, centered = false;
 
     const visibleH = () => bh - (sheetPx * dpr) / scale;
@@ -36,11 +44,36 @@
       dpr = Math.min(window.devicePixelRatio || 1, 3);
       canvas.width = Math.max(1, Math.round(r.width * dpr));
       canvas.height = Math.max(1, Math.round(r.height * dpr));
-      scale = Math.max(1, Math.floor(canvas.width / 300));
+      const base = Math.max(1, Math.floor(canvas.width / 300));
+      levels = [...new Set(ZOOMS.map((m) => Math.max(1, Math.round(base * m))))];
+      baseAt = levels.indexOf(base);
+      at = Math.min(levels.length - 1, Math.max(0, baseAt + zoomStep));
+      applyScale();
+    }
+    function applyScale() {
+      scale = levels[at];
       bw = Math.ceil(canvas.width / scale);
       bh = Math.ceil(canvas.height / scale);
       buf.width = bw; buf.height = bh;
+      canIn = at < levels.length - 1;
+      canOut = at > 0;
     }
+    // step the zoom, keeping whatever is in the middle of the visible map where it is
+    zoomBy = (d) => {
+      if (!bw || at + d < 0 || at + d >= levels.length) return;
+      const old = scale, mx = camX + bw / 2, my = camY + visibleH() / 2;
+      const tc = target && { x: target.x + bw / 2, y: target.y + visibleH() / 2 };
+      // hold on to the old view so it can grow or shrink away over the new one
+      snap.width = canvas.width; snap.height = canvas.height;
+      snap.getContext('2d').drawImage(canvas, 0, 0);
+      at += d;
+      zoomStep = at - baseAt;
+      try { localStorage.setItem(ZOOM_KEY, String(zoomStep)); } catch {}
+      applyScale();
+      camX = mx - bw / 2; camY = my - visibleH() / 2; vx = vy = 0;
+      if (tc) target = { x: tc.x - bw / 2, y: tc.y - visibleH() / 2 };
+      zoomFx = { k: scale / old, t: Date.now() };
+    };
     const ro = new ResizeObserver(resize);
     ro.observe(canvas);
     resize();
@@ -332,7 +365,9 @@
       ctx.drawImage(buf, 0, 0, bw * scale, bh * scale);
 
       // labels
-      const fs = Math.round(12 * dpr);
+      // zoomed out, names get smaller and locked towns drop theirs so the map doesn't drown in text
+      const out = scale < levels[baseAt];
+      const fs = Math.round(12 * dpr * (out ? 0.8 : 1));
       const font = (w, s) => `${w} ${s}px Rubik, system-ui, sans-serif`;
       ctx.font = font(600, fs);
       ctx.textAlign = 'center';
@@ -354,7 +389,7 @@
       ctx.font = font(600, fs);
 
       for (const c of CITIES) {
-        if (!inView(c.x, c.y)) continue;
+        if (!inView(c.x, c.y) || (out && !isOpen(c.id) && c.id !== game.selected)) continue;
         const sx = (c.x * R - cx + 0.5) * scale;
         const sy = (c.y * R - cy - 15) * scale;
         const tw = ctx.measureText(c.name).width;
@@ -380,6 +415,18 @@
           ctx.textBaseline = 'middle';
           ctx.fillText(String(n), bx + bs / 2, by + bs / 2 + dpr * 0.5);
           ctx.font = font(600, fs);
+        }
+      }
+
+      if (zoomFx) {
+        const a = (now - zoomFx.t) / 240;
+        if (a >= 1 || reduced) zoomFx = null;
+        else {
+          const e = 1 - (1 - a) ** 3, k = 1 + (zoomFx.k - 1) * e;
+          const ox = canvas.width / 2, oy = (canvas.height - sheetPx * dpr) / 2;
+          ctx.globalAlpha = 1 - e;
+          ctx.drawImage(snap, ox - ox * k, oy - oy * k, snap.width * k, snap.height * k);
+          ctx.globalAlpha = 1;
         }
       }
     }
@@ -451,13 +498,29 @@
     canvas.addEventListener('pointerup', up);
     canvas.addEventListener('pointercancel', () => (drag = null));
     canvas.addEventListener('wheel', wheel, { passive: false });
+    function key(e) {
+      if (e.ctrlKey || e.metaKey || e.altKey || e.target.closest?.('input, textarea')) return;
+      if (e.key === '+' || e.key === '=') zoomBy(1);
+      else if (e.key === '-') zoomBy(-1);
+    }
+    addEventListener('keydown', key);
 
-    return () => { cancelAnimationFrame(raf); ro.disconnect(); };
+    return () => { cancelAnimationFrame(raf); ro.disconnect(); removeEventListener('keydown', key); };
   });
 </script>
 
 <canvas bind:this={canvas} aria-label="Map of cities, rail lines and airports"></canvas>
+<div class="zoom" style:bottom="min({sheetPx + 12}px, calc(100% - 104px))">
+  <button aria-label="Zoom in" disabled={!canIn} onclick={() => zoomBy?.(1)}>+</button>
+  <button aria-label="Zoom out" disabled={!canOut} onclick={() => zoomBy?.(-1)}>−</button>
+</div>
 
 <style>
   canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: grab; }
+  .zoom { position: absolute; right: 12px; z-index: 3; display: flex; flex-direction: column; background: var(--panel-2); border-radius: 12px; box-shadow: 0 4px 14px rgba(10,16,30,.28); overflow: hidden; }
+  .zoom button { width: 40px; height: 40px; border: 0; background: none; font-size: 22px; font-weight: 500; line-height: 1; cursor: pointer; color: var(--ink); transition: background .15s, transform .08s; }
+  .zoom button + button { border-top: 1px solid var(--line); }
+  .zoom button:hover:not(:disabled) { background: var(--panel-3); }
+  .zoom button:active:not(:disabled) { transform: scale(.9); }
+  .zoom button:disabled { color: var(--line-strong); cursor: default; }
 </style>
