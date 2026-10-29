@@ -1,6 +1,6 @@
 <script>
   import { game, cityById, buyPlane, buyEngine, buyBoat, buyTruck, buyRepeatRoutes, isOpen, canBase, fmt } from './game.svelte.js';
-  import { ENGINES, CARS, PLANES, BOATS, BARGES, TRUCKS, TRAILERS, MI, TYPE_LABEL, JOB_TYPES, REPEAT_ROUTES } from './data.js';
+  import { ENGINES, CARS, PLANES, BOATS, BARGES, TRUCKS, TRAILERS, MI, TYPE_LABEL, JOB_TYPES, REPEAT_ROUTES, ESCORT_LABEL } from './data.js';
   const UNIT = { pax: 'seats', cargo: 'cargo', fuel: 'fuel', bulk: 'bulk', mail: 'mail', wide: 'wide load' };
   const holds = (cap) => JOB_TYPES.filter((t) => cap[t]).map((t) => `${cap[t]} ${UNIT[t]}`).join(', ');
   // demo consist for the shop picture: freight engines don't get a passenger car
@@ -78,7 +78,7 @@
     <span class="pv wide"><Sprite kind="truck" model={k} cars={demoTrailers(t)} scale={4} /></span>
     <span class="grow">
       <b>{t.name}</b>
-      <small>{t.maxCars ? `Pulls ${t.maxCars > 1 ? `up to ${t.maxCars}` : 'a'} ${t.pulls ? t.pulls.map((k) => TRAILERS[k].short.toLowerCase()).join(' or ') + ' ' : ''}trailer${t.maxCars > 1 ? 's' : ''}` : holds(t.cap)}{t.noFerry ? '. Too long for car ferries' : ''}</small>
+      <small>{t.escort ? `Escorts superload convoys as a ${ESCORT_LABEL[t.escort]}. Carries nothing` : t.maxCars ? `Pulls ${t.maxCars > 1 ? `up to ${t.maxCars}` : 'a'} ${t.pulls ? t.pulls.map((k) => TRAILERS[k].short.toLowerCase()).join(' or ') + ' ' : ''}trailer${t.maxCars > 1 ? 's' : ''}` : holds(t.cap)}{t.noFerry ? '. Too long for car ferries' : ''}</small>
       <small>Speed <span class="pips">{#each [1, 2, 3, 4, 5] as n}<i class:on={n <= t.pips}></i>{/each}</span></small>
     </span>
     <button class="btn primary" disabled={locked || !isOpen(c.id) || c.anchor || !canBase('truck', k, c) || game.coins < t.price} onclick={() => buyTruck(k)}>{locked ? `Lv ${t.level}` : `$${fmt(t.price)}`}</button>

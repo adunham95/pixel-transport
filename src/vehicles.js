@@ -1124,7 +1124,9 @@ export const BARGES = {
 // run is coins per world unit, plus 0.03 for each trailer. deck is how many spaces it takes
 // on a car ferry, plus each trailer's; noFerry: true means it's too long to board one.
 // pulls: [trailer, ...] limits a tractor to those TRAILERS. beacons: [[x, y], ...] amber lights,
-// in the art's sub pixel units, that flash on the map while it drives.
+// in the art's sub pixel units, that flash on the map while it drives (beaconColors: ["r,g,b", ...]
+// colors them instead). escort: "pilot", "police", "pusher" or "bucket" means it carries nothing,
+// but rides along in a superload's convoy (see SUPERLOAD in data.js).
 export const TRUCKS = {
   pickup: {
     name: "Pickup",
@@ -1243,6 +1245,99 @@ export const TRUCKS = {
       <rect x="-3.5" y="-1.05" width="4.5" height="0.45" rx="0.22" fill="#eef1f4"/>
       <rect x="-3.5" y="-0.12" width="4.5" height="0.24" fill="#7b4fc9"/>
       <circle cx="-1.25" cy="0" r="0.4" fill="#6d7680"/>
+    </svg>`,
+  },
+  pilot: {
+    name: "Pilot Car",
+    short: "Pilot",
+    level: 9,
+    price: 600,
+    cap: {},
+    escort: "pilot",
+    maxCars: 0,
+    beacons: [[-0.2, -0.7], [-0.2, 0.7]],
+    speed: 8,
+    run: 0.03,
+    deck: 1,
+    pips: 3,
+    art: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-2.8 -1.6 5.6 3.2">
+      <path d="M-2 -1.2H1.7A0.7 0.7 0 0 1 2.4 -0.5V0.5A0.7 0.7 0 0 1 1.7 1.2H-2A0.4 0.4 0 0 1 -2.4 0.8V-0.8A0.4 0.4 0 0 1 -2 -1.2Z" fill="#f4f6f8" stroke="rgba(18,24,38,0.9)" stroke-width="0.5" stroke-linejoin="round"/>
+      <rect x="-2.1" y="-0.85" width="1.5" height="1.7" fill="#f2c14e"/>
+      <rect x="-1.95" y="-0.15" width="1.2" height="0.3" fill="#2a2310"/>
+      <rect x="-0.45" y="-0.95" width="0.5" height="1.9" fill="#e08a2c"/>
+      <rect x="0.3" y="-0.95" width="0.5" height="1.9" fill="#9fd0ff"/>
+      <g fill="#fff3a8"><rect x="2.05" y="-0.95" width="0.35" height="0.4"/><rect x="2.05" y="0.55" width="0.35" height="0.4"/></g>
+    </svg>`,
+  },
+  police: {
+    name: "Police Car",
+    short: "Police",
+    level: 10,
+    price: 1500,
+    cap: {},
+    escort: "police",
+    maxCars: 0,
+    beacons: [[-0.2, -0.6], [-0.2, 0.6]],
+    beaconColors: ["255,50,40", "60,120,255"],
+    speed: 9,
+    run: 0.04,
+    deck: 1,
+    pips: 4,
+    art: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-2.8 -1.6 5.6 3.2">
+      <path d="M-2 -1.2H1.7A0.7 0.7 0 0 1 2.4 -0.5V0.5A0.7 0.7 0 0 1 1.7 1.2H-2A0.4 0.4 0 0 1 -2.4 0.8V-0.8A0.4 0.4 0 0 1 -2 -1.2Z" fill="#23283a" stroke="rgba(18,24,38,0.9)" stroke-width="0.5" stroke-linejoin="round"/>
+      <rect x="-1.5" y="-1.2" width="2.6" height="2.4" fill="#f4f6f8"/>
+      <rect x="-1.2" y="-0.85" width="1.6" height="1.7" rx="0.2" fill="#f4f6f8" stroke="#c9ced4" stroke-width="0.12"/>
+      <rect x="-0.4" y="-0.85" width="0.4" height="0.85" fill="#d6453a"/><rect x="-0.4" y="0" width="0.4" height="0.85" fill="#2a6fd6"/>
+      <rect x="0.6" y="-0.95" width="0.5" height="1.9" fill="#9fd0ff"/>
+      <rect x="-2.2" y="-0.9" width="0.45" height="1.8" fill="#9fd0ff"/>
+      <g fill="#fff3a8"><rect x="2.05" y="-0.95" width="0.35" height="0.4"/><rect x="2.05" y="0.55" width="0.35" height="0.4"/></g>
+    </svg>`,
+  },
+  pusher: {
+    name: "Push Truck",
+    short: "Pusher",
+    level: 10,
+    price: 3000,
+    cap: {},
+    escort: "pusher",
+    maxCars: 0,
+    beacons: [[0.3, -1.3], [0.3, 1.3]],
+    speed: 6,
+    run: 0.08,
+    deck: 2,
+    pips: 2,
+    art: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-3 -2 6 4">
+      <rect x="-2.8" y="-1.3" width="3.2" height="2.6" rx="0.3" fill="#3a3f47" stroke="rgba(18,24,38,0.9)" stroke-width="0.5"/>
+      <g fill="#f2c14e"><rect x="-2.6" y="-1.1" width="0.5" height="2.2"/><rect x="-1.8" y="-1.1" width="0.5" height="2.2"/></g>
+      <rect x="-1" y="-0.7" width="1.2" height="1.4" fill="#6f7682"/>
+      <path d="M0.2 -1.6H1.9A0.8 0.8 0 0 1 2.7 -0.8V0.8A0.8 0.8 0 0 1 1.9 1.6H0.2Z" fill="#e08a2c" stroke="rgba(18,24,38,0.9)" stroke-width="0.6" stroke-linejoin="round"/>
+      <rect x="0.4" y="-1.3" width="0.9" height="2.6" fill="#c96f1e"/>
+      <rect x="1.5" y="-1.3" width="0.5" height="2.6" fill="#9fd0ff"/>
+      <rect x="2.6" y="-1.7" width="0.35" height="3.4" rx="0.15" fill="#c9ced4" stroke="rgba(18,24,38,0.9)" stroke-width="0.25"/>
+    </svg>`,
+  },
+  bucket: {
+    name: "Bucket Truck",
+    short: "Bucket",
+    level: 11,
+    price: 2200,
+    cap: {},
+    escort: "bucket",
+    maxCars: 0,
+    beacons: [[1.2, -1.1], [1.2, 1.1]],
+    speed: 6.5,
+    run: 0.06,
+    deck: 2,
+    pips: 2,
+    art: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-3.6 -1.9 7.2 3.8">
+      <path d="M1.2 -1.3H2.7A0.8 0.8 0 0 1 3.5 -0.5V0.5A0.8 0.8 0 0 1 2.7 1.3H1.2Z" fill="#f4f6f8" stroke="rgba(18,24,38,0.9)" stroke-width="0.6" stroke-linejoin="round"/>
+      <rect x="2.4" y="-1" width="0.5" height="2" fill="#9fd0ff"/>
+      <rect x="-3.2" y="-1.5" width="4.4" height="3" rx="0.3" fill="#f4f6f8" stroke="rgba(18,24,38,0.9)" stroke-width="0.6"/>
+      <rect x="-3" y="-1.3" width="1" height="2.6" fill="#c9ced4"/>
+      <rect x="-2.6" y="-0.25" width="3.6" height="0.5" rx="0.2" fill="#f2c14e" stroke="rgba(18,24,38,0.9)" stroke-width="0.25"/>
+      <rect x="-3.3" y="-0.65" width="1.1" height="1.3" rx="0.2" fill="#e08a2c" stroke="rgba(18,24,38,0.9)" stroke-width="0.3"/>
+      <circle cx="0.6" cy="0" r="0.45" fill="#6f7682"/>
+      <g fill="#fff3a8"><rect x="3.1" y="-0.9" width="0.4" height="0.4"/><rect x="3.1" y="0.5" width="0.4" height="0.4"/></g>
     </svg>`,
   },
   largebus: {

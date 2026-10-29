@@ -1,10 +1,10 @@
 <script>
-  import { game, ui, cityById, capacity, used, loadJob, unloadJob, autoLoad, destinations, dispatch, route, canReach, planLegs, autoPlan, toggleStop, fmt, fmtTime, loopStops, buyRepeatRoutes, aboard, canBoard, fitsAboard, deckFor, deckSize, deckUsed, deckRoom, driveOn, driveOff, wear, fetcher } from './game.svelte.js';
+  import { game, ui, cityById, capacity, used, loadJob, unloadJob, autoLoad, destinations, dispatch, route, canReach, planLegs, autoPlan, toggleStop, fmt, fmtTime, loopStops, buyRepeatRoutes, aboard, canBoard, fitsAboard, deckFor, deckSize, deckUsed, deckRoom, driveOn, driveOff, wear, fetcher, convoyNeeds, pickEscorts, escortText } from './game.svelte.js';
   import Icon from './Icon.svelte';
   import Sprite from './Sprite.svelte';
   import JobRow from './JobRow.svelte';
   import { send, receive, flip, fly } from './motion.js';
-  import { TYPE_LABEL, JOB_TYPES, ENGINES, TRUCKS, REPEAT_ROUTES } from './data.js';
+  import { TYPE_LABEL, JOB_TYPES, ENGINES, TRUCKS, REPEAT_ROUTES, ESCORT_LABEL } from './data.js';
   let { v } = $props();
   const cap = $derived(capacity(v));
   const u = $derived(used(v));
@@ -17,7 +17,11 @@
   const looping = $derived(ui.repeat && game.repeatRoutes);
   const legs = $derived(planLegs(v, looping ? loopStops(v, ui.plan) : ui.plan));
   const last = $derived(ui.plan.length ? ui.plan[ui.plan.length - 1] : v.city);
-  const total = $derived(legs.reduce((s, l) => ({ cost: s.cost + (l?.cost ?? 0), time: s.time + (l?.time ?? 0) }), { cost: 0, time: 0 }));
+  // a superload's convoy: the escorts it needs, which are parked here, and their fuel for the route
+  const needs = $derived(convoyNeeds(v));
+  const convoy = $derived(pickEscorts(v));
+  const escFuel = $derived(convoy.picked.reduce((s, x) => s + planLegs(x, ui.plan).reduce((a, l) => a + (l?.cost ?? 0), 0), 0));
+  const total = $derived(legs.reduce((s, l) => ({ cost: s.cost + (l?.cost ?? 0), time: s.time + (l?.time ?? 0) }), { cost: escFuel, time: 0 }));
   const broken = $derived(legs.some((l) => !l));
   // what this route makes: drop off pay against fuel
   const pay = $derived(drops.reduce((s, d) => s + d.pay, 0));
@@ -46,6 +50,7 @@
   function blocker(j) {
     const f = fetcher(j);
     if (f) return { block: true, text: `${f.name} is on its way for it` };
+    if (j.escort && v.kind !== 'truck') return { block: true, text: 'Superloads only go by road, on a lowboy trailer' };
     if (!cap[j.type]) {
       const what = TYPE_LABEL[j.type].toLowerCase();
       if (j.type === 'wide' && v.kind !== 'truck' && v.kind !== 'train') return { block: true, text: 'Wide loads only go overland, on a lowboy trailer or flatcar' };
@@ -86,6 +91,18 @@
     {#if cap[t]}<span class="meter t-{t}" class:full={u[t] >= cap[t]}><Icon name={t} size={14} />{u[t]}/{cap[t]}</span>{/if}
   {/each}
 </div>
+{#if Object.keys(needs).length}
+  <div class="convoy" class:ready={!convoy.missing.length}>
+    <b>Superload convoy</b>
+    <small>{convoy.missing.length ? `Needs ${escortText(Object.fromEntries(convoy.missing))} more parked at ${city.name} to set off.` : `Ready. ${escortText(needs)} will drive along${ui.plan.length ? `, $${fmt(escFuel)} of fuel` : ''}.`}</small>
+    <div class="chips">
+      {#each Object.entries(needs) as [k, n]}
+        {@const got = convoy.picked.filter((x) => TRUCKS[x.model].escort === k).length}
+        <span class="chip" class:short={got < n}>{ESCORT_LABEL[k]} {got}/{n}</span>
+      {/each}
+    </div>
+  </div>
+{/if}
 
 {#if ui.picking}
   <h3>Route</h3>
@@ -152,7 +169,7 @@
   <div class="footer">
     <button class="btn" onclick={() => { ui.picking = false; ui.plan = []; }}>Back</button>
     {#if unrouted}<button class="btn" onclick={plan}>Route cargo</button>{/if}
-    <button class="btn primary" disabled={!ui.plan.length || broken || game.coins < total.cost} onclick={go}>
+    <button class="btn primary" disabled={!ui.plan.length || broken || game.coins < total.cost || convoy.missing.length > 0} onclick={go}>
       {!ui.plan.length ? 'Go' : looping ? `Loop ${fmtTime(total.time)}, $${fmt(total.cost)} a lap` : `Go ${fmtTime(total.time)}, $${fmt(total.cost)}`}
     </button>
   </div>
@@ -202,5 +219,11 @@
   .profit small { color: var(--ink-soft); font-size: 12px; }
   .profit b { font-weight: 600; font-variant-numeric: tabular-nums; }
   .profit .loss { color: var(--bad); }
+  .convoy { margin: 8px 0; padding: 10px 12px; border-radius: var(--r); background: color-mix(in srgb, var(--bad) 10%, var(--panel-2)); border: 1px solid color-mix(in srgb, var(--bad) 35%, transparent); display: flex; flex-direction: column; gap: 4px; }
+  .convoy.ready { background: color-mix(in srgb, var(--good) 10%, var(--panel-2)); border-color: color-mix(in srgb, var(--good) 35%, transparent); }
+  .convoy small { color: var(--ink-soft); }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip { font-size: 12px; font-weight: 600; padding: 2px 9px; border-radius: 999px; background: color-mix(in srgb, var(--good) 18%, transparent); text-transform: capitalize; }
+  .chip.short { background: color-mix(in srgb, var(--bad) 18%, transparent); }
   .repeat input { width: 20px; height: 20px; flex: none; accent-color: var(--accent); }
 </style>

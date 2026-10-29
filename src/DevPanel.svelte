@@ -1,5 +1,5 @@
 <script>
-  import { game, dev, cityById, devCoins, devMaxLevel, devSpawn, devFinishLegs, devFillJobs, devUnlockAll, devSkipHalfDay, setDev, isOpen, canBase, fmt } from './game.svelte.js';
+  import { game, dev, cityById, devCoins, devMaxLevel, devSpawn, devFinishLegs, devFillJobs, devUnlockAll, devSkipHalfDay, devSuperload, setDev, isOpen, canBase, fmt } from './game.svelte.js';
   import { ENGINES, PLANES, BOATS, TRUCKS, LEVELS } from './data.js';
   import Sprite from './Sprite.svelte';
   const c = $derived(cityById[game.selected]);
@@ -38,6 +38,9 @@
 <div class="grid3 two">
   <button class="btn small" onclick={devUnlockAll}>Unlock all towns</button>
   <button class="btn small" onclick={devSkipHalfDay}>Skip half a day</button>
+</div>
+<div class="grid3 two">
+  <button class="btn small" onclick={devSuperload}>Superload contract{c.road && isOpen(c.id) ? ` from ${c.name}` : ''}</button>
 </div>
 
 {#if !isOpen(c.id)}<p class="muted small">{c.name} is locked, so nothing can be spawned there.</p>{/if}

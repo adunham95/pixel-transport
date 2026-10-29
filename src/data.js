@@ -275,6 +275,26 @@ export const DEPOT = { level: 3, price: 3000, service: 0.5, repair: 150 };
 // The time allowed is waitSlack times how long the jobs take to turn up, plus `trips` trips from
 // where they come from at an everyday speed (speed, plus speedUp a level), plus extra. The bonus
 // is perMin for every minute allowed, plus payUp of that a level.
+// superloads (transformers, rocket stages, bridge beams) only come from contracts: one load from
+// one town to another, by road on a lowboy trailer, with no time limit. The truck can't set off
+// with one until the escorts it needs (TRUCKS with an `escort` kind) are parked alongside, and
+// they drive the route with it as a convoy. A new offer is a superload `chance` of the time,
+// picking from the loads open at your level; the bonus is (base + perUnit * distance) * mult.
+// Each load's level must be at least the level of every escort it needs.
+export const SUPERLOAD = {
+  level: 9, chance: 0.3, minDist: 60, base: 1000, perUnit: 12,
+  loads: [
+    { name: "Yacht hull", level: 9, needs: { pilot: 1 }, mult: 1 },
+    { name: "Bridge beam", level: 9, needs: { pilot: 2 }, mult: 1.5 },
+    { name: "Wind turbine blade", level: 9, needs: { pilot: 2 }, mult: 1.5 },
+    { name: "Rocket stage", level: 10, needs: { pilot: 1, police: 1 }, mult: 2 },
+    { name: "Transformer", level: 10, needs: { pilot: 1, pusher: 1 }, mult: 2 },
+    { name: "Distillation tower", level: 11, needs: { pilot: 1, police: 1, bucket: 1 }, mult: 2.6 },
+    { name: "Mining dump truck", level: 12, needs: { pilot: 2, police: 1, pusher: 1 }, mult: 3.2 },
+  ],
+};
+// what each kind of escort is called, one and many
+export const ESCORT_LABEL = { pilot: "pilot car", police: "police car", pusher: "push truck", bucket: "bucket truck" };
 export const CONTRACTS = {
   level: 3, offers: 3, active: 2, every: 45 * 1000, offerTtl: 10 * 60 * 1000,
   size: { pax: [5, 9], cargo: [4, 8], mail: [4, 7], fuel: [3, 6], bulk: [6, 12], wide: [2, 3] },
