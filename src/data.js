@@ -5,8 +5,9 @@ export const MI = 3; // world units to "miles" for display
 export const SPEED = 0.05;
 // a town costs this much to unlock for each connection it has (station, airport, port)
 export const CITY_PRICE = 1000;
-// towns open from the start: two stations, two airports and two ports between them
-export const START_CITIES = ["bay", "mill", "gull"];
+// towns open from the start: two stations, three airports and two ports between them, close
+// enough by sea that the first boat isn't sailing round the top of Westmark
+export const START_CITIES = ["frost", "iron", "puffin"];
 
 // each continent is a band around a spine of [x, y, halfWidth] points
 export const CONTINENTS = [

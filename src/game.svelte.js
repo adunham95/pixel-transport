@@ -275,21 +275,21 @@ function newVehicle(g, kind, model, city, cars) {
 
 function fresh() {
   const now = Date.now();
-  const g = { v: 1, coins: 600, xp: 0, level: 1, nextId: 1, selected: 'bay', vehicles: [], jobs: {}, spawnAt: {}, growth: {}, depots: {}, saved: now };
+  const g = { v: 1, coins: 600, xp: 0, level: 1, nextId: 1, selected: 'frost', vehicles: [], jobs: {}, spawnAt: {}, growth: {}, depots: {}, saved: now };
   g.unlocked = Object.fromEntries(START_CITIES.map((id) => [id, true]));
-  g.vehicles.push(newVehicle(g, 'train', 'puffer', 'bay', ['pax', 'box']));
-  g.vehicles.push(newVehicle(g, 'plane', 'sparrow', 'bay'));
-  g.vehicles.push(newVehicle(g, 'boat', 'coaster', 'mill'));
-  g.vehicles.push(newVehicle(g, 'truck', 'pickup', 'bay'));
+  g.vehicles.push(newVehicle(g, 'train', 'puffer', 'frost', ['pax', 'box']));
+  g.vehicles.push(newVehicle(g, 'plane', 'sparrow', 'frost'));
+  g.vehicles.push(newVehicle(g, 'boat', 'coaster', 'frost'));
+  g.vehicles.push(newVehicle(g, 'truck', 'pickup', 'frost'));
   for (const c of CITIES) {
     g.jobs[c.id] = [];
     g.spawnAt[c.id] = now + 4000 + Math.random() * 8000;
   }
-  // a friendly start: something for the plane, train and pickup at Bayport, and the boat at Millbrook
-  g.jobs.bay.push(makeJob(g, 'bay', 'gull', 'pax'), makeJob(g, 'bay', 'gull', 'pax'), makeJob(g, 'bay', 'gull', 'cargo'));
-  g.jobs.bay.push(makeJob(g, 'bay', 'mill', 'pax'), makeJob(g, 'bay', 'mill', 'cargo'), makeJob(g, 'bay', 'mill', 'pax'));
-  g.jobs.mill.push(makeJob(g, 'mill', 'gull', 'cargo'), makeJob(g, 'mill', 'gull', 'pax'), makeJob(g, 'mill', 'bay', 'cargo'));
-  for (let i = 0; i < 4; i++) g.jobs.gull.push(makeJob(g, 'gull'));
+  // a friendly start at Frostholm: Ironvale for the train and pickup, Puffin Rock for the plane and boat
+  g.jobs.frost.push(makeJob(g, 'frost', 'iron', 'pax'), makeJob(g, 'frost', 'iron', 'cargo'), makeJob(g, 'frost', 'iron', 'pax'));
+  g.jobs.frost.push(makeJob(g, 'frost', 'puffin', 'pax'), makeJob(g, 'frost', 'puffin', 'pax'), makeJob(g, 'frost', 'puffin', 'cargo'));
+  g.jobs.frost.push(makeJob(g, 'frost', 'puffin', 'cargo'), makeJob(g, 'frost', 'puffin', 'pax'), makeJob(g, 'frost', 'puffin', 'cargo'));
+  for (let i = 0; i < 4; i++) g.jobs.iron.push(makeJob(g, 'iron'), makeJob(g, 'puffin'));
   return g;
 }
 
@@ -305,7 +305,7 @@ function load() {
     g.depots ??= {};
     if (!g.unlocked) {
       // older saves predate unlocking: keep the starting towns plus anywhere the fleet is, is headed or has cargo for
-      const keep = new Set(START_CITIES);
+      const keep = new Set(['bay', 'mill', 'gull']); // the starting towns back then
       for (const v of g.vehicles) {
         if (v.city) keep.add(v.city);
         if (v.trip) keep.add(v.trip.to);
@@ -924,7 +924,7 @@ export function resetGame() {
   reachCache.clear();
   skew = 0;
   dev.speed = 1;
-  Object.assign(ui, { tab: 'city', sheetOpen: true, activeVehicle: null, picking: false, plan: [], repeat: false, focusVehicle: null, follow: null, track: null, focus: { x: cityById.bay.x, y: cityById.bay.y, t: Date.now() } });
+  Object.assign(ui, { tab: 'city', sheetOpen: true, activeVehicle: null, picking: false, plan: [], repeat: false, focusVehicle: null, follow: null, track: null, focus: { x: cityById[g.selected].x, y: cityById[g.selected].y, t: Date.now() } });
   save();
 }
 
