@@ -41,14 +41,14 @@
   );
   const unrouted = $derived(v.cargo.filter((j) => !routed.has(j.to) && canReach(v, j.to)).length);
 
-  const NEEDS = { pax: 'passenger car', cargo: 'boxcar', fuel: 'tanker', bulk: 'hopper car', mail: 'mail car' };
+  const NEEDS = { pax: 'passenger car', cargo: 'boxcar', fuel: 'tanker', bulk: 'hopper car', mail: 'mail car', wide: 'flatcar' };
   const TRAILER_NEEDS = { cargo: 'van trailer', fuel: 'tank trailer', bulk: 'dump trailer', wide: 'lowboy trailer' };
   function blocker(j) {
     const f = fetcher(j);
     if (f) return { block: true, text: `${f.name} is on its way for it` };
     if (!cap[j.type]) {
       const what = TYPE_LABEL[j.type].toLowerCase();
-      if (j.type === 'wide' && v.kind !== 'truck') return { block: true, text: 'Wide loads only go by road, on a lowboy trailer' };
+      if (j.type === 'wide' && v.kind !== 'truck' && v.kind !== 'train') return { block: true, text: 'Wide loads only go overland, on a lowboy trailer or flatcar' };
       if (j.type === 'mail' && v.kind === 'truck') return { block: true, text: 'Mail needs a mail van' };
       if (v.kind === 'plane') return { block: true, text: `No room for ${what} on this plane` };
       if (v.kind === 'boat') return { block: true, text: `No room for ${what} on this boat` };

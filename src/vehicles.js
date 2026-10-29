@@ -254,6 +254,23 @@ export const CARS = {
       <rect x="-1" y="-1.3" width="2" height="2.6" rx="0.2" fill="#1d4f9c"/>
     </svg>`,
   },
+  flat: {
+    name: "Flatcar",
+    short: "Flatcar",
+    level: 8,
+    price: 700,
+    holds: "wide",
+    cap: 1,
+    color: "#f2c14e",
+    dark: "#4a4f57",
+    art: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-3.9 -2.6 7.8 5.2">
+      <rect x="-3.5" y="-1.5" width="7" height="3" rx="0.3" fill="#4a4f57" stroke="rgba(18,24,38,0.9)" stroke-width="0.8"/>
+      <rect x="-2.8" y="-2.2" width="5.6" height="4.4" rx="0.4" fill="#e08a2c" stroke="rgba(18,24,38,0.9)" stroke-width="0.5"/>
+      <rect x="-2.4" y="-1.8" width="4.8" height="3.6" rx="0.3" fill="#f2a34a"/>
+      <circle cx="0" cy="0" r="1" fill="#c96f1e"/>
+      <g fill="#f2c14e"><rect x="-2.8" y="-2.2" width="0.5" height="0.5"/><rect x="2.3" y="-2.2" width="0.5" height="0.5"/><rect x="-2.8" y="1.7" width="0.5" height="0.5"/><rect x="2.3" y="1.7" width="0.5" height="0.5"/></g>
+    </svg>`,
+  },
 };
 
 // range is in world units; fuel is coins per world unit flown.
@@ -1205,6 +1222,27 @@ export const TRUCKS = {
       <rect x="-4.4" y="-1.6" width="6.6" height="3.2" rx="0.3" fill="#f4f6f8" stroke="rgba(18,24,38,0.9)" stroke-width="0.6"/>
       <rect x="-4.1" y="-0.3" width="6" height="0.6" fill="#e08a2c"/>
       <g fill="#c9ced4"><rect x="-3" y="-1.3" width="0.25" height="2.6"/><rect x="-1.5" y="-1.3" width="0.25" height="2.6"/><rect x="0" y="-1.3" width="0.25" height="2.6"/></g>
+    </svg>`,
+  },
+  fueltruck: {
+    name: "Fuel Truck",
+    short: "Fuel Truck",
+    level: 6,
+    price: 900,
+    cap: { fuel: 2 },
+    maxCars: 0,
+    speed: 5.5,
+    run: 0.06,
+    deck: 2,
+    pips: 2,
+    art: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-4.4 -1.9 8.8 3.8">
+      <path d="M1.6 -1.3H3.2A0.8 0.8 0 0 1 4 -0.5V0.5A0.8 0.8 0 0 1 3.2 1.3H1.6Z" fill="#7b4fc9" stroke="rgba(18,24,38,0.9)" stroke-width="0.6" stroke-linejoin="round"/>
+      <rect x="2.9" y="-1" width="0.5" height="2" fill="#9fd0ff"/>
+      <g fill="#fff3a8"><rect x="3.6" y="-0.9" width="0.4" height="0.4"/><rect x="3.6" y="0.5" width="0.4" height="0.4"/></g>
+      <rect x="-4" y="-1.5" width="5.5" height="3" rx="1.4" fill="#c9ced4" stroke="rgba(18,24,38,0.9)" stroke-width="0.6"/>
+      <rect x="-3.5" y="-1.05" width="4.5" height="0.45" rx="0.22" fill="#eef1f4"/>
+      <rect x="-3.5" y="-0.12" width="4.5" height="0.24" fill="#7b4fc9"/>
+      <circle cx="-1.25" cy="0" r="0.4" fill="#6d7680"/>
     </svg>`,
   },
   largebus: {

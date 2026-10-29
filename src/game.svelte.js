@@ -250,7 +250,7 @@ function makeJob(g, from, forceTo, forceType) {
   if ((A.rail || A.port) && g.level >= 6) types.push(['fuel', 2]);
   if ((A.rail || A.port) && g.level >= 4) types.push(['bulk', 2]);
   if (g.level >= MAIL.level) types.push(['mail', 3]);
-  // wide loads only go by road, so they stay on their own landmass
+  // wide loads only go overland (by road or rail), so they stay on their own landmass
   const roadTo = (c) => c.road && c.cont === A.cont;
   if (A.road && g.level >= WIDE.level && CITIES.some((c) => c.id !== from && g.unlocked[c.id] && roadTo(c))) types.push(['wide', 1]);
   const type = forceType ?? pickWeighted(types);

@@ -258,8 +258,8 @@ export const WEAR = { per: 2500, step: 0.1, max: 0.5, service: 0.5 };
 // mail turns up everywhere from this level. It pays well but goes back to the post office
 // if it waits at its town longer than ttl (game time).
 export const MAIL = { level: 2, ttl: 4 * 60 * 1000 };
-// wide loads (turbine blades, boat hulls, little houses) only go by road, on lowboy trailers,
-// between mainland towns joined by roads
+// wide loads (turbine blades, boat hulls, little houses) only go overland, on lowboy trailers or
+// flatcars, between mainland towns on the same landmass
 export const WIDE = { level: 8 };
 // towns grow as jobs to and from them are delivered: GROWTH[i] deliveries to reach size i + 1.
 // Each size up adds jobs, spawns them faster and pays 10% more for jobs leaving the town.
