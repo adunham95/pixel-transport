@@ -268,13 +268,17 @@ export const SIZE_NAME = ["Village", "Town", "City", "Big city", "Metropolis"];
 // a depot at a town: servicing there costs `service` of the usual, and vehicles parked
 // there slowly lose their age, `repair` world units of it each game minute
 export const DEPOT = { level: 3, price: 3000, service: 0.5, repair: 150 };
-// contracts: deliver n jobs of one type to one town before time runs out (perJob each, plus
-// extra), for a bonus on top of what the jobs pay. Up to `offers` wait on the board, each for
-// offerTtl, a new one turning up every `every`, and up to `active` can be taken on at once.
-// size is the [min, max] jobs for each type (game time throughout).
+// contracts: deliver n jobs of one type to one town before time runs out, for a bonus on top of
+// what the jobs pay. Up to `offers` wait on the board, each for offerTtl, a new one turning up
+// every `every`, and up to `active` can be taken on at once. size is the [min, max] jobs for
+// each type (game time throughout).
+// The time allowed is waitSlack times how long the jobs take to turn up, plus `trips` trips from
+// where they come from at an everyday speed (speed, plus speedUp a level), plus extra. The bonus
+// is perMin for every minute allowed, plus payUp of that a level.
 export const CONTRACTS = {
-  level: 3, offers: 3, active: 2, every: 45 * 1000, offerTtl: 10 * 60 * 1000, perJob: 75 * 1000, extra: 3 * 60 * 1000,
+  level: 3, offers: 3, active: 2, every: 45 * 1000, offerTtl: 10 * 60 * 1000,
   size: { pax: [5, 9], cargo: [4, 8], mail: [4, 7], fuel: [3, 6], bulk: [6, 12], wide: [2, 3] },
+  waitSlack: 2, trips: 2, speed: 5, speedUp: 0.6, extra: 2 * 60 * 1000, perMin: 30, payUp: 0.1,
 };
 
 // xp needed to reach level i+1

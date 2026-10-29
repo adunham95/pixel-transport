@@ -242,30 +242,41 @@ function pickWeighted(items) {
   return items[items.length - 1][0];
 }
 
-// a new job at an unlocked town, headed to another unlocked town (null if there's nowhere to go)
 // the level each job type starts turning up at, and how often it does after that
 const TYPE_LEVEL = { pax: 1, cargo: 1, bulk: 4, fuel: 6, mail: MAIL.level, wide: WIDE.level };
 const TYPE_WEIGHT = { pax: 5, cargo: 4, fuel: 2, bulk: 2, mail: 3, wide: 1 };
 
-function makeJob(g, from, forceTo, forceType) {
-  const A = cityById[from];
+// the job types town A turns up, as [type, weight] pairs
+function jobTypes(g, A) {
   const types = [['pax', TYPE_WEIGHT.pax], ['cargo', TYPE_WEIGHT.cargo]];
   // fuel and bulk only move by rail car or ship, so they start and end at stations and ports
   if ((A.rail || A.port) && g.level >= TYPE_LEVEL.fuel) types.push(['fuel', TYPE_WEIGHT.fuel]);
   if ((A.rail || A.port) && g.level >= TYPE_LEVEL.bulk) types.push(['bulk', TYPE_WEIGHT.bulk]);
   if (g.level >= MAIL.level) types.push(['mail', TYPE_WEIGHT.mail]);
-  // wide loads only go overland (by road or rail), so they stay on their own landmass
-  const roadTo = (c) => c.road && c.cont === A.cont;
-  if (A.road && g.level >= WIDE.level && CITIES.some((c) => c.id !== from && g.unlocked[c.id] && roadTo(c))) types.push(['wide', TYPE_WEIGHT.wide]);
-  const type = forceType ?? pickWeighted(types);
+  if (A.road && g.level >= WIDE.level && jobDests(g, A, 'wide').length) types.push(['wide', TYPE_WEIGHT.wide]);
+  return types;
+}
+
+// where a job of this type leaving town A could be headed, as [id, weight] pairs. lean is a
+// town to count as wanted by a contract, on top of the ones that are.
+function jobDests(g, A, type, lean = null) {
   const heavy = type === 'fuel' || type === 'bulk';
-  const cands = CITIES.filter((c) => c.id !== from && g.unlocked[c.id] && (!heavy || c.rail || c.port) && (type !== 'wide' || roadTo(c)));
-  if (!forceTo && !cands.length) return null;
+  // wide loads only go overland (by road or rail), so they stay on their own landmass
+  const cands = CITIES.filter((c) => c.id !== A.id && g.unlocked[c.id] && (!heavy || c.rail || c.port) && (type !== 'wide' || (c.road && c.cont === A.cont)));
   // heavy loads leaving a port lean toward other ports, so ships have work too, and jobs lean
   // toward towns a contract wants them in
-  const wanted = (c) => (g.contracts?.active ?? []).some((k) => k.type === type && k.to === c.id);
-  const weight = (c) => (1 / (1 + (dist(from, c.id) / 70) ** 2)) * (heavy && A.port && c.port ? 3 : 1) * (wanted(c) ? 3 : 1);
-  const to = forceTo ?? pickWeighted(cands.map((c) => [c.id, weight(c)]));
+  const wanted = (c) => c.id === lean || (g.contracts?.active ?? []).some((k) => k.type === type && k.to === c.id);
+  const weight = (c) => (1 / (1 + (dist(A.id, c.id) / 70) ** 2)) * (heavy && A.port && c.port ? 3 : 1) * (wanted(c) ? 3 : 1);
+  return cands.map((c) => [c.id, weight(c)]);
+}
+
+// a new job at an unlocked town, headed to another unlocked town (null if there's nowhere to go)
+function makeJob(g, from, forceTo, forceType) {
+  const A = cityById[from];
+  const type = forceType ?? pickWeighted(jobTypes(g, A));
+  const dests = jobDests(g, A, type);
+  if (!forceTo && !dests.length) return null;
+  const to = forceTo ?? pickWeighted(dests);
   // bigger towns pay more for what leaves them
   const pay = Math.round((10 + dist(from, to) * RATES[type]) * (1 + 0.1 * (townSize(from, g) - 1)));
   return { id: g.nextId++, type, from, to, pay };
@@ -487,6 +498,8 @@ function grow(id) {
   if (townSize(id) > before && !quiet) toast(`${cityById[id].name} grew into a ${sizeName(id).toLowerCase()}. More jobs, better pay.`, 'level');
 }
 const jobCap = (id) => JOB_CAP + 2 * (townSize(id) - 1);
+// game time until a town's next job; bigger towns turn them up faster. Without random, the average.
+const spawnGap = (id, random = 0.5) => (7000 + random * 8000) / (1 + 0.25 * (townSize(id) - 1));
 
 export function buyDepot(id) {
   if (game.depots[id] || cityById[id].anchor) return;
@@ -516,6 +529,26 @@ function canSend(type, to) {
   return CITIES.some((c) => c.id !== to && isOpen(c.id) && !c.anchor && (!heavy || c.rail || c.port) && (type !== 'wide' || (c.road && c.cont === T.cont)));
 }
 
+// how many jobs of this type would turn up a game minute headed for this town, with a contract
+// leaning them its way, if every open town had room on its board; and on average how far they'd come
+function supply(type, to) {
+  let rate = 0, d = 0;
+  if (!game.unlocked[to]) return { rate, d };
+  for (const A of CITIES) {
+    if (A.id === to || A.anchor || !isOpen(A.id)) continue;
+    const types = jobTypes(game, A), w = types.find(([t]) => t === type)?.[1];
+    if (!w) continue;
+    const dests = jobDests(game, A, type, to), here = dests.find(([id]) => id === to)?.[1];
+    if (!here) continue;
+    const odds = (w / types.reduce((s, [, x]) => s + x, 0)) * (here / dests.reduce((s, [, x]) => s + x, 0));
+    // bulk turns up in batches of three
+    const r = (60000 / spawnGap(A.id)) * odds * (type === 'bulk' ? 3 : 1);
+    rate += r;
+    d += r * dist(A.id, to);
+  }
+  return { rate, d: rate ? d / rate : 0 };
+}
+
 function makeContract(now) {
   const { offers, active } = game.contracts;
   const taken = new Set([...offers, ...active].map((k) => `${k.type}>${k.to}`));
@@ -526,8 +559,13 @@ function makeContract(now) {
   let n = lo + Math.floor(Math.random() * (hi - lo + 1));
   // bulk turns up in batches of three
   if (type === 'bulk') n = Math.max(3, Math.round(n / 3) * 3);
-  const reward = Math.round((n * (25 + 60 * RATES[type]) * (1 + 0.2 * (game.level - 1))) / 10) * 10;
-  const time = Math.ceil((n * CONTRACTS.perJob + CONTRACTS.extra) / 60000) * 60000;
+  const s = supply(type, to);
+  // time to wait for the jobs to turn up, plus a couple of trips' worth at an everyday speed for
+  // this level. The bonus goes by the time it takes, so scarce jobs and far off towns pay more.
+  const lv = game.level - 1, speed = CONTRACTS.speed + CONTRACTS.speedUp * lv;
+  const wait = (n / s.rate) * 60000, trip = (s.d / (speed * SPEED)) * 1000;
+  const time = Math.ceil((CONTRACTS.waitSlack * wait + CONTRACTS.trips * trip + CONTRACTS.extra) / 60000) * 60000;
+  const reward = Math.round(((time / 60000) * CONTRACTS.perMin * (1 + CONTRACTS.payUp * lv)) / 10) * 10;
   return { id: game.nextId++, type, to, n, done: 0, reward, time, until: now + CONTRACTS.offerTtl };
 }
 
@@ -656,8 +694,7 @@ function step() {
     for (const j of list) j.at ??= now;
     if (list.some(stale)) game.jobs[c.id] = list.filter((j) => !stale(j));
     if (now >= game.spawnAt[c.id]) {
-      // bigger towns turn up jobs faster
-      game.spawnAt[c.id] = now + (7000 + Math.random() * 8000) / (1 + 0.25 * (townSize(c.id) - 1));
+      game.spawnAt[c.id] = now + spawnGap(c.id, Math.random());
       if (isOpen(c.id) && !c.anchor && ownJobs(c.id) < jobCap(c.id)) addJob(c.id);
     }
   }
