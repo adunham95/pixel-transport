@@ -5,7 +5,8 @@
   const holds = (cap) => JOB_TYPES.filter((t) => cap[t]).map((t) => `${cap[t]} ${UNIT[t]}`).join(', ');
   // demo consist for the shop picture: freight engines don't get a passenger car
   const demo = (e) => (e.freightOnly ? ['box', 'hopper', 'tank'] : ['pax', 'box', 'tank']).slice(0, Math.min(3, e.maxCars));
-  const demoTrailers = (t) => (t.pulls ? Array(t.maxCars).fill(t.pulls[0]) : ['van', 'dump', 'tank']).slice(0, Math.min(3, t.maxCars));
+  // a superload tractor shows off a rocket stage, the trailer one of its loads brings along
+  const demoTrailers = (t) => (t.superload ? [{ kind: 'load', model: 'rocket' }] : (t.pulls ? Array(t.maxCars).fill(t.pulls[0]) : ['van', 'dump', 'tank']).slice(0, Math.min(3, t.maxCars)));
   import Sprite from './Sprite.svelte';
   const c = $derived(cityById[game.selected]);
 </script>
@@ -78,7 +79,7 @@
     <span class="pv wide"><Sprite kind="truck" model={k} cars={demoTrailers(t)} scale={4} /></span>
     <span class="grow">
       <b>{t.name}</b>
-      <small>{t.escort ? `Escorts superload convoys as a ${ESCORT_LABEL[t.escort]}. Carries nothing` : t.maxCars ? `Pulls ${t.maxCars > 1 ? `up to ${t.maxCars}` : 'a'} ${t.pulls ? t.pulls.map((k) => TRAILERS[k].short.toLowerCase()).join(' or ') + ' ' : ''}trailer${t.maxCars > 1 ? 's' : ''}` : holds(t.cap)}{t.noFerry ? '. Too long for car ferries' : ''}</small>
+      <small>{t.superload ? 'Carries one superload from a contract. The load brings its own trailer' : t.escort ? `Escorts superload convoys as a ${ESCORT_LABEL[t.escort]}. Carries nothing` : t.maxCars ? `Pulls ${t.maxCars > 1 ? `up to ${t.maxCars}` : 'a'} ${t.pulls ? t.pulls.map((k) => TRAILERS[k].short.toLowerCase()).join(' or ') + ' ' : ''}trailer${t.maxCars > 1 ? 's' : ''}` : holds(t.cap)}{t.noFerry ? '. Too long for car ferries' : ''}</small>
       <small>Speed <span class="pips">{#each [1, 2, 3, 4, 5] as n}<i class:on={n <= t.pips}></i>{/each}</span></small>
     </span>
     <button class="btn primary" disabled={locked || !isOpen(c.id) || c.anchor || !canBase('truck', k, c) || game.coins < t.price} onclick={() => buyTruck(k)}>{locked ? `Lv ${t.level}` : `$${fmt(t.price)}`}</button>

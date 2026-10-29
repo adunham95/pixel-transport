@@ -1,5 +1,5 @@
 <script>
-  import { game, ui, cityById, capacity, used, loadJob, unloadJob, autoLoad, destinations, dispatch, route, canReach, planLegs, autoPlan, toggleStop, fmt, fmtTime, loopStops, buyRepeatRoutes, aboard, canBoard, fitsAboard, deckFor, deckSize, deckUsed, deckRoom, driveOn, driveOff, wear, fetcher, convoyNeeds, pickEscorts, escortText } from './game.svelte.js';
+  import { game, ui, cityById, capacity, used, loadJob, unloadJob, autoLoad, destinations, dispatch, route, canReach, planLegs, autoPlan, toggleStop, fmt, fmtTime, loopStops, buyRepeatRoutes, aboard, canBoard, fitsAboard, deckFor, deckSize, deckUsed, deckRoom, driveOn, driveOff, wear, fetcher, convoyNeeds, pickEscorts, escortText, consistOf } from './game.svelte.js';
   import Icon from './Icon.svelte';
   import Sprite from './Sprite.svelte';
   import JobRow from './JobRow.svelte';
@@ -50,7 +50,12 @@
   function blocker(j) {
     const f = fetcher(j);
     if (f) return { block: true, text: `${f.name} is on its way for it` };
-    if (j.escort && v.kind !== 'truck') return { block: true, text: 'Superloads only go by road, on a lowboy trailer' };
+    if (j.escort) {
+      if (v.kind !== 'truck' || !TRUCKS[v.model].superload) return { block: true, text: 'Superloads need a superload tractor' };
+      if (v.cargo.some((x) => x.escort)) return { block: true, text: 'Already carrying a superload' };
+      return { block: false, text: '' };
+    }
+    if (v.kind === 'truck' && TRUCKS[v.model].superload) return { block: true, text: 'Superload tractors only carry superloads' };
     if (!cap[j.type]) {
       const what = TYPE_LABEL[j.type].toLowerCase();
       if (j.type === 'wide' && v.kind !== 'truck' && v.kind !== 'train') return { block: true, text: 'Wide loads only go overland, on a lowboy trailer or flatcar' };
@@ -84,7 +89,7 @@
 <div class="loadhead">
   <button class="btn small" onclick={() => { ui.activeVehicle = null; ui.picking = false; ui.plan = []; }}>Back</button>
   <div class="grow"><b>{v.name}</b><small>at {city.name}</small></div>
-  <Sprite kind={v.kind} model={v.model} cars={v.cars ?? []} scale={3} />
+  <Sprite kind={v.kind} model={v.model} cars={consistOf(v)} scale={3} />
 </div>
 <div class="meters">
   {#each JOB_TYPES as t}
@@ -183,7 +188,7 @@
     <h3>Vehicle deck ({deckUsed(v)} of {deck} spaces)</h3>
     {#each onDeck as t (t.id)}
       <button class="row vrow" onclick={() => driveOff(v, t)}>
-        <span class="pv"><Sprite kind={t.kind} model={t.model} cars={t.cars ?? []} scale={3} /></span>
+        <span class="pv"><Sprite kind={t.kind} model={t.model} cars={consistOf(t)} scale={3} /></span>
         <span class="grow"><b>{t.name}</b><small>{t.cargo.filter((j) => j.to === v.city).length ? `Drops off ${t.cargo.filter((j) => j.to === v.city).length} here` : t.cargo.length ? `${t.cargo.length} on board` : 'Empty'}</small></span>
         <span class="act">{w.off}</span>
       </button>
@@ -191,7 +196,7 @@
     {#each ashore as t (t.id)}
       {@const nope = !fitsAboard(v, t) ? w.big : !canBoard(v, t) ? `Needs ${deckSize(t)} spaces` : ''}
       <button class="row vrow" disabled={!!nope} onclick={() => driveOn(v, t)}>
-        <span class="pv"><Sprite kind={t.kind} model={t.model} cars={t.cars ?? []} scale={3} /></span>
+        <span class="pv"><Sprite kind={t.kind} model={t.model} cars={consistOf(t)} scale={3} /></span>
         <span class="grow"><b>{t.name}</b><small>{nope || `Parked here, takes ${deckSize(t)} space${deckSize(t) > 1 ? 's' : ''}`}</small></span>
         {#if !nope}<span class="act">{w.on}</span>{/if}
       </button>

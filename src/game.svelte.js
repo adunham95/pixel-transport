@@ -132,8 +132,8 @@ export function used(v) {
 }
 
 export function canLoad(v, job) {
-  // superloads only go by road
-  if (job.escort && v.kind !== 'truck') return false;
+  // a superload tractor carries one superload and nothing else
+  if (job.escort) return v.kind === 'truck' && !!TRUCKS[v.model].superload && !v.cargo.some((j) => j.escort);
   return used(v)[job.type] < capacity(v)[job.type];
 }
 
@@ -585,7 +585,7 @@ function makeSuperload(now, { from = null, any = false } = {}) {
     if (!roadPath(A.id, B.id)) continue;
     const load = loads[Math.floor(Math.random() * loads.length)];
     const reward = Math.round(((SUPERLOAD.base + SUPERLOAD.perUnit * dist(A.id, B.id)) * load.mult) / 10) * 10;
-    return { id: game.nextId++, super: true, name: load.name, needs: { ...load.needs }, type: 'wide', from: A.id, to: B.id, n: 1, done: 0, reward, until: now + CONTRACTS.offerTtl };
+    return { id: game.nextId++, super: true, name: load.name, trailer: load.trailer, needs: { ...load.needs }, type: 'wide', from: A.id, to: B.id, n: 1, done: 0, reward, until: now + CONTRACTS.offerTtl };
   }
   return null;
 }
@@ -654,7 +654,7 @@ export function acceptContract(id) {
   if (c.super) {
     // no time limit: the load waits at its town until a convoy comes for it
     c.until = null;
-    game.jobs[c.from].push({ id: game.nextId++, type: 'wide', from: c.from, to: c.to, pay: Math.round(10 + dist(c.from, c.to) * RATES.wide), name: c.name, escort: { ...c.needs }, contract: c.id });
+    game.jobs[c.from].push({ id: game.nextId++, type: 'wide', from: c.from, to: c.to, pay: Math.round(10 + dist(c.from, c.to) * RATES.wide), name: c.name, trailer: c.trailer, escort: { ...c.needs }, contract: c.id });
   } else c.until = gameNow() + c.time;
   k.active.push(c);
   toast(`Contract taken: ${contractText(c)}`, 'good');
@@ -676,6 +676,13 @@ export function superloadAt(c) {
 }
 
 // ---------- superload convoys ----------
+
+// what's hooked up behind a vehicle, for drawing: its cars, trailers or barges, then the trailer
+// any superload on board brings with it
+export function consistOf(v) {
+  const loads = v.cargo.filter((j) => j.trailer).map((j) => ({ kind: 'load', model: j.trailer }));
+  return loads.length ? [...(v.cars ?? []), ...loads] : v.cars ?? [];
+}
 
 export const escortKind = (v) => (v.kind === 'truck' ? TRUCKS[v.model].escort ?? null : null);
 // the escorts the loads on board need, by kind

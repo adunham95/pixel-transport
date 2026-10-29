@@ -1,5 +1,5 @@
 <script>
-  import { game, ui, dev, clock, cityById, spec, tripInfo, fmt, fmtTime, stopRepeating } from './game.svelte.js';
+  import { game, ui, dev, clock, cityById, spec, tripInfo, fmt, fmtTime, stopRepeating, consistOf } from './game.svelte.js';
   import { MI } from './data.js';
   import Sprite from './Sprite.svelte';
   import LoadBadges from './LoadBadges.svelte';
@@ -19,7 +19,7 @@
     {#key v.id}<div in:fade={{ duration: 180 }}>
     <div class="track-head">
       <button class="open" aria-label="Open {v.name} in Fleet" onclick={() => Object.assign(ui, { tab: 'fleet', sheetOpen: true, focusVehicle: v.id })}>
-        <span class="pv"><Sprite kind={v.kind} model={v.model} cars={v.cars ?? []} scale={3} /></span>
+        <span class="pv"><Sprite kind={v.kind} model={v.model} cars={consistOf(v)} scale={3} /></span>
         <span class="grow">
           <b>{v.name} <span class="chev">›</span></b>
           <small>{KIND[v.kind]} · {spec(v).name}{info.stops ? ` · ${info.stops + 1} stops` : ''}</small>

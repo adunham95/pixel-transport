@@ -1,5 +1,5 @@
 <script>
-  import { game, ui, cityById, fetchPlan, sendFor, fmt, fmtTime } from './game.svelte.js';
+  import { game, ui, cityById, fetchPlan, sendFor, fmt, fmtTime, consistOf } from './game.svelte.js';
   import Sprite from './Sprite.svelte';
   import JobRow from './JobRow.svelte';
   let { job, at } = $props();
@@ -26,7 +26,7 @@
 {#each able as { v, p } (v.id)}
   {@const profit = job.pay - p.cost}
   <button class="row vrow" disabled={game.coins < p.cost} onclick={() => send(v)}>
-    <span class="pv"><Sprite kind={v.kind} model={v.model} cars={v.cars ?? []} scale={3} /></span>
+    <span class="pv"><Sprite kind={v.kind} model={v.model} cars={consistOf(v)} scale={3} /></span>
     <span class="grow">
       <b>{v.name}</b>
       <small>From {cityById[v.city].name}. Picks up in {fmtTime(p.pickIn)}, delivers in {fmtTime(p.time)}{p.stops.length > 2 ? `, ${p.stops.length} stops` : ''}</small>
@@ -42,7 +42,7 @@
   <h3>Can’t take it</h3>
   {#each unable as { v, p } (v.id)}
     <div class="row vrow off">
-      <span class="pv"><Sprite kind={v.kind} model={v.model} cars={v.cars ?? []} scale={3} /></span>
+      <span class="pv"><Sprite kind={v.kind} model={v.model} cars={consistOf(v)} scale={3} /></span>
       <span class="grow"><b>{v.name}</b><small>At {cityById[v.city].name}. {p.why}</small></span>
     </div>
   {/each}

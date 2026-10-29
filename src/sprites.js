@@ -1,9 +1,9 @@
-import { ENGINES, CARS, PLANES, BOATS, BARGES, TRUCKS, TRAILERS } from './data.js';
+import { ENGINES, CARS, PLANES, BOATS, BARGES, TRUCKS, TRAILERS, SUPERLOAD_TRAILERS } from './data.js';
 
 // Draws vehicle art from the SVGs in vehicles.js. Each SVG is rasterized once at a
 // high resolution, plus a flat silhouette of it for shadows.
 
-const SPECS = { train: ENGINES, car: CARS, plane: PLANES, boat: BOATS, barge: BARGES, truck: TRUCKS, trailer: TRAILERS };
+const SPECS = { train: ENGINES, car: CARS, plane: PLANES, boat: BOATS, barge: BARGES, truck: TRUCKS, trailer: TRAILERS, load: SUPERLOAD_TRAILERS };
 const RES = 8; // raster pixels per sub pixel
 const COUPLER = 0.2; // gap between train units
 
@@ -96,13 +96,15 @@ const TAIL = { train: 'car', truck: 'trailer', boat: 'barge' };
 
 // each unit of a train, truck or tow, front first: its art, and how far its center sits behind the lead unit's center.
 // A tractor with a hitch carries its first trailer's front end over its fifth wheel; the rest couple up behind.
+// cars are tail models, or { kind, model } for anything else, like a superload's own trailer.
 export function trainUnits(kind, model, cars) {
   const units = [{ kind, model, off: 0 }], hitch = specOf(kind, model).hitch;
   let back = artSize(kind, model).w / 2;
-  cars.forEach((t, i) => {
-    const w = artSize(TAIL[kind], t).w;
+  cars.forEach((c, i) => {
+    const [k, t] = typeof c === 'string' ? [TAIL[kind], c] : [c.kind, c.model];
+    const w = artSize(k, t).w;
     const off = i === 0 && hitch != null ? w / 2 - hitch : back + COUPLER + w / 2;
-    units.push({ kind: TAIL[kind], model: t, off });
+    units.push({ kind: k, model: t, off });
     back = off + w / 2;
   });
   return units;

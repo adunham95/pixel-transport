@@ -1,6 +1,6 @@
 <script>
   import { onMount } from 'svelte';
-  import { game, ui, cityById, leg, planLegs, toggleStop, selectCity, posAt, tripProgress, gameNow, isOpen, fx, darkness, loopStops, isCarrier, carrierAt, townSize, escortsOf } from './game.svelte.js';
+  import { game, ui, cityById, leg, planLegs, toggleStop, selectCity, posAt, tripProgress, gameNow, isOpen, fx, darkness, loopStops, isCarrier, carrierAt, townSize, escortsOf, consistOf } from './game.svelte.js';
   import { CITIES, ENGINES, PLANES, CARS, TRUCKS, W, H } from './data.js';
   import { buildTerrain, makeWaterPattern, R } from './terrain.js';
   import { drawArt, trainUnits, paintOrder, artSize, loadArt } from './sprites.js';
@@ -345,7 +345,7 @@
           if (ENGINES[v.model].maglev) { const c = pos(u, 0, 0); glow(c[0], c[1], 6, '80,210,255', 0.35); }
           if (u.kind === 'car' && CARS[u.model].holds === 'pax') { const c = pos(u, 0, 0); glow(c[0], c[1], 6, '255,210,120', 0.5); }
           if (last) lamp(pos(u, -s.w / 2, 0), '255,60,50');
-        } else if (u.kind === 'trailer' || (last && u.off === 0)) {
+        } else if (u.kind === 'trailer' || u.kind === 'load' || (last && u.off === 0)) {
           for (const side of [-1, 1]) lamp(pos(u, -s.w / 2, side * s.h * 0.35), '255,50,40', 0.9);
         }
       });
@@ -440,7 +440,7 @@
         if (!v.trip || (v.kind !== 'train' && v.kind !== 'truck')) continue;
         const t = v.trip, d = tripProgress(t, gnow) * t.len;
         // unit offsets are in sub pixels at sprite scale; convert to world units along the track
-        const units = trainUnits(v.kind, v.model, v.cars).map((u) => ({ ...u, off: (u.off * V) / R }));
+        const units = trainUnits(v.kind, v.model, consistOf(v)).map((u) => ({ ...u, off: (u.off * V) / R }));
         const placed = units.filter((u) => d - u.off > 0.2).map((u) => ({ ...u, p: posAt(t.pts, d - u.off) }));
         for (const u of placed) big(u.p.x * R + 0.7 * V, u.p.y * R + V, () => drawArt(b, 0, 0, u.p.ang, u.kind, u.model, { shadow: true }));
         for (const u of paintOrder(v.kind, placed)) big(u.p.x * R, u.p.y * R, () => drawArt(b, 0, 0, u.p.ang, u.kind, u.model));

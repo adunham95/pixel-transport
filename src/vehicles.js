@@ -1128,6 +1128,8 @@ export const BARGES = {
 // colors them instead). escort: "pilot", "police", "pusher" or "bucket" means it carries nothing,
 // but rides along in a superload's convoy (see SUPERLOAD in data.js). hitch is where, in the art's
 // sub pixel units, the front of the first trailer sits: over the fifth wheel, just behind the cab.
+// superload: true means it carries nothing but one superload at a time, which brings its own
+// trailer (see SUPERLOAD_TRAILERS below).
 export const TRUCKS = {
   pickup: {
     name: "Pickup",
@@ -1246,6 +1248,31 @@ export const TRUCKS = {
       <rect x="-3.5" y="-1.05" width="4.5" height="0.45" rx="0.22" fill="#eef1f4"/>
       <rect x="-3.5" y="-0.12" width="4.5" height="0.24" fill="#7b4fc9"/>
       <circle cx="-1.25" cy="0" r="0.4" fill="#6d7680"/>
+    </svg>`,
+  },
+  superload: {
+    name: "Superload Tractor",
+    short: "Superload",
+    level: 9,
+    price: 8000,
+    cap: {},
+    superload: true,
+    maxCars: 0,
+    hitch: 0.5,
+    beacons: [[1.6, -1.6], [1.6, 1.6]],
+    speed: 5.5,
+    run: 0.1,
+    deck: 3,
+    noFerry: true,
+    pips: 2,
+    art: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-4 -2.3 8 4.6">
+      <rect x="-3.8" y="-1.45" width="4.8" height="2.9" rx="0.3" fill="#3a3f47" stroke="rgba(18,24,38,0.9)" stroke-width="0.5"/>
+      <g fill="#6f7682"><circle cx="-2.9" cy="0" r="0.75"/><circle cx="-1.2" cy="0" r="0.75"/></g>
+      <path d="M0.6 -1.9H2.7A0.8 0.8 0 0 1 3.5 -1.1V1.1A0.8 0.8 0 0 1 2.7 1.9H0.6Z" fill="#e08a2c" stroke="rgba(18,24,38,0.9)" stroke-width="0.6" stroke-linejoin="round"/>
+      <rect x="0.8" y="-1.6" width="1.3" height="3.2" fill="#c96f1e"/>
+      <rect x="2.3" y="-1.6" width="0.55" height="3.2" fill="#9fd0ff"/>
+      <rect x="3.45" y="-2" width="0.45" height="4" rx="0.2" fill="#f2c14e" stroke="rgba(18,24,38,0.9)" stroke-width="0.3"/>
+      <g fill="#c9ced4"><circle cx="0.4" cy="-1.9" r="0.3"/><circle cx="0.4" cy="1.9" r="0.3"/></g>
     </svg>`,
   },
   pilot: {
@@ -1584,6 +1611,101 @@ export const TRAILERS = {
       <rect x="-3" y="-1.7" width="5" height="3.4" rx="0.3" fill="#f2a34a"/>
       <circle cx="-0.5" cy="0" r="1" fill="#c96f1e"/>
       <g fill="#f2c14e"><rect x="-3.4" y="-2.1" width="0.5" height="0.5"/><rect x="1.9" y="-2.1" width="0.5" height="0.5"/><rect x="-3.4" y="1.6" width="0.5" height="0.5"/><rect x="1.9" y="1.6" width="0.5" height="0.5"/></g>
+    </svg>`,
+  },
+};
+
+// ---------- superload trailers ----------
+
+// the bare modular deck every superload rides on, L sub pixels long, with a gooseneck at the front
+// and wheels down both sides
+function deck(L) {
+  const x0 = -L / 2 + 0.3, w = L - 1.4;
+  let wheels = "";
+  for (let x = x0 + 0.4; x < x0 + w - 0.6; x += 1.1) wheels += `<rect x="${x.toFixed(2)}" y="-1.6" width="0.7" height="0.4" rx="0.1"/><rect x="${x.toFixed(2)}" y="1.2" width="0.7" height="0.4" rx="0.1"/>`;
+  return `<g fill="#23262b">${wheels}</g>
+      <rect x="${x0}" y="-1.25" width="${w}" height="2.5" rx="0.2" fill="#4a4f57" stroke="rgba(18,24,38,0.9)" stroke-width="0.4"/>
+      <rect x="${L / 2 - 1.2}" y="-0.8" width="0.9" height="1.6" rx="0.2" fill="#3a3f47" stroke="rgba(18,24,38,0.9)" stroke-width="0.3"/>`;
+}
+
+// a superload doesn't need a trailer bought for it: it comes on its own, drawn with the load on
+// board, and hitches up to a superload tractor (TRUCKS with superload: true) while it's carried.
+// SUPERLOAD.loads in data.js picks one of these for each load; the length is the viewBox width.
+export const SUPERLOAD_TRAILERS = {
+  yacht: {
+    name: "Yacht hull",
+    art: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-5.5 -2.6 11 5.2">
+      ${deck(11)}
+      <path d="M-4.6 -2.2H2.2Q5 -1.6 5.2 0Q5 1.6 2.2 2.2H-4.6Q-5 2.2 -5 1.8V-1.8Q-5 -2.2 -4.6 -2.2Z" fill="#f4f6f8" stroke="rgba(18,24,38,0.9)" stroke-width="0.45" stroke-linejoin="round"/>
+      <path d="M-4.4 -1.6H1.9Q4 -1.1 4.2 0Q4 1.1 1.9 1.6H-4.4Z" fill="#dfe4ea"/>
+      <rect x="-3.2" y="-1" width="3.6" height="2" rx="0.5" fill="#2a6fd6"/>
+      <rect x="-0.4" y="-0.8" width="0.5" height="1.6" fill="#9fd0ff"/>
+      <rect x="-4.9" y="-0.2" width="10" height="0.15" fill="#2a6fd6" opacity="0.5"/>
+    </svg>`,
+  },
+  beam: {
+    name: "Bridge beam",
+    art: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-8 -1.8 16 3.6">
+      ${deck(16)}
+      <rect x="-7.6" y="-1.45" width="14" height="2.9" fill="#c4432f" stroke="rgba(18,24,38,0.9)" stroke-width="0.4"/>
+      <rect x="-7.6" y="-0.15" width="14" height="0.3" fill="#8e2f22"/>
+      <g fill="#a33a2a">${[-6, -4.4, -2.8, -1.2, 0.4, 2, 3.6, 5.2].map((x) => `<rect x="${x}" y="-1.3" width="0.22" height="2.6"/>`).join("")}</g>
+    </svg>`,
+  },
+  blade: {
+    name: "Wind turbine blade",
+    art: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-10 -1.8 20 3.6">
+      ${deck(14)}
+      <path d="M8 -1.35Q9.3 -1.35 9.3 0Q9.3 1.35 8 1.35L-8.6 0.45Q-9.9 0.2 -9.9 0Q-9.9 -0.2 -8.6 -0.45Z" fill="#f4f6f8" stroke="rgba(18,24,38,0.9)" stroke-width="0.4" stroke-linejoin="round"/>
+      <rect x="7.5" y="-1.38" width="0.35" height="2.76" fill="#c9ced4"/>
+      <path d="M-7.6 -0.5L-8.6 -0.45Q-9.9 -0.2 -9.9 0Q-9.9 0.2 -8.6 0.45L-7.6 0.5Z" fill="#d6453a"/>
+      <path d="M7.4 -0.9L-6 -0.25" stroke="#dfe4ea" stroke-width="0.3" fill="none"/>
+    </svg>`,
+  },
+  rocket: {
+    name: "Rocket stage",
+    art: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-9 -2.2 18 4.4">
+      ${deck(18)}
+      <g fill="#6f7682" stroke="rgba(18,24,38,0.9)" stroke-width="0.25"><path d="M-7.6 -1.5L-8.8 -1.8V-0.5L-7.6 -0.7Z"/><path d="M-7.6 0.7L-8.8 0.5V1.8L-7.6 1.5Z"/></g>
+      <rect x="-7.7" y="-1.9" width="14.6" height="3.8" rx="0.6" fill="#f4f6f8" stroke="rgba(18,24,38,0.9)" stroke-width="0.45"/>
+      <rect x="-7.4" y="-1.4" width="14" height="0.5" fill="#ffffff"/>
+      <g fill="#23283a"><rect x="-6.2" y="-1.9" width="0.5" height="3.8"/><rect x="1.8" y="-1.9" width="0.5" height="3.8"/></g>
+      <rect x="6.6" y="-1.9" width="0.7" height="3.8" fill="#c9ced4" stroke="rgba(18,24,38,0.9)" stroke-width="0.3"/>
+      <rect x="-3.6" y="-0.6" width="2.4" height="1.2" fill="#d6453a"/>
+      <rect x="-3.6" y="-0.2" width="2.4" height="0.4" fill="#f4f6f8"/>
+    </svg>`,
+  },
+  transformer: {
+    name: "Transformer",
+    art: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-4.5 -2.3 9 4.6">
+      ${deck(9)}
+      <rect x="-3.4" y="-2" width="5.8" height="4" rx="0.3" fill="#6f7f8c" stroke="rgba(18,24,38,0.9)" stroke-width="0.45"/>
+      <g fill="#55626d">${[-3, -2.4, -1.8, -1.2, -0.6, 0, 0.6, 1.2, 1.8].map((x) => `<rect x="${x}" y="-1.95" width="0.25" height="0.6"/><rect x="${x}" y="1.35" width="0.25" height="0.6"/>`).join("")}</g>
+      <g fill="#c9ced4" stroke="rgba(18,24,38,0.9)" stroke-width="0.2">${[-2.2, -0.6, 1].map((x) => `<circle cx="${x}" cy="0" r="0.55"/>`).join("")}</g>
+      <g fill="#8b5a33">${[-2.2, -0.6, 1].map((x) => `<circle cx="${x}" cy="0" r="0.25"/>`).join("")}</g>
+    </svg>`,
+  },
+  tower: {
+    name: "Distillation tower",
+    art: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-9 -2.4 18 4.8">
+      ${deck(18)}
+      <rect x="-8.2" y="-2.1" width="15.6" height="4.2" rx="2" fill="#c9ced4" stroke="rgba(18,24,38,0.9)" stroke-width="0.45"/>
+      <rect x="-7" y="-1.55" width="13.2" height="0.55" rx="0.25" fill="#eef1f4"/>
+      <g fill="#9aa3ad">${[-6, -4, -2, 0, 2, 4].map((x) => `<rect x="${x}" y="-2.05" width="0.3" height="4.1"/>`).join("")}</g>
+      <g fill="#6d7680">${[-5, -1, 3].map((x) => `<circle cx="${x}" cy="1.2" r="0.3"/>`).join("")}</g>
+    </svg>`,
+  },
+  dumptruck: {
+    name: "Mining dump truck",
+    art: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-6 -2.8 12 5.6">
+      ${deck(12)}
+      <g fill="#23262b"><rect x="2.4" y="-2.75" width="1.6" height="0.6" rx="0.2"/><rect x="2.4" y="2.15" width="1.6" height="0.6" rx="0.2"/><rect x="-4.2" y="-2.75" width="2.2" height="0.6" rx="0.2"/><rect x="-4.2" y="2.15" width="2.2" height="0.6" rx="0.2"/></g>
+      <rect x="-5.4" y="-2.3" width="7.4" height="4.6" rx="0.5" fill="#f2c14e" stroke="rgba(18,24,38,0.9)" stroke-width="0.45"/>
+      <rect x="-4.9" y="-1.8" width="6.4" height="3.6" rx="0.3" fill="#d9a92c"/>
+      <g fill="#c4952a"><rect x="-3.4" y="-1.8" width="0.25" height="3.6"/><rect x="-1.4" y="-1.8" width="0.25" height="3.6"/><rect x="0.6" y="-1.8" width="0.25" height="3.6"/></g>
+      <rect x="2" y="-2.3" width="2" height="4.6" rx="0.3" fill="#e0b23a" stroke="rgba(18,24,38,0.9)" stroke-width="0.4"/>
+      <rect x="2.3" y="-2.1" width="1.3" height="1.5" rx="0.2" fill="#3a3f47"/>
+      <rect x="3.1" y="-2" width="0.4" height="1.3" fill="#9fd0ff"/>
     </svg>`,
   },
 };

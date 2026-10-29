@@ -248,7 +248,7 @@ export function roadSide(ax, ay, bx, by) {
   return [(-(by - ay) / L) * k, ((bx - ax) / L) * k];
 }
 
-export { ENGINES, CARS, PLANES, BOATS, BARGES, TRUCKS, TRAILERS } from "./vehicles.js";
+export { ENGINES, CARS, PLANES, BOATS, BARGES, TRUCKS, TRAILERS, SUPERLOAD_TRAILERS } from "./vehicles.js";
 
 // repeating routes are bought once, for the whole fleet, from this level on
 export const REPEAT_ROUTES = { level: 3, price: 4000 };
@@ -276,21 +276,22 @@ export const DEPOT = { level: 3, price: 3000, service: 0.5, repair: 150 };
 // where they come from at an everyday speed (speed, plus speedUp a level), plus extra. The bonus
 // is perMin for every minute allowed, plus payUp of that a level.
 // superloads (transformers, rocket stages, bridge beams) only come from contracts: one load from
-// one town to another, by road on a lowboy trailer, with no time limit. The truck can't set off
+// one town to another, by road on a superload tractor, with no time limit. Each brings its own
+// trailer (`trailer`, from SUPERLOAD_TRAILERS in vehicles.js). The tractor can't set off
 // with one until the escorts it needs (TRUCKS with an `escort` kind) are parked alongside, and
 // they drive the route with it as a convoy. A new offer is a superload `chance` of the time,
 // picking from the loads open at your level; the bonus is (base + perUnit * distance) * mult.
-// Each load's level must be at least the level of every escort it needs.
+// Each load's level must be at least the superload tractor's and every escort's it needs.
 export const SUPERLOAD = {
   level: 9, chance: 0.3, minDist: 60, base: 1000, perUnit: 12,
   loads: [
-    { name: "Yacht hull", level: 9, needs: { pilot: 1 }, mult: 1 },
-    { name: "Bridge beam", level: 9, needs: { pilot: 2 }, mult: 1.5 },
-    { name: "Wind turbine blade", level: 9, needs: { pilot: 2 }, mult: 1.5 },
-    { name: "Rocket stage", level: 10, needs: { pilot: 1, police: 1 }, mult: 2 },
-    { name: "Transformer", level: 10, needs: { pilot: 1, pusher: 1 }, mult: 2 },
-    { name: "Distillation tower", level: 11, needs: { pilot: 1, police: 1, bucket: 1 }, mult: 2.6 },
-    { name: "Mining dump truck", level: 12, needs: { pilot: 2, police: 1, pusher: 1 }, mult: 3.2 },
+    { name: "Yacht hull", trailer: "yacht", level: 9, needs: { pilot: 1 }, mult: 1 },
+    { name: "Bridge beam", trailer: "beam", level: 9, needs: { pilot: 2 }, mult: 1.5 },
+    { name: "Wind turbine blade", trailer: "blade", level: 9, needs: { pilot: 2 }, mult: 1.5 },
+    { name: "Rocket stage", trailer: "rocket", level: 10, needs: { pilot: 1, police: 1 }, mult: 2 },
+    { name: "Transformer", trailer: "transformer", level: 10, needs: { pilot: 1, pusher: 1 }, mult: 2 },
+    { name: "Distillation tower", trailer: "tower", level: 11, needs: { pilot: 1, police: 1, bucket: 1 }, mult: 2.6 },
+    { name: "Mining dump truck", trailer: "dumptruck", level: 12, needs: { pilot: 2, police: 1, pusher: 1 }, mult: 3.2 },
   ],
 };
 // what each kind of escort is called, one and many
