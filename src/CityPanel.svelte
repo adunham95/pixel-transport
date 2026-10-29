@@ -1,5 +1,5 @@
 <script>
-  import { game, ui, cityById, etaText, fmtTime, clock, followVehicle, isOpen, connections, unlockPrice, unlockCity, fmt } from './game.svelte.js';
+  import { game, ui, cityById, etaText, fmtTime, clock, followVehicle, isOpen, connections, unlockPrice, unlockCity, carrierAt, fmt } from './game.svelte.js';
   import { CITY_PRICE } from './data.js';
   import Sprite from './Sprite.svelte';
   import JobRow from './JobRow.svelte';
@@ -34,8 +34,13 @@
       {#if c.road}<span class="tag">Roads</span>{/if}
       {#if c.rail + c.air + c.port > 1}<span class="tag hub">Transfer hub</span>{/if}
       {#if c.island}<span class="tag">Island</span>{/if}
+      {#if c.anchor}<span class="tag">Anchorage</span>{/if}
+      {#if carrierAt(c.id)}<span class="tag hub">{c.anchor || !c.air ? 'Carrier landing strip' : 'Carrier in port'}</span>{/if}
     </div>
   </div>
+  {#if c.anchor}
+    <p class="note">Open sea. Aircraft carriers can anchor here, and while one is, small and mid-size planes and helicopters can land on it to refuel or ride along.</p>
+  {/if}
 
   {#if !isOpen(c.id)}
     {@const n = connections(c)}
@@ -53,7 +58,7 @@
       <span class="act">Load</span>
     </button>
   {:else}
-    <p class="muted">Nothing parked here. Send a vehicle over, or buy one in the Shop.</p>
+    <p class="muted">{c.anchor ? 'Nothing anchored here. Send an aircraft carrier over.' : 'Nothing parked here. Send a vehicle over, or buy one in the Shop.'}</p>
   {/each}
 
   {#if incoming.length}
@@ -67,12 +72,14 @@
     {/each}
   {/if}
 
+  {#if !c.anchor}
   <h3>Waiting at {c.name} ({jobs.length})</h3>
   {#each jobs as j (j.id)}
     <div animate:flip transition:slide={{ duration: 200 }}><JobRow job={j} at={c.id} /></div>
   {:else}
     <p class="muted">No jobs right now. New ones turn up every few seconds.</p>
   {/each}
+  {/if}
   {/if}
   </div>
 {/if}

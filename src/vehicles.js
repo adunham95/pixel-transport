@@ -246,6 +246,7 @@ export const CARS = {
 // art and spin while flying, so leave them out of the svg itself.
 // hold: { fuel, bulk } extra room for heavy loads, on top of pax and cargo.
 // deck: room for trucks to drive aboard, like a car ferry (see TRUCKS).
+// deckSpace: it's small enough to land on an aircraft carrier, taking that many spaces on its deck.
 export const PLANES = {
   sparrow: {
     name: "Sparrow",
@@ -257,6 +258,7 @@ export const PLANES = {
     speed: 9,
     fuel: 0.3,
     pips: 2,
+    deckSpace: 1,
     color: "#f1ead8",
     trim: "#d6453a",
     art: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-8 -8 16 16">
@@ -285,6 +287,7 @@ export const PLANES = {
     speed: 11,
     fuel: 0.45,
     pips: 3,
+    deckSpace: 2,
     color: "#f4f6f8",
     trim: "#2a6fd6",
     art: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-10 -10.25 20 20.5">
@@ -313,6 +316,7 @@ export const PLANES = {
     speed: 8,
     fuel: 0.35,
     pips: 2,
+    deckSpace: 1,
     color: "#8a7a4a",
     trim: "#e08a2c",
     art: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-8 -8 16 16">
@@ -340,6 +344,7 @@ export const PLANES = {
     speed: 9,
     fuel: 0.4,
     pips: 2,
+    deckSpace: 1,
     color: "#d6453a",
     trim: "#ffd23f",
     art: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-8 -8 16 16">
@@ -366,6 +371,7 @@ export const PLANES = {
     speed: 8,
     fuel: 0.4,
     pips: 2,
+    deckSpace: 2,
     color: "#f2c14e",
     trim: "#2a6fd6",
     seaplane: true,
@@ -393,6 +399,7 @@ export const PLANES = {
     speed: 14,
     fuel: 0.4,
     pips: 3,
+    deckSpace: 1,
     color: "#f4f6f8",
     trim: "#d6453a",
     art: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-8 -8 16 16">
@@ -418,6 +425,7 @@ export const PLANES = {
     speed: 10,
     fuel: 0.5,
     pips: 3,
+    deckSpace: 2,
     color: "#c9ced4",
     trim: "#d6453a",
     art: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-12 -12 24 24">
@@ -443,6 +451,7 @@ export const PLANES = {
     speed: 11,
     fuel: 0.6,
     pips: 3,
+    deckSpace: 2,
     color: "#d9a92c",
     trim: "#5a4314",
     art: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-12 -12.5 24 25">
@@ -476,6 +485,7 @@ export const PLANES = {
     speed: 17,
     fuel: 0.75,
     pips: 4,
+    deckSpace: 2,
     color: "#f4f6f8",
     trim: "#1f4e8c",
     art: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-10 -10 20 20">
@@ -502,6 +512,7 @@ export const PLANES = {
     speed: 7,
     fuel: 0.7,
     pips: 2,
+    deckSpace: 2,
     color: "#5b6b3a",
     trim: "#3f4a28",
     vtol: true,
@@ -559,6 +570,7 @@ export const PLANES = {
     speed: 13,
     fuel: 0.9,
     pips: 4,
+    deckSpace: 2,
     color: "#8a949e",
     trim: "#4a525a",
     vtol: true,
@@ -698,6 +710,8 @@ export const PLANES = {
 // harbor: true means it only docks at ports that also have a rail station.
 // deck: room for trucks to drive aboard (see TRUCKS), on top of what cap holds.
 // maxCars: a tug that tows that many BARGES, like an engine pulls cars; run goes up 0.02 for each.
+// deckFor: 'plane' makes the deck an aircraft carrier's: planes with deckSpace land on it, and it can
+// anchor at the ANCHORAGES in data.js as a landing strip out at sea.
 export const BOATS = {
   coaster: {
     name: "Coaster",
@@ -891,6 +905,28 @@ export const BOATS = {
       <rect x="-15.4" y="-2.5" width="3.8" height="5" rx="0.4" fill="#f4f6f8" stroke="rgba(18,24,38,0.9)" stroke-width="0.35"/>
       <rect x="-12.2" y="-2.1" width="0.45" height="4.2" fill="#23344f"/>
       <rect x="-14.6" y="-0.6" width="1.4" height="1.2" rx="0.3" fill="#d6453a"/>
+    </svg>`,
+  },
+  carrier: {
+    name: "Aircraft Carrier",
+    short: "Carrier",
+    level: 6,
+    price: 25000,
+    cap: {},
+    deck: 8,
+    deckFor: "plane",
+    speed: 5,
+    run: 0.12,
+    pips: 2,
+    art: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-18 -5 36 10">
+      <path d="M-16.4 -3.4H8L16.8 -0.6Q17.4 0 16.8 0.6L8 3.4H-16.4Q-17 3.4 -17 2.8V-2.8Q-17 -3.4 -16.4 -3.4Z" fill="#6f7682" stroke="rgba(18,24,38,0.9)" stroke-width="0.7" stroke-linejoin="round"/>
+      <path d="M-16.4 -2.8H7.6L15.6 -0.4V0.4L7.6 2.8H-16.4Z" fill="#4a4f57"/>
+      <path d="M-16 1.6L6 -2.4" stroke="#f4f6f8" stroke-width="0.25" stroke-dasharray="1 0.8"/>
+      <path d="M-16 -0.1H14.8" stroke="#ffd23f" stroke-width="0.25" stroke-dasharray="1.2 0.8"/>
+      <g fill="none" stroke="#f4f6f8" stroke-width="0.25"><circle cx="10" cy="-0.1" r="1.1"/><circle cx="-11" cy="-1.5" r="1"/></g>
+      <rect x="-3" y="2.2" width="4.6" height="2.4" rx="0.4" fill="#8a949e" stroke="rgba(18,24,38,0.9)" stroke-width="0.4"/>
+      <rect x="-1.9" y="2.6" width="2.4" height="1.4" rx="0.3" fill="#5b6470"/>
+      <rect x="-0.9" y="2.9" width="0.6" height="0.8" fill="#9fd0ff"/>
     </svg>`,
   },
   liner: {

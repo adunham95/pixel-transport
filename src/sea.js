@@ -35,7 +35,7 @@ function build() {
     }
   }
   for (const c of CITIES) {
-    if (!c.port) continue;
+    if (!c.port && !c.anchor) continue;
     const sx = Math.floor(c.x / G), sy = Math.floor(c.y / G);
     let best = -1, bd = Infinity;
     for (let j = -16; j <= 16; j++) for (let i = -16; i <= 16; i++) {
@@ -113,7 +113,7 @@ function clear([ax, ay], [bx, by]) {
 function lanesFrom(a) {
   const f = field(a);
   for (const c of CITIES) {
-    if (!c.port || c.id === a || lanes.has(`${a}|${c.id}`)) continue;
+    if ((!c.port && !c.anchor) || c.id === a || lanes.has(`${a}|${c.id}`)) continue;
     let lane = null;
     if (docks[c.id] != null && f.dist[docks[c.id]] < Infinity) {
       const cells = [];
@@ -135,9 +135,10 @@ function lanesFrom(a) {
   }
 }
 
-// shortest sailing line between two ports, mooring to mooring: { pts, len } or null
+// shortest sailing line between two ports or anchorages, mooring to mooring: { pts, len } or null
 export function seaLane(a, b) {
-  if (a === b || !cityById(a)?.port || !cityById(b)?.port) return null;
+  const sails = (id) => cityById(id)?.port || cityById(id)?.anchor;
+  if (a === b || !sails(a) || !sails(b)) return null;
   if (!nav) build();
   if (docks[a] == null || docks[b] == null) return null;
   if (!lanes.has(`${a}|${b}`)) lanesFrom(a);

@@ -1,5 +1,5 @@
 <script>
-  import { game, ui, dev, setDev, cityById, capacity, endRoute, addCar, removeCar, canRemoveCar, upgradeEngine, upgradeCost, sellVehicle, sellValue, resetGame, openLoad, followVehicle, etaText, fmt, stopRepeating, spec, tailSpecs, tailName, aboard, carrierOf, deckUsed, deckRoom, finances, clock } from './game.svelte.js';
+  import { game, ui, dev, setDev, cityById, capacity, endRoute, addCar, removeCar, canRemoveCar, upgradeEngine, upgradeCost, sellVehicle, sellValue, resetGame, openLoad, followVehicle, etaText, fmt, stopRepeating, spec, tailSpecs, tailName, aboard, carrierOf, deckUsed, deckRoom, deckFor, finances, clock } from './game.svelte.js';
   import { ENGINES, TRUCKS, BOATS, PLANES, MI, JOB_TYPES } from './data.js';
   import Sprite from './Sprite.svelte';
   import LoadBadges from './LoadBadges.svelte';
@@ -102,7 +102,11 @@
           <p class="muted small">Drives the roads between mainland towns. Bigger trucks and buses are in the Shop.</p>
         {:else if deckRoom(v)}
           {@const on = aboard(v)}
-          <p class="muted small">Carries trucks between {v.kind === 'boat' ? 'ports' : 'airports'}: {deckUsed(v)} of {deckRoom(v)} deck spaces used{on.length ? `, by ${on.map((t) => t.name).join(', ')}` : ''}. Drive trucks on and off from the Load screen.</p>
+          {#if deckFor(v) === 'plane'}
+            <p class="muted small">A landing strip at sea. Anchor it at an anchorage, or moor it at a port, and small and mid-size planes and helicopters can land there. {deckUsed(v)} of {deckRoom(v)} deck spaces used{on.length ? `, by ${on.map((t) => t.name).join(', ')}` : ''}. Planes that need it come aboard when it sails.</p>
+          {:else}
+            <p class="muted small">Carries trucks between {v.kind === 'boat' ? 'ports' : 'airports'}: {deckUsed(v)} of {deckRoom(v)} deck spaces used{on.length ? `, by ${on.map((t) => t.name).join(', ')}` : ''}. Drive trucks on and off from the Load screen.</p>
+          {/if}
         {:else if v.kind === 'boat'}
           <p class="muted small">Boats sail between ports. Bigger boats are in the Shop.</p>
         {:else}
@@ -118,7 +122,7 @@
           {:else if !v.trip}
             {@const f = carrierOf(v)}
             {#if f.trip}<button class="btn primary" onclick={() => followVehicle(f)}>Follow {f.name}</button>
-            {:else}<button class="btn primary" onclick={() => openLoad(f)}>Drive off at {cityById[f.city].name}</button>{/if}
+            {:else}<button class="btn primary" onclick={() => openLoad(f)}>{v.kind === 'plane' ? 'Launch' : 'Drive off'} at {cityById[f.city].name}</button>{/if}
           {:else}
             <button class="btn primary" onclick={() => followVehicle(v)}>Follow on map</button>
             {#if v.next?.length && !v.loop}<button class="btn ghost" onclick={() => endRoute(v)}>End route at {cityById[v.trip.to].name}</button>{/if}

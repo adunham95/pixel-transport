@@ -1,5 +1,5 @@
 <script>
-  import { game, ui, cityById, capacity, used, loadJob, unloadJob, autoLoad, destinations, dispatch, route, canReach, planLegs, autoPlan, toggleStop, fmt, fmtTime, loopStops, buyRepeatRoutes, aboard, canBoard, deckSize, deckUsed, deckRoom, driveOn, driveOff } from './game.svelte.js';
+  import { game, ui, cityById, capacity, used, loadJob, unloadJob, autoLoad, destinations, dispatch, route, canReach, planLegs, autoPlan, toggleStop, fmt, fmtTime, loopStops, buyRepeatRoutes, aboard, canBoard, fitsAboard, deckFor, deckSize, deckUsed, deckRoom, driveOn, driveOff } from './game.svelte.js';
   import Icon from './Icon.svelte';
   import Sprite from './Sprite.svelte';
   import JobRow from './JobRow.svelte';
@@ -58,10 +58,14 @@
     if (!route(v, j.to)) return { block: false, text: 'Needs fuel stops on the way' };
     return { block: false, text: '' };
   }
-  // car ferries and cargo planes: trucks on the deck, and ones parked here that could drive on
+  // car ferries and cargo planes carry trucks, carriers carry planes: what's on the deck, and
+  // what's parked here that could come aboard
   const deck = $derived(deckRoom(v));
+  const rides = $derived(deck ? deckFor(v) : null);
   const onDeck = $derived(deck ? aboard(v) : []);
-  const ashore = $derived(deck ? game.vehicles.filter((t) => t.kind === 'truck' && t.city === v.city) : []);
+  const ashore = $derived(deck ? game.vehicles.filter((t) => t.kind === rides && t.city === v.city) : []);
+  const WORDS = { truck: { on: 'Drive on', off: 'Drive off', big: 'Too long to carry', none: 'trucks', aboard: 'drive it aboard' }, plane: { on: 'Take aboard', off: 'Launch', big: 'Too big for a carrier', none: 'planes', aboard: 'take it aboard' } };
+  const w = $derived(WORDS[rides ?? 'truck']);
   function plan() { ui.plan = autoPlan(v); ui.picking = true; }
   function go() { if (dispatch(v, ui.plan, { repeat: looping })) { ui.picking = false; ui.activeVehicle = null; ui.plan = []; } }
 </script>
@@ -148,20 +152,20 @@
     <h3>Vehicle deck ({deckUsed(v)} of {deck} spaces)</h3>
     {#each onDeck as t (t.id)}
       <button class="row vrow" onclick={() => driveOff(v, t)}>
-        <span class="pv"><Sprite kind="truck" model={t.model} cars={t.cars} scale={3} /></span>
+        <span class="pv"><Sprite kind={t.kind} model={t.model} cars={t.cars ?? []} scale={3} /></span>
         <span class="grow"><b>{t.name}</b><small>{t.cargo.filter((j) => j.to === v.city).length ? `Drops off ${t.cargo.filter((j) => j.to === v.city).length} here` : t.cargo.length ? `${t.cargo.length} on board` : 'Empty'}</small></span>
-        <span class="act">Drive off</span>
+        <span class="act">{w.off}</span>
       </button>
     {/each}
     {#each ashore as t (t.id)}
-      {@const nope = TRUCKS[t.model].noFerry ? 'Too long to carry' : !canBoard(v, t) ? `Needs ${deckSize(t)} spaces` : ''}
+      {@const nope = !fitsAboard(v, t) ? w.big : !canBoard(v, t) ? `Needs ${deckSize(t)} spaces` : ''}
       <button class="row vrow" disabled={!!nope} onclick={() => driveOn(v, t)}>
-        <span class="pv"><Sprite kind="truck" model={t.model} cars={t.cars} scale={3} /></span>
+        <span class="pv"><Sprite kind={t.kind} model={t.model} cars={t.cars ?? []} scale={3} /></span>
         <span class="grow"><b>{t.name}</b><small>{nope || `Parked here, takes ${deckSize(t)} space${deckSize(t) > 1 ? 's' : ''}`}</small></span>
-        {#if !nope}<span class="act">Drive on</span>{/if}
+        {#if !nope}<span class="act">{w.on}</span>{/if}
       </button>
     {/each}
-    {#if !onDeck.length && !ashore.length}<p class="muted small">No trucks here. Park one at {city.name} to drive it aboard.</p>{/if}
+    {#if !onDeck.length && !ashore.length}<p class="muted small">No {w.none} here. Park one at {city.name} to {w.aboard}.</p>{/if}
   {/if}
   <h3>Waiting at {city.name}</h3>
   {#each waiting as j (j.id)}

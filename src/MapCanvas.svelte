@@ -1,6 +1,6 @@
 <script>
   import { onMount } from 'svelte';
-  import { game, ui, cityById, leg, planLegs, toggleStop, selectCity, posAt, tripProgress, gameNow, isOpen, fx, darkness, loopStops } from './game.svelte.js';
+  import { game, ui, cityById, leg, planLegs, toggleStop, selectCity, posAt, tripProgress, gameNow, isOpen, fx, darkness, loopStops, isCarrier, carrierAt, landsWithout } from './game.svelte.js';
   import { CITIES, ENGINES, PLANES, CARS, W, H } from './data.js';
   import { buildTerrain, makeWaterPattern, R } from './terrain.js';
   import { drawArt, drawConsistRow, trainUnits, consistBox, artSize, loadArt } from './sprites.js';
@@ -117,6 +117,16 @@
       }
       b.fillStyle = 'rgba(235,245,255,0.55)';
       b.fillRect(Math.round(x - dx * ((len / 2) * V + 1)), Math.round(y - dy * ((len / 2) * V + 1)), 1, 1);
+    }
+
+    // an anchorage: a red and white buoy bobbing in a ring of rope floats
+    function buoy(c, now) {
+      const x = Math.round(c.x * R), y = Math.round(c.y * R) + (Math.floor(now / 600) % 2);
+      b.fillStyle = 'rgba(235,245,255,0.55)';
+      for (let k = 0; k < 12; k++) b.fillRect(Math.round(x + Math.cos(k / 12 * 6.283) * 11), Math.round(y + Math.sin(k / 12 * 6.283) * 8), 1, 1);
+      rect('#1d2433', x - 2, y - 4, 5, 7);
+      rect('#d6453a', x - 1, y - 3, 3, 2); rect('#f4f6f8', x - 1, y - 1, 3, 1); rect('#d6453a', x - 1, y, 3, 2);
+      rect('#ffd23f', x, y - 5, 1, 1);
     }
 
     function drawCity(c) {
@@ -283,6 +293,8 @@
       lamp(onArt(x, y, ang, s.w * 0.32, -s.h * 0.4), '255,70,60');
       lamp(onArt(x, y, ang, s.w * 0.32, s.h * 0.4), '80,255,120');
       lamp(onArt(x, y, ang, -s.w * 0.48, 0), '255,255,235', 0.7);
+      // a carrier's flight deck is edged with landing lights
+      if (isCarrier(model)) for (let k = -2; k <= 2; k++) for (const side of [-1, 1]) { const [lx, ly] = onArt(x, y, ang, k * s.w * 0.18, side * s.h * 0.28); b.fillStyle = 'rgba(255,220,140,0.75)'; b.fillRect(Math.floor(lx), Math.floor(ly), 1, 1); }
     }
     // trains: a headlight, lit passenger windows, a red lamp on the last car, maglevs glowing underneath.
     // trucks and buses: headlights, and tail lights on the back of each trailer (or the truck itself)
@@ -369,9 +381,9 @@
         // locked towns are drawn faded until they're bought
         b.globalAlpha = isOpen(c.id) ? 1 : 0.45;
         if (c.port) pier(c);
-        drawCity(c);
+        if (c.anchor) buoy(c, now); else drawCity(c);
         b.globalAlpha = 1;
-        if (dk && isOpen(c.id)) lights.push(() => townLights(c, now));
+        if (dk && isOpen(c.id) && !c.anchor) lights.push(() => townLights(c, now));
         if (pv && leg(pv, lastStop, c.id)) ring(c, now);
         if (c.id === game.selected && (blink || pv)) brackets(c);
       }
@@ -383,11 +395,15 @@
       // parked vehicles
       const pt = {}, pp = {}, pb = {}, pk = {};
       for (const v of game.vehicles) if (!v.trip && v.city) ({ train: pt, plane: pp, boat: pb, truck: pk }[v.kind][v.city] ??= []).push(v);
+      const decks = {}; // where a carrier sits in each town, for planes parked on it: [x, y, ang]
       for (const id in pb) {
-        // moored side by side at the end of the pier, bows pointing out to sea
+        // moored side by side at the end of the pier, bows pointing out to sea; out at an
+        // anchorage there's no pier, so they just face east. A carrier takes the middle spot.
         const c = cityById[id], d = dockOf(id);
         if (!d) continue;
-        const ang = Math.atan2(d[1] - c.y, d[0] - c.x), nx = -Math.sin(ang), ny = Math.cos(ang);
+        const ang = c.anchor ? 0 : Math.atan2(d[1] - c.y, d[0] - c.x), nx = -Math.sin(ang), ny = Math.cos(ang);
+        pb[id].sort((a, z) => isCarrier(z.model) - isCarrier(a.model));
+        if (isCarrier(pb[id][0].model)) decks[id] = [d[0] * R, d[1] * R, ang];
         pb[id].slice(0, 3).forEach((v, i) => {
           const side = i === 0 ? 0 : i === 1 ? 1 : -1, gap = (artSize('boat', v.model).h + 1) * V;
           const x = d[0] * R + nx * side * gap, y = d[1] * R + ny * side * gap;
@@ -397,7 +413,7 @@
             big(x + 0.7 * V, y + V, () => drawArt(b, 0, 0, ang, 'boat', v.model, { shadow: true }));
             big(x, y, () => drawArt(b, 0, 0, ang, 'boat', v.model));
           }
-          if (dk) lights.push(() => lamp([x, y], '255,255,235', 0.8));
+          if (dk) lights.push(() => (isCarrier(v.model) ? boatLights(x, y, ang, v.model) : lamp([x, y], '255,255,235', 0.8)));
         });
       }
       for (const id in pt) {
@@ -416,8 +432,15 @@
         });
       }
       for (const id in pp) {
-        const c = cityById[id];
-        pp[id].slice(0, 2).forEach((v, i) => {
+        const c = cityById[id], dk0 = decks[id];
+        // planes that are only here thanks to a carrier sit on its flight deck, drawn small
+        const onDeck = dk0 ? pp[id].filter((v) => !landsWithout(v.model, c)) : [];
+        onDeck.slice(0, 3).forEach((v, i) => {
+          const along = (i - (Math.min(3, onDeck.length) - 1) / 2) * 18;
+          const x = dk0[0] + Math.cos(dk0[2]) * along, y = dk0[1] + Math.sin(dk0[2]) * along;
+          b.save(); b.translate(x, y); b.scale(V * 0.75, V * 0.75); drawArt(b, 0, 0, dk0[2], 'plane', v.model, { shadow: true }); b.translate(-0.6, -0.8); drawArt(b, 0, 0, dk0[2], 'plane', v.model); b.restore();
+        });
+        pp[id].filter((v) => !onDeck.includes(v)).slice(0, 2).forEach((v, i) => {
           // seaplanes at a town with no runway float at the end of the pier
           const d = !c.air && PLANES[v.model].seaplane && dockOf(id);
           if (d) big(d[0] * R + i * 14, d[1] * R + 6, () => drawArt(b, 0, 0, Math.atan2(d[1] - c.y, d[0] - c.x), 'plane', v.model));
@@ -527,7 +550,7 @@
         ctx.lineWidth = 3.5 * dpr;
         ctx.strokeStyle = 'rgba(18,22,38,0.75)';
         ctx.strokeText(c.name, lx, sy);
-        ctx.fillStyle = c.id === game.selected ? '#ffd23f' : isOpen(c.id) ? '#ffffff' : '#b9c0cc';
+        ctx.fillStyle = c.id === game.selected ? '#ffd23f' : c.anchor ? '#bfe0ff' : isOpen(c.id) ? '#ffffff' : '#b9c0cc';
         ctx.fillText(c.name, lx, sy);
         if (n) {
           const bx = lx + tw / 2 + 4 * dpr, by = sy - fs * 1.08;

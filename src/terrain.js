@@ -71,7 +71,7 @@ export function continentAt(x, y) {
 export function isLandWorld(x, y) {
   if (continentAt(x, y) >= 0) return true;
   for (const c of CITIES) {
-    if (Math.abs(x - c.x) > 13 || Math.abs(y - c.y) > 13) continue;
+    if (c.anchor || Math.abs(x - c.x) > 13 || Math.abs(y - c.y) > 13) continue;
     const r = (c.rail ? 10 : 9) + (noise(x + 100, y, 4) - 0.5) * 4;
     if ((x - c.x) ** 2 + (y - c.y) ** 2 < r * r) return true;
   }

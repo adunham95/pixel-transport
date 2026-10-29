@@ -167,19 +167,33 @@ const RAW = [
   ["sandbar", "Sandbar", 932, 540, -1, "ap"],
   ["wreckreef", "Wreck Reef", 938, 378, -1, "p"],
 ];
-export const CITIES = RAW.map(([id, name, x, y, cont, s]) => ({
-  id,
-  name,
-  x,
-  y,
-  cont,
-  rail: s.includes("r"),
-  air: s.includes("a"),
-  port: s.includes("p"),
-  island: cont < 0,
-  // every mainland town is on the road network
-  road: cont >= 0,
-}));
+// anchorages: spots out at sea with no town. Only aircraft carriers sail to them, and
+// planes can land there while a carrier is anchored. They have no jobs and are never locked.
+const ANCHORAGES = [
+  ["frostgap", "Frost Gap", 240, 150],
+  ["midsea", "Midsea", 250, 330],
+  ["sealbank", "Seal Bank", 480, 500],
+  ["pearldeep", "Pearl Deep", 560, 180],
+  ["ternreach", "Tern Reach", 680, 180],
+  ["eastdeep", "Eastern Deep", 920, 470],
+  ["westdeep", "Western Deep", 40, 300],
+];
+export const CITIES = [
+  ...RAW.map(([id, name, x, y, cont, s]) => ({
+    id,
+    name,
+    x,
+    y,
+    cont,
+    rail: s.includes("r"),
+    air: s.includes("a"),
+    port: s.includes("p"),
+    island: cont < 0,
+    // every mainland town is on the road network
+    road: cont >= 0,
+  })),
+  ...ANCHORAGES.map(([id, name, x, y]) => ({ id, name, x, y, cont: -1, rail: false, air: false, port: false, island: false, road: false, anchor: true })),
+];
 
 // rails join neighbors on the same continent: a pair is linked unless some third
 // station sits closer to both of them (a relative neighborhood graph)

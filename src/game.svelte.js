@@ -428,6 +428,8 @@ function arrive(v, at) {
   v.city = to;
   v.trip = null;
   delete v.depart;
+  // planes can now land wherever this carrier has parked
+  if (v.kind === 'boat' && isCarrier(v.model)) reachCache.clear();
   if (v.loop) {
     // back home: load up and go round again, without a toast every lap
     if (n) toast(`${v.name} delivered ${n} at ${name}. +$${fmt(total)}`, 'good');
@@ -451,16 +453,42 @@ function addJob(id) {
 // can this model be based at (start from, stop at) this city?
 export function canBase(kind, model, c) {
   if (kind === 'train') return ENGINES[model].maglev ? onMaglev(c.id) : c.rail;
-  if (kind === 'boat') return c.port && (!BOATS[model].harbor || c.rail);
+  // only aircraft carriers sail out to the anchorages
+  if (kind === 'boat') return c.anchor ? isCarrier(model) : c.port && (!BOATS[model].harbor || c.rail);
   if (kind === 'truck') return c.road;
+  return landsWithout(model, c) || (!!PLANES[model].deckSpace && !!carrierAt(c.id));
+}
+
+// ---------- aircraft carriers ----------
+
+export function isCarrier(model) { return BOATS[model]?.deckFor === 'plane'; }
+// a carrier parked (anchored or moored) here, if any
+export function carrierAt(id) { return game.vehicles.find((v) => v.kind === 'boat' && isCarrier(v.model) && v.city === id); }
+// can this plane land here with no carrier's help?
+export function landsWithout(model, c) {
   const p = PLANES[model];
-  return c.air || !!p.vtol || (!!p.seaplane && c.port);
+  return !c.anchor && (c.air || !!p.vtol || (!!p.seaplane && c.port));
+}
+// planes that are here, or on their way, only because a carrier is: it can't sail off and leave them
+function leaning(f) {
+  const c = cityById[f.city], on = (p) => p.kind === 'plane' && !landsWithout(p.model, c);
+  return {
+    parked: game.vehicles.filter((p) => on(p) && p.city === f.city),
+    inbound: game.vehicles.filter((p) => on(p) && p.trip && [p.trip, ...(p.next ?? [])].some((l) => l.to === f.city)),
+  };
 }
 
 
 // ---------- unlocking towns ----------
 
-export function isOpen(id) { return !!game.unlocked[id]; }
+// anchorages are always open: there's nothing there to unlock
+export function isOpen(id) { return !!game.unlocked[id] || !!cityById[id]?.anchor; }
+// can vehicles be bought or spawned here?
+function shopHere(c) {
+  if (c.anchor) { toast(`${c.name} is open sea. Pick a town to buy vehicles.`, 'bad'); return false; }
+  if (!isOpen(c.id)) { toast(`Unlock ${c.name} first`, 'bad'); return false; }
+  return true;
+}
 export function connections(c) { return c.rail + c.air + c.port; }
 export function unlockPrice(c) { return CITY_PRICE * connections(c); }
 
@@ -493,7 +521,7 @@ function step() {
     if (list.some((j) => j.from === c.id && now - j.at > JOB_TTL)) game.jobs[c.id] = list.filter((j) => j.from !== c.id || now - j.at <= JOB_TTL);
     if (now >= game.spawnAt[c.id]) {
       game.spawnAt[c.id] = now + 7000 + Math.random() * 8000;
-      if (isOpen(c.id) && ownJobs(c.id) < JOB_CAP) addJob(c.id);
+      if (isOpen(c.id) && !c.anchor && ownJobs(c.id) < JOB_CAP) addJob(c.id);
     }
   }
 }
@@ -505,7 +533,7 @@ export function start() {
   const before = game.coins;
   quiet = true;
   step();
-  for (const c of CITIES) if (isOpen(c.id)) for (let i = ownJobs(c.id); i < 4; i++) addJob(c.id);
+  for (const c of CITIES) if (isOpen(c.id) && !c.anchor) for (let i = ownJobs(c.id); i < 4; i++) addJob(c.id);
   quiet = false;
   if (loaded && game.coins > before) toast(`Welcome back. Your fleet earned $${fmt(game.coins - before)} while you were away.`, 'good');
   setInterval(() => { clock.now = gameNow(); step(); }, 250);
@@ -583,6 +611,14 @@ export function loopStops(v, stops) {
 export function dispatch(v, stops, { repeat = false, lap = null } = {}) {
   if (repeat && !game.repeatRoutes) { toast('Repeating routes aren’t unlocked yet', 'bad'); return false; }
   if (repeat) stops = loopStops(v, stops);
+  // a carrier takes the planes that need it along, and waits for any still flying in to land
+  let stow = [];
+  if (v.kind === 'boat' && isCarrier(v.model) && v.city) {
+    const { parked, inbound } = leaning(v);
+    if (inbound.length) { toast(`${v.name} can’t leave while ${inbound[0].name} is flying in to land on it`, 'bad'); return false; }
+    if (deckUsed(v) + parked.reduce((s, p) => s + deckSize(p), 0) > deckRoom(v)) { toast(`No room on ${v.name}’s deck for every plane parked here. Fly some off first.`, 'bad'); return false; }
+    stow = parked;
+  }
   const legs = planLegs(v, stops);
   const bad = legs.findIndex((l) => !l);
   if (!legs.length || bad >= 0) { toast(`${v.name} can’t reach ${cityById[stops[Math.max(0, bad)]].name} on this route`, 'bad'); return false; }
@@ -590,6 +626,8 @@ export function dispatch(v, stops, { repeat = false, lap = null } = {}) {
   if (game.coins < cost) { toast(lap == null ? `Not enough coins for fuel. You need $${fmt(cost)}.` : `${v.name} stopped repeating. It needs $${fmt(cost)} for fuel.`, 'bad'); return false; }
   game.coins -= cost;
   books(v).fuel += cost;
+  for (const p of stow) { p.aboard = v.id; p.city = null; delete p.loop; }
+  if (v.kind === 'boat' && isCarrier(v.model)) reachCache.clear();
   const [first, ...rest] = legs.map((l) => ({ from: l.from, to: l.to, pts: l.pts, len: l.len, dur: l.time * 1000, cost: l.cost }));
   v.trip = { ...first, startAt: lap ?? gameNow() };
   v.next = rest;
@@ -661,7 +699,7 @@ function spend(price, level, label) {
 
 export function buyPlane(model) {
   const c = cityById[game.selected], p = PLANES[model];
-  if (!isOpen(c.id)) { toast(`Unlock ${c.name} first`, 'bad'); return; }
+  if (!shopHere(c)) return;
   if (!canBase('plane', model, c)) { toast(`${c.name} has no airport${p.seaplane ? ' or port' : ''}. Pick another city first.`, 'bad'); return; }
   if (!spend(p.price, p.level, p.name)) return;
   const v = newVehicle(game, 'plane', model, c.id);
@@ -673,7 +711,7 @@ export function buyPlane(model) {
 
 export function buyBoat(model) {
   const c = cityById[game.selected], b = BOATS[model];
-  if (!isOpen(c.id)) { toast(`Unlock ${c.name} first`, 'bad'); return; }
+  if (!shopHere(c)) return;
   if (!canBase('boat', model, c)) { toast(b.harbor ? `${b.name} needs a port with a rail station` : `${c.name} has no port. Pick a port city first.`, 'bad'); return; }
   if (!spend(b.price, b.level, b.name)) return;
   const v = newVehicle(game, 'boat', model, c.id);
@@ -685,7 +723,7 @@ export function buyBoat(model) {
 
 export function buyTruck(model) {
   const c = cityById[game.selected], t = TRUCKS[model];
-  if (!isOpen(c.id)) { toast(`Unlock ${c.name} first`, 'bad'); return; }
+  if (!shopHere(c)) return;
   if (!canBase('truck', model, c)) { toast(`${c.name} has no roads. Pick a mainland town first.`, 'bad'); return; }
   if (!spend(t.price, t.level, t.name)) return;
   const v = newVehicle(game, 'truck', model, c.id, []);
@@ -697,7 +735,7 @@ export function buyTruck(model) {
 
 export function buyEngine(model) {
   const c = cityById[game.selected], e = ENGINES[model];
-  if (!isOpen(c.id)) { toast(`Unlock ${c.name} first`, 'bad'); return; }
+  if (!shopHere(c)) return;
   if (!canBase('train', model, c)) { toast(e.maglev ? `${c.name} isn’t on a maglev line` : `${c.name} has no station. Pick a station city first.`, 'bad'); return; }
   if (!spend(e.price, e.level, e.name)) return;
   const v = newVehicle(game, 'train', model, c.id, []);
@@ -768,22 +806,32 @@ export function sellVehicle(v) {
   toast(`Sold ${v.name}`);
 }
 
-// ---------- carrying trucks: car ferries and cargo planes ----------
+// ---------- carrying vehicles: trucks on car ferries and cargo planes, planes on carriers ----------
 
-// trucks riding on this ferry or plane
+// vehicles riding on this ferry, plane or carrier
 export function aboard(f) { return game.vehicles.filter((t) => t.aboard === f.id); }
 export function carrierOf(t) { return t.aboard != null ? game.vehicles.find((f) => f.id === t.aboard) : null; }
-// how much ferry deck a truck takes up, trailers and all
-export function deckSize(t) { return TRUCKS[t.model].deck + t.cars.reduce((s, c) => s + TRAILERS[c].deck, 0); }
+// what kind of vehicle rides on this one's deck
+export function deckFor(f) { return spec(f).deckFor ?? 'truck'; }
+// how much deck a truck (trailers and all) or a plane takes up
+export function deckSize(t) {
+  if (t.kind === 'plane') return PLANES[t.model].deckSpace ?? 0;
+  return TRUCKS[t.model].deck + t.cars.reduce((s, c) => s + TRAILERS[c].deck, 0);
+}
+// is it the right kind, and small enough, to come aboard at all?
+export function fitsAboard(f, t) {
+  if (t.kind !== deckFor(f)) return false;
+  return t.kind === 'plane' ? !!PLANES[t.model].deckSpace : !TRUCKS[t.model].noFerry;
+}
 export function deckUsed(f) { return aboard(f).reduce((s, t) => s + deckSize(t), 0); }
 // truck spaces on a car ferry or cargo plane (a truck's own deck is the room it takes up)
 export function deckRoom(f) { return f.kind === 'truck' ? 0 : spec(f).deck ?? 0; }
 export function canBoard(f, t) {
-  return !!f.city && t.city === f.city && t.kind === 'truck' && !TRUCKS[t.model].noFerry && deckUsed(f) + deckSize(t) <= deckRoom(f);
+  return !!f.city && t.city === f.city && fitsAboard(f, t) && deckUsed(f) + deckSize(t) <= deckRoom(f);
 }
 
 export function driveOn(f, t) {
-  if (TRUCKS[t.model].noFerry) { toast(`A ${TRUCKS[t.model].name} is too long to carry`, 'bad'); return; }
+  if (!fitsAboard(f, t)) { toast(t.kind === 'plane' ? `A ${PLANES[t.model].name} is too big for a carrier` : `A ${TRUCKS[t.model].name} is too long to carry`, 'bad'); return; }
   if (!canBoard(f, t)) { toast(`No room for ${t.name} on the deck`, 'bad'); return; }
   t.aboard = f.id;
   t.city = null;
@@ -791,7 +839,7 @@ export function driveOn(f, t) {
   if (ui.activeVehicle === t.id) ui.activeVehicle = f.id;
 }
 
-// a truck drives off wherever its carrier is parked, dropping off anything it has for this town
+// a truck drives off (or a plane takes off) wherever its carrier is parked, dropping off anything it has for this town
 export function driveOff(f, t) {
   if (!f.city || t.aboard !== f.id) return;
   delete t.aboard;
@@ -834,7 +882,7 @@ export function devMaxLevel() {
 // a free vehicle of any model at the selected city, if it has the right station, airport, port or roads
 export function devSpawn(kind, model) {
   const c = cityById[game.selected];
-  if (!isOpen(c.id)) { toast(`Unlock ${c.name} first`, 'bad'); return; }
+  if (!shopHere(c)) return;
   if (!canBase(kind, model, c)) { toast(`${SPECS[kind][model].name} can’t be based at ${c.name}`, 'bad'); return; }
   const s = SPECS[kind][model];
   const mix = kind === 'truck' ? ['van', 'dump', 'tank'] : kind === 'boat' ? ['deck', 'hopper', 'tank'] : s.freightOnly ? ['box', 'tank', 'hopper'] : ['pax', 'box', 'tank', 'hopper'];
@@ -851,7 +899,7 @@ export function devFinishLegs() {
 }
 
 export function devFillJobs() {
-  if (!isOpen(game.selected)) { toast('Unlock this town first', 'bad'); return; }
+  if (!isOpen(game.selected) || cityById[game.selected].anchor) { toast('Pick an unlocked town first', 'bad'); return; }
   for (let i = 0; i < 6; i++) addJob(game.selected);
 }
 
