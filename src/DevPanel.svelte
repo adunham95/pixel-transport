@@ -5,9 +5,10 @@
   const c = $derived(cityById[game.selected]);
   const groups = $derived([
     { kind: 'train', title: 'Trains', specs: ENGINES, ok: c.rail, need: 'a station' },
-    { kind: 'plane', title: 'Planes', specs: PLANES, ok: c.air, need: 'an airport' },
+    // helicopters can go anywhere, other planes need an airport
+    { kind: 'plane', title: 'Planes', specs: PLANES, ok: c.air, need: 'an airport', anywhere: (s) => s.vtol },
     { kind: 'boat', title: 'Boats', specs: BOATS, ok: c.port, need: 'a port' },
-  ]);
+  ].map((g) => ({ ...g, list: Object.entries(g.specs).filter(([, s]) => g.ok || g.anywhere?.(s)) })));
 </script>
 
 <p class="note">Dev mode is for trying things out. Spawned vehicles are free and ignore levels.</p>
@@ -32,16 +33,15 @@
 
 {#each groups as g}
   <h3>Spawn {g.title.toLowerCase()} at {c.name}</h3>
-  {#if g.ok}
-    {#each Object.entries(g.specs) as [k, s]}
+  {#if !g.ok}<p class="muted small">{c.name} doesn’t have {g.need}{g.list.length ? ', so only these can go here' : '. Select a city that does'}.</p>{/if}
+  {#if g.list.length}
+    {#each g.list as [k, s]}
       <button class="row" onclick={() => devSpawn(g.kind, k)}>
         <span class="pv"><Sprite kind={g.kind} model={k} cars={g.kind === 'train' ? ['pax', 'box', 'tank'].slice(0, Math.min(3, s.maxCars)) : []} scale={3} /></span>
         <span class="grow"><b>{s.name}</b><small>Lv {s.level}, ${fmt(s.price)} in the shop</small></span>
         <span class="act">Spawn</span>
       </button>
     {/each}
-  {:else}
-    <p class="muted small">{c.name} doesn’t have {g.need}. Select a city that does.</p>
   {/if}
 {/each}
 

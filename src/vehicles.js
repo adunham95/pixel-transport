@@ -181,7 +181,8 @@ export const CARS = {
   },
 };
 
-// range is in world units; fuel is coins per world unit flown
+// range is in world units; fuel is coins per world unit flown.
+// vtol: true means it can land at any city (helicopters, tiltrotors), not just airports.
 export const PLANES = {
   sparrow: {
     name: "Sparrow",
@@ -263,6 +264,31 @@ export const PLANES = {
       <rect x="4" y="-0.8" width="0.6" height="0.4" fill="rgba(170,215,255,0.85)"/>
     </svg>`,
   },
+  dakota: {
+    name: "Dakota",
+    level: 3,
+    price: 3500,
+    pax: 6,
+    cargo: 3,
+    range: 180,
+    speed: 10,
+    fuel: 0.5,
+    pips: 3,
+    color: "#c9ced4",
+    trim: "#d6453a",
+    art: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-12 -12 24 24">
+      <path d="M2.6 -1.3L1.2 -10.4Q0.4 -11.4 -0.6 -10.6L-1.8 -1.3ZM2.6 1.3L1.2 10.4Q0.4 11.4 -0.6 10.6L-1.8 1.3ZM-5.4 -0.7L-6.2 -3.9Q-6.8 -4.6 -7.5 -3.9L-7.6 -0.7ZM-5.4 0.7L-6.2 3.9Q-6.8 4.6 -7.5 3.9L-7.6 0.7ZM-7.8 -0.85Q-8.4 0 -7.8 0.85L4.4 1.45Q8 1.25 8.3 0Q8 -1.25 4.4 -1.45Z" fill="none" stroke="rgba(18,24,38,0.9)" stroke-width="1.2" stroke-linejoin="round"/>
+      <path d="M2.6 -1.3L1.2 -10.4Q0.4 -11.4 -0.6 -10.6L-1.8 -1.3ZM2.6 1.3L1.2 10.4Q0.4 11.4 -0.6 10.6L-1.8 1.3ZM-5.4 -0.7L-6.2 -3.9Q-6.8 -4.6 -7.5 -3.9L-7.6 -0.7ZM-5.4 0.7L-6.2 3.9Q-6.8 4.6 -7.5 3.9L-7.6 0.7Z" fill="#b7bdc4"/>
+      <rect x="-1.8" y="-1.9" width="4.4" height="0.5" fill="#a3aab2"/><rect x="-1.8" y="1.4" width="4.4" height="0.5" fill="#a3aab2"/>
+      <rect x="-0.8" y="-4.65" width="4.6" height="1.7" rx="0.7" fill="#aab1b9" stroke="rgba(18,24,38,0.9)" stroke-width="0.35"/><rect x="3.4" y="-4.75" width="0.9" height="1.9" rx="0.4" fill="#2d2a2e"/><rect x="4.5" y="-5.2" width="0.35" height="2.8" fill="rgba(40,40,48,0.6)"/><rect x="-0.8" y="2.95" width="4.6" height="1.7" rx="0.7" fill="#aab1b9" stroke="rgba(18,24,38,0.9)" stroke-width="0.35"/><rect x="3.4" y="2.85" width="0.9" height="1.9" rx="0.4" fill="#2d2a2e"/><rect x="4.5" y="2.4" width="0.35" height="2.8" fill="rgba(40,40,48,0.6)"/>
+      <path d="M-7.8 -0.85Q-8.4 0 -7.8 0.85L4.4 1.45Q8 1.25 8.3 0Q8 -1.25 4.4 -1.45Z" fill="#c9ced4"/>
+      <rect x="-7" y="-1.1" width="12" height="0.45" fill="rgba(255,255,255,0.6)"/>
+      <rect x="-7.4" y="-0.25" width="12.4" height="0.5" fill="#d6453a"/>
+      <rect x="-0.5" y="-10.7" width="1.6" height="0.7" fill="#d6453a"/><rect x="-0.5" y="10" width="1.6" height="0.7" fill="#d6453a"/>
+      <path d="M5 -1Q7.2 -0.9 7.6 0Q7.2 0.9 5 1Z" fill="#23344f"/>
+      <rect x="5.4" y="-0.8" width="0.6" height="0.4" fill="rgba(170,215,255,0.85)"/>
+    </svg>`,
+  },
   cargomaster: {
     name: "Cargomaster",
     level: 3,
@@ -322,6 +348,35 @@ export const PLANES = {
       <rect x="6.7" y="-0.85" width="0.6" height="0.4" fill="rgba(170,215,255,0.85)"/>
     </svg>`,
   },
+  tandem: {
+    name: "Tandem",
+    level: 4,
+    price: 6500,
+    pax: 4,
+    cargo: 6,
+    range: 120,
+    speed: 7,
+    fuel: 0.7,
+    pips: 2,
+    color: "#5b6b3a",
+    trim: "#3f4a28",
+    vtol: true,
+    art: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-13 -8 26 16">
+      <path d="M-8.6 -2Q-9.4 -2 -9.4 -1.2L-9.4 1.2Q-9.4 2 -8.6 2L7 2Q9.4 2 9.6 0Q9.4 -2 7 -2Z" fill="#5b6b3a" stroke="rgba(18,24,38,0.9)" stroke-width="1" stroke-linejoin="round"/>
+      <rect x="-8.6" y="-1.5" width="15" height="0.5" fill="rgba(255,255,255,0.18)"/>
+      <rect x="-8.2" y="-1.2" width="3.8" height="2.4" rx="0.8" fill="#3f4a28" stroke="rgba(18,24,38,0.9)" stroke-width="0.3"/>
+      <rect x="-3.4" y="-1.6" width="2.6" height="3.2" rx="0.6" fill="#3f4a28"/>
+      <g fill="#2d2a2e"><rect x="-2.9" y="-1.3" width="0.4" height="0.7"/><rect x="-2.1" y="-1.3" width="0.4" height="0.7"/><rect x="-2.9" y="0.6" width="0.4" height="0.7"/><rect x="-2.1" y="0.6" width="0.4" height="0.7"/></g>
+      <path d="M6.8 -1.5Q8.8 -1.3 9.1 0Q8.8 1.3 6.8 1.5Z" fill="#23344f"/>
+      <rect x="7.2" y="-1.2" width="0.6" height="0.45" fill="rgba(170,215,255,0.85)"/>
+      <circle cx="5.6" cy="0" r="6.9" fill="rgba(30,32,38,0.16)" stroke="rgba(30,32,38,0.35)" stroke-width="0.3"/>
+      <path d="M5.6 0L11.76 2.24M5.6 0L0.58 4.21M5.6 0L4.46 -6.46" stroke="#2d2a2e" stroke-width="0.55" stroke-linecap="round"/>
+      <circle cx="5.6" cy="0" r="0.6" fill="#4a454d"/>
+      <circle cx="-6.2" cy="0" r="6.9" fill="rgba(30,32,38,0.16)" stroke="rgba(30,32,38,0.35)" stroke-width="0.3"/>
+      <path d="M-6.2 0L-5.06 6.46M-6.2 0L-12.36 -2.24M-6.2 0L-1.18 -4.21" stroke="#2d2a2e" stroke-width="0.55" stroke-linecap="round"/>
+      <circle cx="-6.2" cy="0" r="0.6" fill="#4a454d"/>
+    </svg>`,
+  },
   skyliner: {
     name: "Skyliner",
     level: 5,
@@ -353,6 +408,37 @@ export const PLANES = {
       <rect x="-2.21" y="11.95" width="2.75" height="0.8" fill="#2f9a5a"/>
       <path d="M9 -1.68H10A0.5 0.5 0 0 1 10.5 -1.18V1.18A0.5 0.5 0 0 1 10 1.68H9A0.5 0.5 0 0 1 8.5 1.18V-1.18A0.5 0.5 0 0 1 9 -1.68Z" fill="#23344f"/>
       <rect x="8.7" y="-1.57" width="0.5" height="0.5" fill="rgba(170,215,255,0.85)"/>
+    </svg>`,
+  },
+  heron: {
+    name: "Heron",
+    level: 6,
+    price: 14000,
+    pax: 8,
+    cargo: 4,
+    range: 260,
+    speed: 13,
+    fuel: 0.9,
+    pips: 4,
+    color: "#8a949e",
+    trim: "#4a525a",
+    vtol: true,
+    art: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-11 -11.5 22 23">
+      <path d="M1.6 -1.4L1.6 -6.2L-1.4 -6.2L-1.4 -1.4ZM1.6 1.4L1.6 6.2L-1.4 6.2L-1.4 1.4ZM-6 -0.6L-7.4 -3.4L-8.8 -3.4L-8.6 -0.6ZM-6 0.6L-7.4 3.4L-8.8 3.4L-8.6 0.6ZM-8.8 -1.2Q-9.3 0 -8.8 1.2L5 1.55Q8.6 1.35 9 0Q8.6 -1.35 5 -1.55Z" fill="none" stroke="rgba(18,24,38,0.9)" stroke-width="1.2" stroke-linejoin="round"/>
+      <path d="M1.6 -1.4L1.6 -6.2L-1.4 -6.2L-1.4 -1.4ZM1.6 1.4L1.6 6.2L-1.4 6.2L-1.4 1.4ZM-6 -0.6L-7.4 -3.4L-8.8 -3.4L-8.6 -0.6ZM-6 0.6L-7.4 3.4L-8.8 3.4L-8.6 0.6Z" fill="#79838d"/>
+      <path d="M-8.8 -1.2Q-9.3 0 -8.8 1.2L5 1.55Q8.6 1.35 9 0Q8.6 -1.35 5 -1.55Z" fill="#8a949e"/>
+      <rect x="-8" y="-1.15" width="13" height="0.45" fill="rgba(255,255,255,0.3)"/>
+      <rect x="-8.8" y="-3.6" width="1.5" height="0.7" fill="#4a525a"/><rect x="-8.8" y="2.9" width="1.5" height="0.7" fill="#4a525a"/>
+      <rect x="-1.6" y="-1" width="3.4" height="2" rx="0.5" fill="#4a525a"/>
+      <path d="M5.4 -1.1Q8 -1 8.4 0Q8 1 5.4 1.1Z" fill="#23344f"/>
+      <rect x="5.9" y="-0.85" width="0.6" height="0.4" fill="rgba(170,215,255,0.85)"/>
+      <rect x="-1.6" y="-7.2" width="4.2" height="2" rx="0.9" fill="#4a525a" stroke="rgba(18,24,38,0.9)" stroke-width="0.4"/><rect x="-1.6" y="5.2" width="4.2" height="2" rx="0.9" fill="#4a525a" stroke="rgba(18,24,38,0.9)" stroke-width="0.4"/>
+      <circle cx="0.5" cy="-6.2" r="4.7" fill="rgba(30,32,38,0.16)" stroke="rgba(30,32,38,0.35)" stroke-width="0.3"/>
+      <path d="M0.5 -6.2L4.90 -5.42M0.5 -6.2L-2.37 -2.78M0.5 -6.2L-1.03 -10.40" stroke="#2d2a2e" stroke-width="0.55" stroke-linecap="round"/>
+      <circle cx="0.5" cy="-6.2" r="0.6" fill="#4a454d"/>
+      <circle cx="0.5" cy="6.2" r="4.7" fill="rgba(30,32,38,0.16)" stroke="rgba(30,32,38,0.35)" stroke-width="0.3"/>
+      <path d="M0.5 6.2L2.03 10.40M0.5 6.2L-3.90 5.42M0.5 6.2L3.37 2.78" stroke="#2d2a2e" stroke-width="0.55" stroke-linecap="round"/>
+      <circle cx="0.5" cy="6.2" r="0.6" fill="#4a454d"/>
     </svg>`,
   },
   jumbo: {

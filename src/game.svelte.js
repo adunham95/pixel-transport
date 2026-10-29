@@ -101,7 +101,7 @@ export function leg(v, from, to) {
     return { from, to, len: lane.len, pts: lane.pts, cost: Math.max(1, Math.ceil(lane.len * b.run)), time: lane.len / (b.speed * SPEED) };
   }
   const A = cityById[from], B = cityById[to], p = PLANES[v.model];
-  if (!A.air || !B.air) return null;
+  if ((!A.air || !B.air) && !p.vtol) return null;
   const d = Math.hypot(A.x - B.x, A.y - B.y);
   if (d > p.range) return null;
   return { from, to, len: d, pts: [[A.x, A.y], [B.x, B.y]], cost: Math.max(1, Math.ceil(d * p.fuel)), time: d / (p.speed * SPEED) };
@@ -433,7 +433,7 @@ function spend(price, level, label) {
 
 export function buyPlane(model) {
   const c = cityById[game.selected], p = PLANES[model];
-  if (!c.air) { toast(`${c.name} has no airport. Pick an airport city first.`, 'bad'); return; }
+  if (!c.air && !p.vtol) { toast(`${c.name} has no airport. Pick an airport city first.`, 'bad'); return; }
   if (!spend(p.price, p.level, p.name)) return;
   const v = newVehicle(game, 'plane', model, c.id);
   game.vehicles.push(v);
@@ -543,7 +543,7 @@ export function devMaxLevel() {
 export function devSpawn(kind, model) {
   const c = cityById[game.selected];
   const need = { train: ['rail', 'station'], plane: ['air', 'airport'], boat: ['port', 'port'] }[kind];
-  if (!c[need[0]]) { toast(`${c.name} has no ${need[1]}`, 'bad'); return; }
+  if (!c[need[0]] && !(kind === 'plane' && PLANES[model].vtol)) { toast(`${c.name} has no ${need[1]}`, 'bad'); return; }
   const v = newVehicle(game, kind, model, c.id, kind === 'train' ? Array(ENGINES[model].maxCars).fill(0).map((_, i) => ['pax', 'box', 'tank'][i % 3]) : undefined);
   game.vehicles.push(v);
   toast(`${v.name} added at ${c.name}`, 'good');

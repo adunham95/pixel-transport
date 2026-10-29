@@ -6,7 +6,7 @@
 </script>
 
 <p class="note">New vehicles show up at <b>{c.name}</b>.
-  {#if !c.air} It has no airport, so select an airport city to buy planes.{/if}
+  {#if !c.air} It has no airport, so only helicopters can be bought here.{/if}
   {#if !c.rail} It has no station, so select a station city to buy engines.{/if}
   {#if !c.port} It has no port, so select a port city to buy boats.{/if}
 </p>
@@ -18,10 +18,10 @@
     <span class="pv wide"><Sprite kind="plane" model={k} scale={4} /></span>
     <span class="grow">
       <b>{p.name}</b>
-      <small>{p.pax} seats, {p.cargo} cargo</small>
+      <small>{p.pax} seats, {p.cargo} cargo{p.vtol ? '. Lands anywhere' : ''}</small>
       <small>Range {Math.round(p.range * MI)} mi. Speed <span class="pips">{#each [1, 2, 3, 4, 5] as n}<i class:on={n <= p.pips}></i>{/each}</span></small>
     </span>
-    <button class="btn primary" disabled={locked || !c.air || game.coins < p.price} onclick={() => buyPlane(k)}>{locked ? `Lv ${p.level}` : `$${fmt(p.price)}`}</button>
+    <button class="btn primary" disabled={locked || (!c.air && !p.vtol) || game.coins < p.price} onclick={() => buyPlane(k)}>{locked ? `Lv ${p.level}` : `$${fmt(p.price)}`}</button>
   </div>
 {/each}
 
