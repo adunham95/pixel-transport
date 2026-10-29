@@ -207,7 +207,7 @@ export const RAILS = [];
 export { ENGINES, CARS, PLANES, BOATS } from "./vehicles.js";
 
 // xp needed to reach level i+1
-export const LEVELS = [0, 120, 300, 600, 1000, 1600, 2500, 3800, 5500];
+export const LEVELS = [0, 400, 1000, 2000, 3500, 5500, 8500, 12500, 18000];
 // job types; bulk (coal, grain, ore) turns up in batches and pays less per load
 export const JOB_TYPES = ["pax", "cargo", "fuel", "bulk"];
 export const RATES = { pax: 0.9, cargo: 0.8, fuel: 1.3, bulk: 0.45 };

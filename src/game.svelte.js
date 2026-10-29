@@ -3,6 +3,8 @@ import { seaLane } from './sea.js';
 
 const KEY = 'pixel-transport-save-v1';
 const JOB_CAP = 6;
+// a job left waiting at its town this long (game time) goes elsewhere, so towns can't clog up
+export const JOB_TTL = 15 * 60 * 1000;
 
 export const cityById = Object.fromEntries(CITIES.map((c) => [c.id, c]));
 
@@ -77,7 +79,7 @@ const none = () => Object.fromEntries(JOB_TYPES.map((t) => [t, 0]));
 
 export function capacity(v) {
   const cap = none();
-  if (v.kind === 'plane') { const p = PLANES[v.model]; cap.pax = p.pax; cap.cargo = p.cargo; }
+  if (v.kind === 'plane') { const p = PLANES[v.model]; cap.pax = p.pax; cap.cargo = p.cargo; Object.assign(cap, p.hold); }
   else if (v.kind === 'boat') Object.assign(cap, BOATS[v.model].cap);
   else for (const c of v.cars) cap[CARS[c].holds] += CARS[c].cap;
   return cap;
@@ -406,6 +408,10 @@ function step() {
     arrive(v, tripEnd(v));
   }
   for (const c of CITIES) {
+    // jobs are stamped the first time they're seen waiting; ones dropped off for a transfer never expire
+    const list = game.jobs[c.id];
+    for (const j of list) j.at ??= now;
+    if (list.some((j) => j.from === c.id && now - j.at > JOB_TTL)) game.jobs[c.id] = list.filter((j) => j.from !== c.id || now - j.at <= JOB_TTL);
     if (now >= game.spawnAt[c.id]) {
       game.spawnAt[c.id] = now + 7000 + Math.random() * 8000;
       if (isOpen(c.id) && ownJobs(c.id) < JOB_CAP) addJob(c.id);
@@ -466,6 +472,8 @@ export function unloadJob(v, job) {
   const i = v.cargo.findIndex((j) => j.id === job.id);
   if (i < 0) return;
   const [j] = v.cargo.splice(i, 1);
+  // put back at its own town, it gets a fresh wait
+  if (j.from === v.city) j.at = gameNow();
   game.jobs[v.city].push(j);
 }
 

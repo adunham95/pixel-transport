@@ -244,6 +244,7 @@ export const CARS = {
 // seaplane: true means it can also land at ports, mooring at the pier.
 // rotors: [[x, y, radius], ...] in the art's sub pixel units. They're drawn on top of the
 // art and spin while flying, so leave them out of the svg itself.
+// hold: { fuel, bulk } extra room for heavy loads, on top of pax and cargo.
 export const PLANES = {
   sparrow: {
     name: "Sparrow",
@@ -298,6 +299,60 @@ export const PLANES = {
       <rect x="-0.79" y="7.45" width="2.05" height="0.8" fill="#2a6fd6"/>
       <path d="M5.6 -1.13H6.2A0.5 0.5 0 0 1 6.7 -0.63V0.63A0.5 0.5 0 0 1 6.2 1.13H5.6A0.5 0.5 0 0 1 5.1 0.63V-0.63A0.5 0.5 0 0 1 5.6 -1.13Z" fill="#23344f"/>
       <rect x="5.3" y="-1.03" width="0.5" height="0.5" fill="rgba(170,215,255,0.85)"/>
+    </svg>`,
+  },
+  bushhawk: {
+    name: "Bushhawk",
+    level: 2,
+    price: 1400,
+    pax: 0,
+    cargo: 1,
+    hold: { bulk: 3 },
+    range: 130,
+    speed: 8,
+    fuel: 0.35,
+    pips: 2,
+    color: "#8a7a4a",
+    trim: "#e08a2c",
+    art: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-8 -8 16 16">
+      <path d="M2.6 -1.7L1.6 -7L-0.2 -7L-1.2 -1.7L-1.2 1.7L-0.2 7L1.6 7L2.6 1.7ZM-3.2 -1.2L-4.6 -3.4L-5.6 -3.4L-5.4 -1.2L-5.4 1.2L-5.6 3.4L-4.6 3.4L-3.2 1.2ZM-4.3 -1.7H4.3A1.7 1.7 0 0 1 6 0V0A1.7 1.7 0 0 1 4.3 1.7H-4.3A1.7 1.7 0 0 1 -6 0V0A1.7 1.7 0 0 1 -4.3 -1.7Z" fill="none" stroke="rgba(18,24,38,0.9)" stroke-width="1.2" stroke-linejoin="round"/>
+      <path d="M2.6 -1.7L1.6 -7L-0.2 -7L-1.2 -1.7L-1.2 1.7L-0.2 7L1.6 7L2.6 1.7ZM-3.2 -1.2L-4.6 -3.4L-5.6 -3.4L-5.4 -1.2L-5.4 1.2L-5.6 3.4L-4.6 3.4L-3.2 1.2Z" fill="#6f6238"/>
+      <path d="M-4.3 -1.7H4.3A1.7 1.7 0 0 1 6 0V0A1.7 1.7 0 0 1 4.3 1.7H-4.3A1.7 1.7 0 0 1 -6 0V0A1.7 1.7 0 0 1 -4.3 -1.7Z" fill="#8a7a4a"/>
+      <rect x="-4" y="-1.3" width="8" height="0.5" fill="rgba(255,255,255,0.35)"/>
+      <rect x="-3.6" y="-1" width="3" height="2" rx="0.3" fill="#5c3a1f" stroke="rgba(18,24,38,0.6)" stroke-width="0.25"/>
+      <rect x="-3.6" y="-0.12" width="3" height="0.24" fill="#e08a2c"/>
+      <rect x="-0.2" y="-7" width="1.8" height="0.8" fill="#e08a2c"/>
+      <rect x="-0.2" y="6.2" width="1.8" height="0.8" fill="#e08a2c"/>
+      <path d="M3.9 -1H4.4A0.5 0.5 0 0 1 4.9 -0.5V0.5A0.5 0.5 0 0 1 4.4 1H3.9A0.5 0.5 0 0 1 3.4 0.5V-0.5A0.5 0.5 0 0 1 3.9 -1Z" fill="#23344f"/>
+      <rect x="3.6" y="-0.9" width="0.5" height="0.5" fill="rgba(170,215,255,0.85)"/>
+      <rect x="6.2" y="-1.2" width="0.6" height="2.4" fill="rgba(40,40,48,0.85)"/>
+    </svg>`,
+  },
+  firefly: {
+    name: "Firefly",
+    level: 3,
+    price: 1800,
+    pax: 0,
+    cargo: 0,
+    hold: { fuel: 2 },
+    range: 140,
+    speed: 9,
+    fuel: 0.4,
+    pips: 2,
+    color: "#d6453a",
+    trim: "#ffd23f",
+    art: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-8 -8 16 16">
+      <path d="M2.6 -1.7L1.6 -7L-0.2 -7L-1.2 -1.7L-1.2 1.7L-0.2 7L1.6 7L2.6 1.7ZM-3.2 -1.2L-4.6 -3.4L-5.6 -3.4L-5.4 -1.2L-5.4 1.2L-5.6 3.4L-4.6 3.4L-3.2 1.2ZM-4.3 -1.7H4.3A1.7 1.7 0 0 1 6 0V0A1.7 1.7 0 0 1 4.3 1.7H-4.3A1.7 1.7 0 0 1 -6 0V0A1.7 1.7 0 0 1 -4.3 -1.7Z" fill="none" stroke="rgba(18,24,38,0.9)" stroke-width="1.2" stroke-linejoin="round"/>
+      <path d="M2.6 -1.7L1.6 -7L-0.2 -7L-1.2 -1.7L-1.2 1.7L-0.2 7L1.6 7L2.6 1.7ZM-3.2 -1.2L-4.6 -3.4L-5.6 -3.4L-5.4 -1.2L-5.4 1.2L-5.6 3.4L-4.6 3.4L-3.2 1.2Z" fill="#b0362d"/>
+      <g fill="#d6dbe0" stroke="#6d7680" stroke-width="0.3"><rect x="0" y="-5.6" width="1.4" height="1.6" rx="0.5"/><rect x="0" y="4" width="1.4" height="1.6" rx="0.5"/></g>
+      <path d="M-4.3 -1.7H4.3A1.7 1.7 0 0 1 6 0V0A1.7 1.7 0 0 1 4.3 1.7H-4.3A1.7 1.7 0 0 1 -6 0V0A1.7 1.7 0 0 1 -4.3 -1.7Z" fill="#d6453a"/>
+      <rect x="-4" y="-1.3" width="8" height="0.5" fill="rgba(255,255,255,0.35)"/>
+      <rect x="-5.4" y="-0.3" width="8.4" height="0.6" fill="#ffd23f"/>
+      <rect x="-0.2" y="-7" width="1.8" height="0.8" fill="#ffd23f"/>
+      <rect x="-0.2" y="6.2" width="1.8" height="0.8" fill="#ffd23f"/>
+      <path d="M3.9 -1H4.4A0.5 0.5 0 0 1 4.9 -0.5V0.5A0.5 0.5 0 0 1 4.4 1H3.9A0.5 0.5 0 0 1 3.4 0.5V-0.5A0.5 0.5 0 0 1 3.9 -1Z" fill="#23344f"/>
+      <rect x="3.6" y="-0.9" width="0.5" height="0.5" fill="rgba(170,215,255,0.85)"/>
+      <rect x="6.2" y="-1.2" width="0.6" height="2.4" fill="rgba(40,40,48,0.85)"/>
     </svg>`,
   },
   otter: {
@@ -651,6 +706,41 @@ export const BOATS = {
       <rect x="3" y="-1.2" width="0.6" height="2.4" fill="#23344f"/>
       <rect x="-3.4" y="-0.7" width="1.8" height="1.4" rx="0.5" fill="#d6453a" stroke="rgba(18,24,38,0.9)" stroke-width="0.3"/>
       <rect x="-3" y="-0.35" width="1" height="0.7" rx="0.3" fill="#2d2a2e"/>
+    </svg>`,
+  },
+  barge: {
+    name: "Barge",
+    level: 2,
+    price: 1200,
+    cap: { bulk: 6 },
+    speed: 3.5,
+    run: 0.04,
+    pips: 1,
+    art: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-8.5 -3 17 6">
+      <path d="M-7.4 -2.3L5 -2.3Q8 -2.3 8 0Q8 2.3 5 2.3L-7.4 2.3Q-8 2.3 -8 1.7L-8 -1.7Q-8 -2.3 -7.4 -2.3Z" fill="#5a6b3a" stroke="rgba(18,24,38,0.9)" stroke-width="0.7" stroke-linejoin="round"/>
+      <path d="M-7.2 -1.6L5 -1.6Q6.9 -1.6 6.9 0Q6.9 1.6 5 1.6L-7.2 1.6Z" fill="#4a4f55"/>
+      <rect x="-7" y="-1.3" width="2.6" height="2.6" rx="0.4" fill="#f4f6f8" stroke="rgba(18,24,38,0.9)" stroke-width="0.4"/>
+      <rect x="-6.4" y="-0.5" width="1.2" height="1" rx="0.3" fill="#2d2a2e"/>
+      <g fill="#7a5a3a"><ellipse cx="-2.4" cy="0" rx="1.5" ry="1.2"/><ellipse cx="0.8" cy="0" rx="1.5" ry="1.2"/><ellipse cx="4" cy="0" rx="1.3" ry="1.1"/></g>
+      <g fill="#9a7650"><ellipse cx="-2.6" cy="-0.3" rx="0.7" ry="0.5"/><ellipse cx="0.6" cy="-0.3" rx="0.7" ry="0.5"/><ellipse cx="3.8" cy="-0.3" rx="0.6" ry="0.45"/></g>
+    </svg>`,
+  },
+  bunker: {
+    name: "Bunker Boat",
+    level: 3,
+    price: 1600,
+    cap: { fuel: 4 },
+    speed: 4,
+    run: 0.05,
+    pips: 1,
+    art: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-7.5 -3 15 6">
+      <path d="M-6.4 -2.3L3 -2.3Q7 -2.3 7 0Q7 2.3 3 2.3L-6.4 2.3Q-7 2.3 -7 1.7L-7 -1.7Q-7 -2.3 -6.4 -2.3Z" fill="#2d2a2e" stroke="rgba(18,24,38,0.9)" stroke-width="0.7" stroke-linejoin="round"/>
+      <path d="M-6.2 -1.6L3 -1.6Q5.9 -1.6 5.9 0Q5.9 1.6 3 1.6L-6.2 1.6Z" fill="#a7b0ba"/>
+      <path d="M-6.2 -1.6L3 -1.6Q5.9 -1.6 5.9 0L5.2 0Q5.2 -1.1 3 -1.1L-6.2 -1.1Z" fill="#d6453a"/>
+      <rect x="-5.8" y="-1.3" width="2.6" height="2.6" rx="0.4" fill="#f4f6f8" stroke="rgba(18,24,38,0.9)" stroke-width="0.4"/>
+      <rect x="-3" y="-1" width="0.4" height="2" fill="#23344f"/>
+      <rect x="-2.2" y="-0.25" width="6.4" height="0.5" fill="#6d7680"/>
+      <g fill="#d6dbe0" stroke="#6d7680" stroke-width="0.3"><circle cx="-0.8" cy="0" r="1.1"/><circle cx="2" cy="0" r="1.1"/></g>
     </svg>`,
   },
   freighter: {

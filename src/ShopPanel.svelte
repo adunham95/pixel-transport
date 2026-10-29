@@ -23,7 +23,7 @@
     <span class="pv wide"><Sprite kind="plane" model={k} scale={4} /></span>
     <span class="grow">
       <b>{p.name}</b>
-      <small>{p.pax} seats, {p.cargo} cargo{p.vtol ? '. Lands anywhere' : p.seaplane ? '. Lands at ports too' : ''}</small>
+      <small>{holds({ pax: p.pax, cargo: p.cargo, ...p.hold })}{p.vtol ? '. Lands anywhere' : p.seaplane ? '. Lands at ports too' : ''}</small>
       <small>Range {Math.round(p.range * MI)} mi. Speed <span class="pips">{#each [1, 2, 3, 4, 5] as n}<i class:on={n <= p.pips}></i>{/each}</span></small>
     </span>
     <button class="btn primary" disabled={locked || !isOpen(c.id) || !canBase('plane', k, c) || game.coins < p.price} onclick={() => buyPlane(k)}>{locked ? `Lv ${p.level}` : `$${fmt(p.price)}`}</button>

@@ -71,8 +71,8 @@
         {:else if v.kind === 'boat'}
           <p class="muted small">Boats sail between ports. Bigger boats are in the Shop.</p>
         {:else}
-          {@const p = PLANES[v.model]}
-          <p class="muted small">{p.pax} seats and {p.cargo} cargo slots. Want more? Bigger planes are in the Shop.</p>
+          {@const cap = capacity(v)}
+          <p class="muted small">Holds {JOB_TYPES.filter((t) => cap[t]).map((t) => `${cap[t]} ${t === 'pax' ? 'seats' : t}`).join(', ')}. Want more? Bigger planes are in the Shop.</p>
         {/if}
 
         <div class="actions">
