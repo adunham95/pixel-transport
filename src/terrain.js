@@ -1,4 +1,4 @@
-import { W, H, CITIES, RAILS, CONTINENTS, MAGLEV_LINES } from './data.js';
+import { W, H, CITIES, RAILS, ROADS, ROAD_OFF, roadSide, CONTINENTS, MAGLEV_LINES } from './data.js';
 
 export const R = 2; // sub pixels per world unit
 const TW = W * R, TH = H * R;
@@ -126,8 +126,16 @@ export function buildTerrain() {
     l.pts = l.pts.filter(([x, y]) => Math.hypot(x - A.x * R, y - A.y * R) > 9 && Math.hypot(x - B.x * R, y - B.y * R) > 9);
     return l;
   });
+  // roads in sub pixel space, shifted to their side of the rails
+  const roads = ROADS.map(([a, b]) => {
+    const A = byId[a], B = byId[b], [sx, sy] = roadSide(A.x, A.y, B.x, B.y);
+    const ox = sx * ROAD_OFF * R, oy = sy * ROAD_OFF * R;
+    const l = bresenham(Math.round(A.x * R + ox), Math.round(A.y * R + oy), Math.round(B.x * R + ox), Math.round(B.y * R + oy));
+    l.pts = l.pts.filter(([x, y]) => Math.hypot(x - A.x * R, y - A.y * R) > 9 && Math.hypot(x - B.x * R, y - B.y * R) > 9);
+    return l;
+  });
   const nearRail = new Uint8Array(TW * TH);
-  for (const { pts } of rails) for (const [x, y] of pts) for (let j = -3; j <= 3; j++) for (let i = -3; i <= 3; i++) {
+  for (const { pts } of [...rails, ...roads]) for (const [x, y] of pts) for (let j = -3; j <= 3; j++) for (let i = -3; i <= 3; i++) {
     const nx = x + i, ny = y + j;
     if (nx >= 0 && ny >= 0 && nx < TW && ny < TH) nearRail[ny * TW + nx] = 1;
   }
@@ -219,6 +227,16 @@ export function buildTerrain() {
     put(jx, jy - 1, lt); put(jx - 1, jy - 1, lt); put(jx, jy + 1, dk); put(jx + 1, jy + 1, dk); put(jx + 1, jy - 1, mid);
   }
   ctx.putImageData(img, 0, 0);
+
+  // roads: a dark edge, grey asphalt, then a dashed center line
+  for (const [w, col] of [[2, '#4a4f57'], [1, '#7d838c']]) {
+    ctx.fillStyle = col;
+    for (const { pts, horiz } of roads) for (const [x, y] of pts) {
+      if (horiz) ctx.fillRect(x, y - w, 1, w * 2 + 1); else ctx.fillRect(x - w, y, w * 2 + 1, 1);
+    }
+  }
+  ctx.fillStyle = '#f2e6b0';
+  for (const { pts } of roads) pts.forEach(([x, y], k) => { if (k % 4 < 2) ctx.fillRect(x, y, 1, 1); });
 
   // track: ties, then two steel rails
   for (const { pts, horiz } of rails) pts.forEach(([x, y], k) => {

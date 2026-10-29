@@ -9,8 +9,8 @@
   const value = $derived(v ? v.cargo.reduce((s, j) => s + j.pay, 0) : 0);
   // wall clock time it'll land, allowing for dev speed-up
   const clockAt = (at) => new Date(Date.now() + (at - clock.now) / dev.speed).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-  const KIND = { train: 'Train', plane: 'Plane', boat: 'Boat' };
-  const DONE = { train: 'travelled', plane: 'flown', boat: 'sailed' };
+  const KIND = { train: 'Train', plane: 'Plane', boat: 'Boat', truck: 'Road' };
+  const DONE = { train: 'travelled', plane: 'flown', boat: 'sailed', truck: 'driven' };
 </script>
 
 {#if v}

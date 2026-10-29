@@ -177,6 +177,8 @@ export const CITIES = RAW.map(([id, name, x, y, cont, s]) => ({
   air: s.includes("a"),
   port: s.includes("p"),
   island: cont < 0,
+  // every mainland town is on the road network
+  road: cont >= 0,
 }));
 
 // rails join neighbors on the same continent: a pair is linked unless some third
@@ -204,7 +206,34 @@ export const RAILS = [];
     }
 }
 
-export { ENGINES, CARS, PLANES, BOATS } from "./vehicles.js";
+// roads join mainland towns the same way, but a little more freely, so they have
+// a few shortcuts the rails don't
+export const ROADS = [];
+{
+  const st = CITIES.filter((c) => c.road);
+  const d = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+  for (let i = 0; i < st.length; i++)
+    for (let j = i + 1; j < st.length; j++) {
+      const a = st[i],
+        b = st[j];
+      if (a.cont !== b.cont) continue;
+      const ab = d(a, b);
+      if (!st.some((c) => c !== a && c !== b && c.cont === a.cont && Math.max(d(a, c), d(b, c)) < ab * 0.8))
+        ROADS.push([a.id, b.id]);
+    }
+}
+// roads run beside the rails, this many world units to one side, and trucks keep LANE to
+// the right of the road's middle
+export const ROAD_OFF = 3.5;
+export const LANE = 0.75;
+// which side of a line from a to b the road runs on: the same whichever way it's walked
+export function roadSide(ax, ay, bx, by) {
+  const L = Math.hypot(bx - ax, by - ay) || 1;
+  const k = bx > ax || (bx === ax && by > ay) ? 1 : -1;
+  return [(-(by - ay) / L) * k, ((bx - ax) / L) * k];
+}
+
+export { ENGINES, CARS, PLANES, BOATS, TRUCKS, TRAILERS } from "./vehicles.js";
 
 // xp needed to reach level i+1
 export const LEVELS = [0, 400, 1000, 2000, 3500, 5500, 8500, 12500, 18000];

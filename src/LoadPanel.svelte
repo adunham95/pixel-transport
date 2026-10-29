@@ -1,10 +1,10 @@
 <script>
-  import { game, ui, cityById, capacity, used, loadJob, unloadJob, autoLoad, destinations, dispatch, route, canReach, planLegs, autoPlan, toggleStop, fmt, fmtTime } from './game.svelte.js';
+  import { game, ui, cityById, capacity, used, loadJob, unloadJob, autoLoad, destinations, dispatch, route, canReach, planLegs, autoPlan, toggleStop, fmt, fmtTime, aboard, canBoard, deckSize, deckUsed, driveOn, driveOff } from './game.svelte.js';
   import Icon from './Icon.svelte';
   import Sprite from './Sprite.svelte';
   import JobRow from './JobRow.svelte';
   import { send, receive, flip, fly } from './motion.js';
-  import { TYPE_LABEL, JOB_TYPES, ENGINES } from './data.js';
+  import { TYPE_LABEL, JOB_TYPES, ENGINES, TRUCKS, BOATS } from './data.js';
   let { v } = $props();
   const cap = $derived(capacity(v));
   const u = $derived(used(v));
@@ -38,11 +38,16 @@
   const unrouted = $derived(v.cargo.filter((j) => !routed.has(j.to) && canReach(v, j.to)).length);
 
   const NEEDS = { pax: 'passenger car', cargo: 'boxcar', fuel: 'tanker', bulk: 'hopper car' };
+  const TRAILER_NEEDS = { cargo: 'van trailer', fuel: 'tank trailer', bulk: 'dump trailer' };
   function blocker(j) {
     if (!cap[j.type]) {
       const what = TYPE_LABEL[j.type].toLowerCase();
       if (v.kind === 'plane') return { block: true, text: `Planes can’t carry ${what}` };
       if (v.kind === 'boat') return { block: true, text: `No room for ${what} on this boat` };
+      if (v.kind === 'truck') {
+        if (j.type === 'pax') return { block: true, text: 'Passengers need a bus' };
+        return { block: true, text: TRUCKS[v.model].maxCars ? `Needs a ${TRAILER_NEEDS[j.type]}` : `No room for ${what} in this truck` };
+      }
       if (j.type === 'pax' && ENGINES[v.model].freightOnly) return { block: true, text: 'Freight trains don’t carry passengers' };
       return { block: true, text: `Needs a ${NEEDS[j.type]}` };
     }
@@ -51,6 +56,10 @@
     if (!route(v, j.to)) return { block: false, text: 'Needs fuel stops on the way' };
     return { block: false, text: '' };
   }
+  // car ferries: trucks on the deck, and ones parked here that could drive on
+  const deck = $derived(v.kind === 'boat' ? BOATS[v.model].deck ?? 0 : 0);
+  const onDeck = $derived(deck ? aboard(v) : []);
+  const ashore = $derived(deck ? game.vehicles.filter((t) => t.kind === 'truck' && t.city === v.city) : []);
   function plan() { ui.plan = autoPlan(v); ui.picking = true; }
   function go() { if (dispatch(v, ui.plan)) { ui.picking = false; ui.activeVehicle = null; ui.plan = []; } }
 </script>
@@ -113,6 +122,25 @@
   {#each v.cargo as j (j.id)}
     <div animate:flip in:receive={{ key: j.id }} out:send={{ key: j.id }}><JobRow job={j} loaded onclick={() => unloadJob(v, j)} action="Drop" note={canReach(v, j.to) ? '' : 'Can’t reach from here'} /></div>
   {/each}
+  {#if deck}
+    <h3>Vehicle deck ({deckUsed(v)} of {deck} spaces)</h3>
+    {#each onDeck as t (t.id)}
+      <button class="row vrow" onclick={() => driveOff(v, t)}>
+        <span class="pv"><Sprite kind="truck" model={t.model} cars={t.cars} scale={3} /></span>
+        <span class="grow"><b>{t.name}</b><small>{t.cargo.filter((j) => j.to === v.city).length ? `Drops off ${t.cargo.filter((j) => j.to === v.city).length} here` : t.cargo.length ? `${t.cargo.length} on board` : 'Empty'}</small></span>
+        <span class="act">Drive off</span>
+      </button>
+    {/each}
+    {#each ashore as t (t.id)}
+      {@const nope = TRUCKS[t.model].noFerry ? 'Too long for the ferry' : !canBoard(v, t) ? `Needs ${deckSize(t)} spaces` : ''}
+      <button class="row vrow" disabled={!!nope} onclick={() => driveOn(v, t)}>
+        <span class="pv"><Sprite kind="truck" model={t.model} cars={t.cars} scale={3} /></span>
+        <span class="grow"><b>{t.name}</b><small>{nope || `Parked here, takes ${deckSize(t)} space${deckSize(t) > 1 ? 's' : ''}`}</small></span>
+        {#if !nope}<span class="act">Drive on</span>{/if}
+      </button>
+    {/each}
+    {#if !onDeck.length && !ashore.length}<p class="muted small">No trucks here. Park one at {city.name} to drive it aboard.</p>{/if}
+  {/if}
   <h3>Waiting at {city.name}</h3>
   {#each waiting as j (j.id)}
     {@const why = blocker(j)}

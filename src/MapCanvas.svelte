@@ -289,8 +289,8 @@
       hits = [];
 
       // parked vehicles
-      const pt = {}, pp = {}, pb = {};
-      for (const v of game.vehicles) if (!v.trip && v.city) ({ train: pt, plane: pp, boat: pb }[v.kind][v.city] ??= []).push(v);
+      const pt = {}, pp = {}, pb = {}, pk = {};
+      for (const v of game.vehicles) if (!v.trip && v.city) ({ train: pt, plane: pp, boat: pb, truck: pk }[v.kind][v.city] ??= []).push(v);
       for (const id in pb) {
         // moored side by side at the end of the pier, bows pointing out to sea
         const c = cityById[id], d = dockOf(id);
@@ -307,7 +307,15 @@
         const c = cityById[id];
         pt[id].slice(0, 2).forEach((v, i) => {
           const cars = v.cars.slice(0, 4);
-          big(c.x * R + 12 + (consistBox(v.model, cars).w - 1) * V, c.y * R - 3 + i * 8, () => drawConsistRow(b, 0, 0, v.model, cars));
+          big(c.x * R + 12 + (consistBox('train', v.model, cars).w - 1) * V, c.y * R - 3 + i * 8, () => drawConsistRow(b, 0, 0, 'train', v.model, cars));
+        });
+      }
+      for (const id in pk) {
+        // trucks line up on the west side of town, cabs toward the buildings
+        const c = cityById[id];
+        pk[id].slice(0, 2).forEach((v, i) => {
+          const cars = v.cars.slice(0, 2);
+          big(c.x * R - 10 - (artSize('truck', v.model).w / 2) * V, c.y * R + 1 + i * 7, () => drawConsistRow(b, 0, 0, 'truck', v.model, cars));
         });
       }
       for (const id in pp) {
@@ -320,17 +328,17 @@
         });
       }
 
-      // trains on the move
+      // trains and trucks on the move
       for (const v of game.vehicles) {
-        if (!v.trip || v.kind !== 'train') continue;
+        if (!v.trip || (v.kind !== 'train' && v.kind !== 'truck')) continue;
         const t = v.trip, d = tripProgress(t, gnow) * t.len;
         // unit offsets are in sub pixels at sprite scale; convert to world units along the track
-        const units = trainUnits(v.model, v.cars).map((u) => ({ ...u, off: (u.off * V) / R }));
+        const units = trainUnits(v.kind, v.model, v.cars).map((u) => ({ ...u, off: (u.off * V) / R }));
         const placed = units.filter((u) => d - u.off > 0.2).map((u) => ({ ...u, p: posAt(t.pts, d - u.off) }));
         for (const u of placed) big(u.p.x * R + 0.7 * V, u.p.y * R + V, () => drawArt(b, 0, 0, u.p.ang, u.kind, u.model, { shadow: true }));
         for (const u of placed.slice().reverse()) big(u.p.x * R, u.p.y * R, () => drawArt(b, 0, 0, u.p.ang, u.kind, u.model));
         const e = placed[0];
-        if (e && ENGINES[v.model].steam != null) steam(e.p.x * R, e.p.y * R, e.p.ang, ENGINES[v.model].steam, now);
+        if (e && v.kind === 'train' && ENGINES[v.model].steam != null) steam(e.p.x * R, e.p.y * R, e.p.ang, ENGINES[v.model].steam, now);
         if (e) hits.push({ id: v.id, x: e.p.x * R, y: e.p.y * R });
         if (e && marked(v)) marker(e.p.x * R, e.p.y * R - 6);
       }
@@ -509,7 +517,7 @@
   });
 </script>
 
-<canvas bind:this={canvas} aria-label="Map of cities, rail lines and airports"></canvas>
+<canvas bind:this={canvas} aria-label="Map of cities, roads, rail lines and airports"></canvas>
 <div class="zoom" style:bottom="min({sheetPx + 12}px, calc(100% - 104px))">
   <button aria-label="Zoom in" disabled={!canIn} onclick={() => zoomBy?.(1)}>+</button>
   <button aria-label="Zoom out" disabled={!canOut} onclick={() => zoomBy?.(-1)}>−</button>

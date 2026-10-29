@@ -1,18 +1,19 @@
 <script>
   import { game, dev, cityById, devCoins, devMaxLevel, devSpawn, devFinishLegs, devFillJobs, devUnlockAll, setDev, isOpen, canBase, fmt } from './game.svelte.js';
-  import { ENGINES, PLANES, BOATS, LEVELS } from './data.js';
+  import { ENGINES, PLANES, BOATS, TRUCKS, LEVELS } from './data.js';
   import Sprite from './Sprite.svelte';
   const c = $derived(cityById[game.selected]);
   const groups = $derived([
     { kind: 'train', title: 'Trains', specs: ENGINES },
     { kind: 'plane', title: 'Planes', specs: PLANES },
     { kind: 'boat', title: 'Boats', specs: BOATS },
+    { kind: 'truck', title: 'Trucks', specs: TRUCKS },
   ].map((g) => {
     // only what can actually be based here: maglevs need a maglev town, seaplanes a port or airport, and so on
     const list = Object.entries(g.specs).filter(([k]) => canBase(g.kind, k, c));
     return { ...g, list, some: list.length < Object.keys(g.specs).length };
   }));
-  const demo = (s) => (s.freightOnly ? ['box', 'hopper', 'tank'] : ['pax', 'box', 'tank']).slice(0, Math.min(3, s.maxCars));
+  const demo = (kind, s) => (kind === 'truck' ? ['van', 'dump', 'tank'] : s.freightOnly ? ['box', 'hopper', 'tank'] : ['pax', 'box', 'tank']).slice(0, Math.min(3, s.maxCars));
 </script>
 
 <p class="note">Dev mode is for trying things out. Spawned vehicles are free and ignore levels.</p>
@@ -45,7 +46,7 @@
   {#if g.list.length}
     {#each g.list as [k, s]}
       <button class="row" onclick={() => devSpawn(g.kind, k)}>
-        <span class="pv"><Sprite kind={g.kind} model={k} cars={g.kind === 'train' ? demo(s) : []} scale={3} /></span>
+        <span class="pv"><Sprite kind={g.kind} model={k} cars={s.maxCars ? demo(g.kind, s) : []} scale={3} /></span>
         <span class="grow"><b>{s.name}</b><small>Lv {s.level}, ${fmt(s.price)} in the shop</small></span>
         <span class="act">Spawn</span>
       </button>

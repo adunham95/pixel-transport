@@ -31,6 +31,7 @@
       {#if c.rail}<span class="tag">Station</span>{/if}
       {#if c.air}<span class="tag">Airport</span>{/if}
       {#if c.port}<span class="tag">Port</span>{/if}
+      {#if c.road}<span class="tag">Roads</span>{/if}
       {#if c.rail + c.air + c.port > 1}<span class="tag hub">Transfer hub</span>{/if}
       {#if c.island}<span class="tag">Island</span>{/if}
     </div>

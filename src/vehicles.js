@@ -669,6 +669,7 @@ export const PLANES = {
 
 // boats are slow but cheap to run; cap is how many of each job type fit on board (missing types are 0).
 // harbor: true means it only docks at ports that also have a rail station.
+// deck: room for trucks to drive aboard (see TRUCKS), on top of what cap holds.
 export const BOATS = {
   coaster: {
     name: "Coaster",
@@ -706,6 +707,25 @@ export const BOATS = {
       <rect x="3" y="-1.2" width="0.6" height="2.4" fill="#23344f"/>
       <rect x="-3.4" y="-0.7" width="1.8" height="1.4" rx="0.5" fill="#d6453a" stroke="rgba(18,24,38,0.9)" stroke-width="0.3"/>
       <rect x="-3" y="-0.35" width="1" height="0.7" rx="0.3" fill="#2d2a2e"/>
+    </svg>`,
+  },
+  carferry: {
+    name: "Car Ferry",
+    level: 2,
+    price: 2600,
+    cap: { pax: 6 },
+    deck: 6,
+    speed: 4.5,
+    run: 0.06,
+    pips: 1,
+    art: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-10 -3.6 20 7.2">
+      <path d="M-9 -2.9H6Q9.6 -2.9 9.6 0Q9.6 2.9 6 2.9H-9Q-9.6 2.9 -9.6 2.3V-2.3Q-9.6 -2.9 -9 -2.9Z" fill="#1f4e8c" stroke="rgba(18,24,38,0.9)" stroke-width="0.7" stroke-linejoin="round"/>
+      <rect x="-9.2" y="-2.2" width="14.6" height="4.4" fill="#5b6470"/>
+      <g fill="#ffd23f"><rect x="-9.2" y="-0.1" width="14.6" height="0.2"/><rect x="-9.6" y="-1.6" width="0.4" height="3.2"/></g>
+      <g stroke="rgba(18,24,38,0.8)" stroke-width="0.25"><rect x="-8.6" y="-1.8" width="3.4" height="1.4" rx="0.2" fill="#d6453a"/><rect x="-4.6" y="-1.8" width="2.6" height="1.4" rx="0.2" fill="#2a6fd6"/><rect x="-8" y="0.4" width="4.6" height="1.4" rx="0.2" fill="#f1ead8"/><rect x="-2.8" y="0.4" width="2.2" height="1.4" rx="0.2" fill="#f2c14e"/></g>
+      <rect x="5.4" y="-2.3" width="2.6" height="4.6" rx="0.6" fill="#f4f6f8" stroke="rgba(18,24,38,0.9)" stroke-width="0.4"/>
+      <rect x="7.3" y="-1.7" width="0.4" height="3.4" fill="#23344f"/>
+      <rect x="5.9" y="-0.6" width="1" height="1.2" rx="0.3" fill="#d6453a"/>
     </svg>`,
   },
   barge: {
@@ -845,6 +865,202 @@ export const BOATS = {
       <g fill="#d6453a" stroke="rgba(18,24,38,0.9)" stroke-width="0.3"><rect x="-6.6" y="-0.9" width="2.2" height="1.8" rx="0.6"/><rect x="-2.6" y="-0.9" width="2.2" height="1.8" rx="0.6"/><rect x="1.4" y="-0.9" width="2.2" height="1.8" rx="0.6"/></g>
       <g fill="#2d2a2e"><rect x="-6.1" y="-0.45" width="1.2" height="0.9" rx="0.3"/><rect x="-2.1" y="-0.45" width="1.2" height="0.9" rx="0.3"/><rect x="1.9" y="-0.45" width="1.2" height="0.9" rx="0.3"/></g>
       <rect x="5.2" y="-1.4" width="0.6" height="2.8" fill="#23344f"/>
+    </svg>`,
+  },
+};
+
+// Trucks and buses drive the roads between mainland towns. cap is a fixed load (missing types are 0);
+// a tractor with maxCars pulls that many TRAILERS instead, like an engine pulls cars.
+// run is coins per world unit, plus 0.03 for each trailer. deck is how many spaces it takes
+// on a car ferry, plus each trailer's; noFerry: true means it's too long to board one.
+export const TRUCKS = {
+  pickup: {
+    name: "Pickup",
+    level: 1,
+    price: 300,
+    cap: { cargo: 2 },
+    maxCars: 0,
+    speed: 6,
+    run: 0.03,
+    deck: 1,
+    pips: 2,
+    art: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-3.2 -1.8 6.4 3.6">
+      <path d="M-2.4 -1.4H2A0.8 0.8 0 0 1 2.8 -0.6V0.6A0.8 0.8 0 0 1 2 1.4H-2.4A0.4 0.4 0 0 1 -2.8 1V-1A0.4 0.4 0 0 1 -2.4 -1.4Z" fill="#d6453a" stroke="rgba(18,24,38,0.9)" stroke-width="0.6" stroke-linejoin="round"/>
+      <rect x="-2.4" y="-1" width="2.3" height="2" fill="#7e2c25"/>
+      <rect x="-1.9" y="-0.7" width="1.3" height="1.4" fill="#8b5a33"/>
+      <rect x="-1.9" y="-0.1" width="1.3" height="0.2" fill="#5c3a1f"/>
+      <rect x="0.1" y="-1.1" width="0.5" height="2.2" fill="#9fd0ff"/>
+      <rect x="0.6" y="-1.1" width="1.1" height="2.2" fill="#e2735c"/>
+      <rect x="1.7" y="-1.1" width="0.5" height="2.2" fill="#9fd0ff"/>
+      <g fill="#fff3a8"><rect x="2.4" y="-1" width="0.4" height="0.5"/><rect x="2.4" y="0.5" width="0.4" height="0.5"/></g>
+    </svg>`,
+  },
+  boxtruck: {
+    name: "Small Box Truck",
+    short: "Small Box",
+    level: 1,
+    price: 700,
+    cap: { cargo: 4 },
+    maxCars: 0,
+    speed: 5.5,
+    run: 0.05,
+    deck: 1,
+    pips: 2,
+    art: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-3.8 -1.9 7.6 3.8">
+      <path d="M1 -1.3H2.6A0.8 0.8 0 0 1 3.4 -0.5V0.5A0.8 0.8 0 0 1 2.6 1.3H1Z" fill="#2a6fd6" stroke="rgba(18,24,38,0.9)" stroke-width="0.6" stroke-linejoin="round"/>
+      <rect x="2.3" y="-1" width="0.5" height="2" fill="#9fd0ff"/>
+      <g fill="#fff3a8"><rect x="3" y="-0.9" width="0.4" height="0.4"/><rect x="3" y="0.5" width="0.4" height="0.4"/></g>
+      <rect x="-3.4" y="-1.5" width="4.6" height="3" rx="0.3" fill="#f1ead8" stroke="rgba(18,24,38,0.9)" stroke-width="0.6"/>
+      <rect x="-3.1" y="-0.25" width="4" height="0.5" fill="#2a6fd6"/>
+      <g fill="#d8cfb8"><rect x="-2.2" y="-1.2" width="0.25" height="2.4"/><rect x="-0.9" y="-1.2" width="0.25" height="2.4"/></g>
+    </svg>`,
+  },
+  smallbus: {
+    name: "Small Bus",
+    level: 1,
+    price: 500,
+    cap: { pax: 4 },
+    maxCars: 0,
+    speed: 6,
+    run: 0.04,
+    deck: 1,
+    pips: 2,
+    art: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-3.6 -1.9 7.2 3.8">
+      <rect x="-3.2" y="-1.5" width="6.4" height="3" rx="0.7" fill="#2f9a5a" stroke="rgba(18,24,38,0.9)" stroke-width="0.6"/>
+      <rect x="-2.8" y="-1.1" width="5.2" height="2.2" rx="0.4" fill="#f4f6f8"/>
+      <g fill="#9fd0ff"><rect x="-2.6" y="-1.5" width="4.6" height="0.35"/><rect x="-2.6" y="1.15" width="4.6" height="0.35"/></g>
+      <rect x="2.4" y="-1.1" width="0.5" height="2.2" fill="#9fd0ff"/>
+      <rect x="-1.6" y="-0.5" width="1.4" height="1" rx="0.2" fill="#c9ced4"/>
+      <g fill="#fff3a8"><rect x="2.9" y="-1.1" width="0.3" height="0.45"/><rect x="2.9" y="0.65" width="0.3" height="0.45"/></g>
+    </svg>`,
+  },
+  bigbox: {
+    name: "Large Box Truck",
+    short: "Large Box",
+    level: 3,
+    price: 2200,
+    cap: { cargo: 8 },
+    maxCars: 0,
+    speed: 5,
+    run: 0.08,
+    deck: 2,
+    pips: 2,
+    art: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-4.8 -2 9.6 4">
+      <path d="M2 -1.4H3.6A0.8 0.8 0 0 1 4.4 -0.6V0.6A0.8 0.8 0 0 1 3.6 1.4H2Z" fill="#e08a2c" stroke="rgba(18,24,38,0.9)" stroke-width="0.6" stroke-linejoin="round"/>
+      <rect x="3.2" y="-1.1" width="0.5" height="2.2" fill="#9fd0ff"/>
+      <g fill="#fff3a8"><rect x="4" y="-1" width="0.4" height="0.4"/><rect x="4" y="0.6" width="0.4" height="0.4"/></g>
+      <rect x="-4.4" y="-1.6" width="6.6" height="3.2" rx="0.3" fill="#f4f6f8" stroke="rgba(18,24,38,0.9)" stroke-width="0.6"/>
+      <rect x="-4.1" y="-0.3" width="6" height="0.6" fill="#e08a2c"/>
+      <g fill="#c9ced4"><rect x="-3" y="-1.3" width="0.25" height="2.6"/><rect x="-1.5" y="-1.3" width="0.25" height="2.6"/><rect x="0" y="-1.3" width="0.25" height="2.6"/></g>
+    </svg>`,
+  },
+  largebus: {
+    name: "Large Bus",
+    level: 3,
+    price: 2400,
+    cap: { pax: 10 },
+    maxCars: 0,
+    speed: 6.5,
+    run: 0.08,
+    deck: 2,
+    pips: 3,
+    art: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-5 -2 10 4">
+      <rect x="-4.6" y="-1.6" width="9.2" height="3.2" rx="0.6" fill="#d6453a" stroke="rgba(18,24,38,0.9)" stroke-width="0.6"/>
+      <rect x="-4.2" y="-1.2" width="8" height="2.4" rx="0.4" fill="#f4f6f8"/>
+      <g fill="#9fd0ff"><rect x="-4" y="-1.6" width="7.4" height="0.35"/><rect x="-4" y="1.25" width="7.4" height="0.35"/></g>
+      <rect x="3.8" y="-1.2" width="0.5" height="2.4" fill="#9fd0ff"/>
+      <g fill="#c9ced4"><rect x="-3.4" y="-0.5" width="1.6" height="1" rx="0.2"/><rect x="0.4" y="-0.5" width="1.6" height="1" rx="0.2"/></g>
+      <rect x="-4.2" y="-0.1" width="8" height="0.2" fill="#d6453a"/>
+      <g fill="#fff3a8"><rect x="4.3" y="-1.2" width="0.3" height="0.45"/><rect x="4.3" y="0.75" width="0.3" height="0.45"/></g>
+    </svg>`,
+  },
+  semi: {
+    name: "Semi",
+    level: 2,
+    price: 1100,
+    maxCars: 1,
+    speed: 6,
+    run: 0.05,
+    deck: 1,
+    pips: 2,
+    art: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-2.8 -1.9 5.6 3.8">
+      <rect x="-2.6" y="-1.1" width="3.4" height="2.2" rx="0.3" fill="#3a3f47" stroke="rgba(18,24,38,0.9)" stroke-width="0.5"/>
+      <circle cx="-1.5" cy="0" r="0.7" fill="#6f7682"/>
+      <path d="M0.2 -1.5H1.8A0.8 0.8 0 0 1 2.6 -0.7V0.7A0.8 0.8 0 0 1 1.8 1.5H0.2Z" fill="#c4432f" stroke="rgba(18,24,38,0.9)" stroke-width="0.6" stroke-linejoin="round"/>
+      <rect x="0.4" y="-1.2" width="0.9" height="2.4" fill="#e2735c"/>
+      <rect x="1.5" y="-1.2" width="0.5" height="2.4" fill="#9fd0ff"/>
+      <g fill="#c9ced4"><circle cx="0" cy="-1.5" r="0.3"/><circle cx="0" cy="1.5" r="0.3"/></g>
+    </svg>`,
+  },
+  roadtrain: {
+    name: "Road Train",
+    level: 5,
+    price: 5000,
+    maxCars: 4,
+    speed: 6.5,
+    run: 0.08,
+    deck: 2,
+    noFerry: true,
+    pips: 3,
+    art: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-3.4 -2 6.8 4">
+      <rect x="-3.2" y="-1.2" width="3.8" height="2.4" rx="0.3" fill="#3a3f47" stroke="rgba(18,24,38,0.9)" stroke-width="0.5"/>
+      <circle cx="-2" cy="0" r="0.75" fill="#6f7682"/>
+      <path d="M0 -1.6H2A0.8 0.8 0 0 1 2.8 -0.8V0.8A0.8 0.8 0 0 1 2 1.6H0Z" fill="#f2c14e" stroke="rgba(18,24,38,0.9)" stroke-width="0.6" stroke-linejoin="round"/>
+      <rect x="0.2" y="-1.3" width="1.2" height="2.6" fill="#d9a92c"/>
+      <rect x="1.6" y="-1.3" width="0.5" height="2.6" fill="#9fd0ff"/>
+      <rect x="2.8" y="-1.6" width="0.45" height="3.2" rx="0.2" fill="#c9ced4" stroke="rgba(18,24,38,0.9)" stroke-width="0.3"/>
+      <g fill="#c9ced4"><circle cx="-0.2" cy="-1.6" r="0.3"/><circle cx="-0.2" cy="1.6" r="0.3"/></g>
+    </svg>`,
+  },
+};
+
+// trailers for tractors in TRUCKS; same fields as CARS, plus the ferry deck space each takes
+export const TRAILERS = {
+  van: {
+    name: "Van trailer",
+    short: "Van",
+    level: 2,
+    price: 200,
+    holds: "cargo",
+    cap: 5,
+    deck: 2,
+    color: "#f4f6f8",
+    art: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-4 -1.9 8 3.8">
+      <rect x="-3.7" y="-1.6" width="7.4" height="3.2" rx="0.3" fill="#f4f6f8" stroke="rgba(18,24,38,0.9)" stroke-width="0.6"/>
+      <rect x="-3.4" y="-0.3" width="6.8" height="0.6" fill="#d6453a"/>
+      <g fill="#c9ced4"><rect x="-2.2" y="-1.3" width="0.25" height="2.6"/><rect x="-0.6" y="-1.3" width="0.25" height="2.6"/><rect x="1" y="-1.3" width="0.25" height="2.6"/></g>
+    </svg>`,
+  },
+  dump: {
+    name: "Dump trailer",
+    short: "Dump",
+    level: 2,
+    price: 200,
+    holds: "bulk",
+    cap: 6,
+    deck: 2,
+    color: "#e08a2c",
+    art: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-4 -1.9 8 3.8">
+      <rect x="-3.7" y="-1.6" width="7.4" height="3.2" rx="0.4" fill="#e08a2c" stroke="rgba(18,24,38,0.9)" stroke-width="0.6"/>
+      <rect x="-3.2" y="-1.1" width="6.4" height="2.2" rx="0.3" fill="#5a4a3c"/>
+      <g fill="#7a5a3a"><ellipse cx="-1.6" cy="0" rx="1.4" ry="0.9"/><ellipse cx="1.4" cy="0" rx="1.4" ry="0.9"/></g>
+      <g fill="#9a7650"><ellipse cx="-1.8" cy="-0.25" rx="0.6" ry="0.4"/><ellipse cx="1.2" cy="-0.25" rx="0.6" ry="0.4"/></g>
+    </svg>`,
+  },
+  tank: {
+    name: "Tank trailer",
+    short: "Tank",
+    level: 3,
+    price: 300,
+    holds: "fuel",
+    cap: 4,
+    deck: 2,
+    color: "#a7b0ba",
+    art: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-4 -1.9 8 3.8">
+      <rect x="-3.7" y="-1.6" width="7.4" height="3.2" rx="1.5" fill="#c9ced4" stroke="rgba(18,24,38,0.9)" stroke-width="0.6"/>
+      <rect x="-3.2" y="-1.1" width="6.4" height="0.5" rx="0.25" fill="#eef1f4"/>
+      <rect x="-3.2" y="-0.12" width="6.4" height="0.24" fill="#6d7680"/>
+      <g fill="#6d7680"><circle cx="-1.6" cy="0" r="0.4"/><circle cx="1.6" cy="0" r="0.4"/></g>
     </svg>`,
   },
 };

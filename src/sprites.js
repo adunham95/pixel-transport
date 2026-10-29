@@ -1,9 +1,9 @@
-import { ENGINES, CARS, PLANES, BOATS } from './data.js';
+import { ENGINES, CARS, PLANES, BOATS, TRUCKS, TRAILERS } from './data.js';
 
 // Draws vehicle art from the SVGs in vehicles.js. Each SVG is rasterized once at a
 // high resolution, plus a flat silhouette of it for shadows.
 
-const SPECS = { train: ENGINES, car: CARS, plane: PLANES, boat: BOATS };
+const SPECS = { train: ENGINES, car: CARS, plane: PLANES, boat: BOATS, truck: TRUCKS, trailer: TRAILERS };
 const RES = 8; // raster pixels per sub pixel
 const COUPLER = 0.2; // gap between train units
 
@@ -89,29 +89,32 @@ export function drawArt(ctx, x, y, ang, kind, model, { shadow = false, spin = 0 
   ctx.restore();
 }
 
-// ---------- trains ----------
+// ---------- trains, and trucks pulling trailers ----------
 
-// each unit of a train, front first: its art, and how far its center sits behind the engine's center
-export function trainUnits(model, cars) {
-  const units = [{ kind: 'train', model, off: 0 }];
-  let back = artSize('train', model).w / 2;
+// what each kind of lead unit pulls
+const TAIL = { train: 'car', truck: 'trailer' };
+
+// each unit of a train or truck, front first: its art, and how far its center sits behind the lead unit's center
+export function trainUnits(kind, model, cars) {
+  const units = [{ kind, model, off: 0 }];
+  let back = artSize(kind, model).w / 2;
   for (const t of cars) {
-    const w = artSize('car', t).w;
-    units.push({ kind: 'car', model: t, off: back + COUPLER + w / 2 });
+    const w = artSize(TAIL[kind], t).w;
+    units.push({ kind: TAIL[kind], model: t, off: back + COUPLER + w / 2 });
     back += COUPLER + w;
   }
   return units;
 }
 
-export function consistBox(model, cars) {
-  const u = trainUnits(model, cars), last = u[u.length - 1];
+export function consistBox(kind, model, cars) {
+  const u = trainUnits(kind, model, cars), last = u[u.length - 1];
   const h = Math.max(...u.map((x) => artSize(x.kind, x.model).h));
-  return { w: artSize('train', model).w / 2 + last.off + artSize(last.kind, last.model).w / 2, h };
+  return { w: artSize(kind, model).w / 2 + last.off + artSize(last.kind, last.model).w / 2, h };
 }
 
-// straight consist: engine centered at ex facing +x, cars trailing toward -x
-export function drawConsistRow(ctx, ex, y, model, cars) {
-  const units = trainUnits(model, cars);
+// straight consist: lead unit centered at ex facing +x, the rest trailing toward -x
+export function drawConsistRow(ctx, ex, y, kind, model, cars) {
+  const units = trainUnits(kind, model, cars);
   for (const u of units) drawArt(ctx, ex - u.off + 0.7, y + 1, 0, u.kind, u.model, { shadow: true });
   for (const u of units.slice().reverse()) drawArt(ctx, ex - u.off, y, 0, u.kind, u.model);
 }
