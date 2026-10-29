@@ -3,6 +3,7 @@
   import { ENGINES, CARS, PLANES, MI, JOB_TYPES } from './data.js';
   import Sprite from './Sprite.svelte';
   import Icon from './Icon.svelte';
+  import { slide } from './motion.js';
 </script>
 
 <p class="muted small">Tap a vehicle to swap cars, upgrade or sell it.</p>
@@ -16,10 +17,10 @@
         <b>{v.name}</b>
         <small>{v.trip ? `To ${cityById[v.trip.to].name}, ${etaText(v)} left${v.next?.length ? `, then ${v.next.length} more stop${v.next.length > 1 ? 's' : ''}` : ''}` : `Parked at ${cityById[v.city].name}`}</small>
       </span>
-      <span class="chev">{open ? '–' : '+'}</span>
+      <span class="chev">+</span>
     </button>
     {#if open}
-      <div class="card-body">
+      <div class="card-body" transition:slide={{ duration: 220 }}>
         <div class="meters">
           {#each JOB_TYPES as t}
             {#if cap[t]}<span class="meter t-{t}"><Icon name={t} size={14} />{used(v)[t]}/{cap[t]}</span>{/if}

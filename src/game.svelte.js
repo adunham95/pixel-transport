@@ -333,6 +333,9 @@ function earn(amount) {
 
 const tripEnd = (v) => v.trip.startAt + v.trip.dur;
 
+// short lived effects for the map to draw, like money floating up from a drop off
+export const fx = [];
+
 // at is when the leg finished, so chained legs line up even when catching up after time away
 function arrive(v, at) {
   const to = v.trip.to;
@@ -342,6 +345,7 @@ function arrive(v, at) {
     return true;
   });
   if (n) earn(total);
+  if (n && !quiet) fx.push({ x: cityById[to].x, y: cityById[to].y, text: `+$${fmt(total)}`, t: Date.now() });
   const name = cityById[to].name;
   const next = v.next?.shift();
   if (next) {

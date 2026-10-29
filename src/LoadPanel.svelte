@@ -3,6 +3,7 @@
   import Icon from './Icon.svelte';
   import Sprite from './Sprite.svelte';
   import JobRow from './JobRow.svelte';
+  import { send, receive, flip, fly } from './motion.js';
   import { TYPE_LABEL, JOB_TYPES, ENGINES } from './data.js';
   let { v } = $props();
   const cap = $derived(capacity(v));
@@ -71,7 +72,7 @@
     <ol class="stops">
       {#each ui.plan as id, i}
         {@const l = legs[i]}
-        <li class="row stop" class:bad={!l}>
+        <li class="row stop" class:bad={!l} in:fly={{ y: -8, duration: 200 }}>
           <span class="num">{i + 1}</span>
           <span class="grow">
             <b>{cityById[id].name}</b>
@@ -107,16 +108,15 @@
     </button>
   </div>
 {:else}
-  {#if v.cargo.length}
-    <h3>On board. Tap to drop off here.</h3>
-    {#each v.cargo as j (j.id)}
-      <JobRow job={j} loaded onclick={() => unloadJob(v, j)} action="Drop" note={canReach(v, j.to) ? '' : 'Can’t reach from here'} />
-    {/each}
-  {/if}
+  {#if v.cargo.length}<h3>On board. Tap to drop off here.</h3>{/if}
+  <!-- outside the if, so the very first job loaded still glides up from the waiting list -->
+  {#each v.cargo as j (j.id)}
+    <div animate:flip in:receive={{ key: j.id }} out:send={{ key: j.id }}><JobRow job={j} loaded onclick={() => unloadJob(v, j)} action="Drop" note={canReach(v, j.to) ? '' : 'Can’t reach from here'} /></div>
+  {/each}
   <h3>Waiting at {city.name}</h3>
   {#each waiting as j (j.id)}
     {@const why = blocker(j)}
-    <JobRow job={j} at={v.city} onclick={() => loadJob(v, j)} disabled={why.block} note={why.text} action={why.block ? '' : 'Load'} />
+    <div animate:flip in:receive={{ key: j.id }} out:send={{ key: j.id }}><JobRow job={j} at={v.city} onclick={() => loadJob(v, j)} disabled={why.block} note={why.text} action={why.block ? '' : 'Load'} /></div>
   {:else}
     <p class="muted">No jobs waiting. New ones turn up every few seconds.</p>
   {/each}

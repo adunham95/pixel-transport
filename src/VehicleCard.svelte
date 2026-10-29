@@ -2,6 +2,7 @@
   import { game, ui, dev, clock, cityById, spec, tripInfo, fmt, fmtTime } from './game.svelte.js';
   import { MI } from './data.js';
   import Sprite from './Sprite.svelte';
+  import { fly, fade } from './motion.js';
 
   const v = $derived(ui.track != null ? game.vehicles.find((x) => x.id === ui.track && x.trip) : null);
   const info = $derived(v && tripInfo(v, clock.now));
@@ -13,7 +14,8 @@
 </script>
 
 {#if v}
-  <div class="track">
+  <div class="track" transition:fly={{ y: -20, duration: 240 }}>
+    {#key v.id}<div in:fade={{ duration: 180 }}>
     <div class="track-head">
       <span class="pv"><Sprite kind={v.kind} model={v.model} cars={v.cars ?? []} scale={3} /></span>
       <span class="grow">
@@ -41,11 +43,12 @@
         {#if v.cargo.length}<small>{v.cargo.length} on board · <b>${fmt(value)}</b></small>{/if}
       </div>
     {/if}
+    </div>{/key}
   </div>
 {/if}
 
 <style>
-  .track { pointer-events: auto; width: 100%; background: var(--panel-2); color: var(--ink); border-radius: 14px; box-shadow: 0 6px 20px rgba(10,16,30,.28); padding: 10px 12px; animation: pop .2s ease-out; }
+  .track { pointer-events: auto; width: 100%; background: var(--panel-2); color: var(--ink); border-radius: 14px; box-shadow: 0 6px 20px rgba(10,16,30,.28); padding: 10px 12px; }
   .track-head { display: flex; align-items: center; gap: 10px; }
   .x { border: 0; background: var(--panel-3); width: 28px; height: 28px; flex: none; cursor: pointer; border-radius: 50%; font-weight: 600; font-size: 16px; }
   .ends { display: flex; justify-content: space-between; gap: 12px; margin-top: 10px; }
@@ -55,9 +58,11 @@
   small { color: var(--ink-soft); font-size: 12px; font-variant-numeric: tabular-nums; }
   small b { color: var(--ink); font-weight: 600; }
   .prog { position: relative; height: 6px; margin: 10px 0 4px; background: var(--panel-3); border-radius: 3px; }
-  .prog i { position: absolute; inset: 0 auto 0 0; width: var(--p); background: var(--accent); border-radius: 3px; }
+  .prog i { position: absolute; inset: 0 auto 0 0; width: var(--p); background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 55%, transparent), var(--accent)); border-radius: 3px; }
   .prog span { position: absolute; top: 50%; left: var(--p); width: 12px; height: 12px; transform: translate(-50%, -50%); background: var(--accent); border: 2px solid var(--panel-2); border-radius: 50%; box-shadow: 0 0 0 1px var(--line-strong); }
+  .prog span::after { content: ''; position: absolute; inset: -5px; border-radius: 50%; border: 2px solid var(--accent); animation: ping 1.6s ease-out infinite; }
+  @keyframes ping { from { transform: scale(.5); opacity: .9; } to { transform: scale(1.4); opacity: 0; } }
   .dist, .foot { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
   .foot { margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--line); }
-  @media (prefers-reduced-motion: reduce) { .track { animation: none; } }
+  @media (prefers-reduced-motion: reduce) { .prog span::after { animation: none; display: none; } }
 </style>

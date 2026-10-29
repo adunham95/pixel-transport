@@ -1,10 +1,11 @@
 <script>
   import { onMount } from 'svelte';
-  import { game, ui, cityById, leg, planLegs, toggleStop, selectCity, posAt, tripProgress, gameNow, isOpen } from './game.svelte.js';
+  import { game, ui, cityById, leg, planLegs, toggleStop, selectCity, posAt, tripProgress, gameNow, isOpen, fx } from './game.svelte.js';
   import { CITIES, ENGINES, PLANES, W, H } from './data.js';
   import { buildTerrain, makeWaterPattern, R } from './terrain.js';
   import { drawArt, drawConsistRow, trainUnits, consistBox, artSize, loadArt } from './sprites.js';
   import { dockOf } from './sea.js';
+  import { reduced } from './motion.js';
 
   let { sheetPx = 0 } = $props();
   const V = 1.6; // vehicles are drawn a bit larger than the map grid so their detail reads
@@ -175,6 +176,16 @@
     const marker = (x, y) => { b.fillStyle = '#ffd23f'; b.beginPath(); b.moveTo(x - 3, y - 4); b.lineTo(x + 3, y - 4); b.lineTo(x, y); b.fill(); };
     const marked = (v) => ui.follow === v.id || ui.track === v.id;
     let hits = []; // where moving vehicles were drawn this frame, for tapping them
+    const ripples = []; // rings spreading out from taps, in sub pixels
+
+    function drawRipples(now) {
+      for (let i = ripples.length - 1; i >= 0; i--) {
+        const a = (now - ripples[i].t) / 420;
+        if (a >= 1 || reduced) { ripples.splice(i, 1); continue; }
+        b.strokeStyle = `rgba(255,210,63,${0.9 * (1 - a)})`; b.lineWidth = 1.5;
+        b.beginPath(); b.arc(ripples[i].x, ripples[i].y, 4 + a * 14, 0, 7); b.stroke();
+      }
+    }
 
     let raf;
     function frame() {
@@ -314,6 +325,7 @@
         hits.push({ id: v.id, x, y: y - lift });
         if (marked(v)) marker(x, y - lift - 18);
       }
+      drawRipples(now);
       b.restore();
 
       ctx.imageSmoothingEnabled = false;
@@ -325,6 +337,22 @@
       ctx.font = font(600, fs);
       ctx.textAlign = 'center';
       ctx.lineJoin = 'round';
+      // money floating up from drop offs
+      ctx.lineWidth = 3.5 * dpr;
+      for (let i = fx.length - 1; i >= 0; i--) {
+        const f = fx[i], a = (now - f.t) / 1600;
+        if (a >= 1) { fx.splice(i, 1); continue; }
+        if (!inView(f.x, f.y)) continue;
+        const sx = (f.x * R - cx + 0.5) * scale, sy = (f.y * R - cy - 24 - (reduced ? 0 : 18 * (1 - (1 - a) ** 3))) * scale;
+        ctx.globalAlpha = a < 0.12 ? a / 0.12 : a > 0.7 ? (1 - a) / 0.3 : 1;
+        ctx.font = font(700, Math.round(fs * (1 + 0.25 * Math.max(0, 1 - a * 6))));
+        ctx.textBaseline = 'bottom';
+        ctx.strokeStyle = 'rgba(18,22,38,0.8)'; ctx.strokeText(f.text, sx, sy);
+        ctx.fillStyle = '#ffd23f'; ctx.fillText(f.text, sx, sy);
+      }
+      ctx.globalAlpha = 1;
+      ctx.font = font(600, fs);
+
       for (const c of CITIES) {
         if (!inView(c.x, c.y)) continue;
         const sx = (c.x * R - cx + 0.5) * scale;
@@ -366,6 +394,7 @@
     }
     function tap(e) {
       const w = toWorld(e);
+      ripples.push({ x: w.x * R, y: w.y * R, t: Date.now() });
       const pv = ui.picking ? game.vehicles.find((v) => v.id === ui.activeVehicle && v.city) : null;
       if (!pv) {
         // moving vehicles take the tap before towns, so you can pick one out as it passes through

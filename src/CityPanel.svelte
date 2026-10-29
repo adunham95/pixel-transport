@@ -4,6 +4,7 @@
   import Sprite from './Sprite.svelte';
   import JobRow from './JobRow.svelte';
   import LoadPanel from './LoadPanel.svelte';
+  import { fly, slide, flip } from './motion.js';
   const c = $derived(cityById[game.selected]);
   const here = $derived(game.vehicles.filter((v) => v.city === c.id));
   // vehicles with this city anywhere on their route, and when they'll get here
@@ -21,8 +22,9 @@
 </script>
 
 {#if active}
-  <LoadPanel v={active} />
+  <div in:fly={{ x: 28, duration: 220 }}><LoadPanel v={active} /></div>
 {:else}
+  <div in:fly={{ x: -28, duration: 220 }}>
   <div class="cityhead">
     <h2>{c.name}</h2>
     <div class="tags">
@@ -44,7 +46,7 @@
   {:else}
   <h3>Parked here</h3>
   {#each here as v (v.id)}
-    <button class="row vrow" onclick={() => { ui.activeVehicle = v.id; ui.picking = false; }}>
+    <button class="row vrow" animate:flip transition:slide={{ duration: 200 }} onclick={() => { ui.activeVehicle = v.id; ui.picking = false; }}>
       <span class="pv"><Sprite kind={v.kind} model={v.model} cars={v.cars ?? []} scale={3} /></span>
       <span class="grow"><b>{v.name}</b><small>{v.cargo.length ? `${v.cargo.length} on board` : 'Empty'}</small></span>
       <span class="act">Load</span>
@@ -56,7 +58,7 @@
   {#if incoming.length}
     <h3>On the way</h3>
     {#each incoming as { v, at, later } (v.id)}
-      <button class="row vrow" onclick={() => followVehicle(v)}>
+      <button class="row vrow" animate:flip transition:slide={{ duration: 200 }} onclick={() => followVehicle(v)}>
         <span class="pv"><Sprite kind={v.kind} model={v.model} cars={v.cars ?? []} scale={3} /></span>
         <span class="grow"><b>{v.name}</b><small>{later ? `Stops here in ${fmtTime((at - clock.now) / 1000)}, after ${later} other stop${later > 1 ? 's' : ''}` : `Arrives in ${etaText(v)}`}</small></span>
         <span class="act">Watch</span>
@@ -66,9 +68,10 @@
 
   <h3>Waiting at {c.name} ({jobs.length})</h3>
   {#each jobs as j (j.id)}
-    <JobRow job={j} at={c.id} />
+    <div animate:flip transition:slide={{ duration: 200 }}><JobRow job={j} at={c.id} /></div>
   {:else}
     <p class="muted">No jobs right now. New ones turn up every few seconds.</p>
   {/each}
   {/if}
+  </div>
 {/if}
