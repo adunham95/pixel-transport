@@ -247,8 +247,8 @@ function makeJob(g, from, forceTo, forceType) {
   const A = cityById[from];
   const types = [['pax', 5], ['cargo', 4]];
   // fuel and bulk only move by rail car or ship, so they start and end at stations and ports
-  if ((A.rail || A.port) && g.level >= 3) types.push(['fuel', 2]);
-  if ((A.rail || A.port) && g.level >= 2) types.push(['bulk', 2]);
+  if ((A.rail || A.port) && g.level >= 6) types.push(['fuel', 2]);
+  if ((A.rail || A.port) && g.level >= 4) types.push(['bulk', 2]);
   if (g.level >= MAIL.level) types.push(['mail', 3]);
   // wide loads only go by road, so they stay on their own landmass
   const roadTo = (c) => c.road && c.cont === A.cont;

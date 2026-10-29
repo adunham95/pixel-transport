@@ -73,7 +73,7 @@ export const ENGINES = {
   },
   diesel: {
     name: "Diesel Hauler",
-    level: 4,
+    level: 5,
     price: 4000,
     maxCars: 6,
     speed: 8,
@@ -94,7 +94,7 @@ export const ENGINES = {
   },
   titan: {
     name: "Titan",
-    level: 5,
+    level: 7,
     price: 7000,
     maxCars: 10,
     speed: 7,
@@ -123,7 +123,7 @@ export const ENGINES = {
   },
   bullet: {
     name: "Bullet",
-    level: 6,
+    level: 9,
     price: 10000,
     maxCars: 8,
     speed: 13,
@@ -140,7 +140,7 @@ export const ENGINES = {
   },
   maglev: {
     name: "Maglev",
-    level: 7,
+    level: 10,
     price: 18000,
     maxCars: 6,
     speed: 22,
@@ -208,7 +208,7 @@ export const CARS = {
   tank: {
     name: "Tanker",
     short: "Tanker",
-    level: 3,
+    level: 6,
     price: 300,
     holds: "fuel",
     cap: 3,
@@ -224,7 +224,7 @@ export const CARS = {
   hopper: {
     name: "Hopper car",
     short: "Hopper",
-    level: 2,
+    level: 4,
     price: 200,
     holds: "bulk",
     cap: 6,
@@ -325,7 +325,7 @@ export const PLANES = {
   },
   bushhawk: {
     name: "Bushhawk",
-    level: 2,
+    level: 4,
     price: 1400,
     pax: 0,
     cargo: 1,
@@ -353,7 +353,7 @@ export const PLANES = {
   },
   firefly: {
     name: "Firefly",
-    level: 3,
+    level: 6,
     price: 1800,
     pax: 0,
     cargo: 0,
@@ -381,7 +381,7 @@ export const PLANES = {
   },
   otter: {
     name: "Otter",
-    level: 2,
+    level: 4,
     price: 2400,
     pax: 4,
     cargo: 2,
@@ -409,7 +409,7 @@ export const PLANES = {
   },
   vista: {
     name: "Vista",
-    level: 2,
+    level: 3,
     price: 2800,
     pax: 3,
     cargo: 1,
@@ -435,7 +435,7 @@ export const PLANES = {
   },
   dakota: {
     name: "Dakota",
-    level: 3,
+    level: 5,
     price: 3500,
     pax: 6,
     cargo: 3,
@@ -461,7 +461,7 @@ export const PLANES = {
   },
   cargomaster: {
     name: "Cargomaster",
-    level: 3,
+    level: 6,
     price: 5000,
     pax: 2,
     cargo: 6,
@@ -495,7 +495,7 @@ export const PLANES = {
   },
   kestrel: {
     name: "Kestrel",
-    level: 4,
+    level: 7,
     price: 8000,
     pax: 6,
     cargo: 1,
@@ -522,7 +522,7 @@ export const PLANES = {
   },
   tandem: {
     name: "Tandem",
-    level: 4,
+    level: 7,
     price: 6500,
     pax: 4,
     cargo: 6,
@@ -550,7 +550,7 @@ export const PLANES = {
   },
   skyliner: {
     name: "Skyliner",
-    level: 5,
+    level: 8,
     price: 12000,
     pax: 10,
     cargo: 4,
@@ -584,7 +584,7 @@ export const PLANES = {
   pelican: {
     name: "Pelican Tanker",
     short: "Pelican",
-    level: 5,
+    level: 8,
     price: 6500,
     pax: 0,
     cargo: 0,
@@ -615,7 +615,7 @@ export const PLANES = {
   },
   heron: {
     name: "Heron",
-    level: 6,
+    level: 9,
     price: 14000,
     pax: 8,
     cargo: 4,
@@ -645,7 +645,7 @@ export const PLANES = {
   },
   jumbo: {
     name: "Jumbo",
-    level: 7,
+    level: 11,
     price: 30000,
     pax: 16,
     cargo: 10,
@@ -684,7 +684,7 @@ export const PLANES = {
   },
   skywhale: {
     name: "Skywhale",
-    level: 7,
+    level: 11,
     price: 40000,
     pax: 0,
     cargo: 16,
@@ -710,7 +710,7 @@ export const PLANES = {
   },
   humpback: {
     name: "Humpback",
-    level: 8,
+    level: 12,
     price: 45000,
     pax: 24,
     cargo: 14,
@@ -737,7 +737,7 @@ export const PLANES = {
   },
   machdart: {
     name: "Mach Dart",
-    level: 9,
+    level: 12,
     price: 60000,
     pax: 8,
     cargo: 2,
@@ -790,7 +790,7 @@ export const BOATS = {
   },
   ferry: {
     name: "Ferry",
-    level: 2,
+    level: 3,
     price: 2200,
     cap: { pax: 10, cargo: 2, fuel: 0 },
     speed: 5,
@@ -810,7 +810,7 @@ export const BOATS = {
   },
   carferry: {
     name: "Car Ferry",
-    level: 2,
+    level: 5,
     price: 2600,
     cap: { pax: 6 },
     deck: 6,
@@ -829,7 +829,7 @@ export const BOATS = {
   },
   barge: {
     name: "Barge",
-    level: 2,
+    level: 4,
     price: 1200,
     cap: { bulk: 6 },
     speed: 3.5,
@@ -846,7 +846,7 @@ export const BOATS = {
   },
   bunker: {
     name: "Bunker Boat",
-    level: 3,
+    level: 6,
     price: 1600,
     cap: { fuel: 4 },
     speed: 4,
@@ -864,7 +864,7 @@ export const BOATS = {
   },
   tug: {
     name: "Tugboat",
-    level: 3,
+    level: 6,
     price: 2500,
     cap: {},
     maxCars: 3,
@@ -882,7 +882,7 @@ export const BOATS = {
   },
   freighter: {
     name: "Freighter",
-    level: 3,
+    level: 7,
     price: 4500,
     cap: { pax: 0, cargo: 14, fuel: 0 },
     speed: 4.5,
@@ -904,7 +904,7 @@ export const BOATS = {
   },
   lakefreighter: {
     name: "Lake Freighter",
-    level: 3,
+    level: 7,
     price: 5500,
     cap: { bulk: 24 },
     speed: 4,
@@ -925,7 +925,7 @@ export const BOATS = {
   },
   oiler: {
     name: "Oil Tanker",
-    level: 4,
+    level: 8,
     price: 6000,
     cap: { pax: 0, cargo: 2, fuel: 10 },
     speed: 4.5,
@@ -946,7 +946,7 @@ export const BOATS = {
   },
   containership: {
     name: "Container Ship",
-    level: 5,
+    level: 10,
     price: 20000,
     cap: { cargo: 36 },
     speed: 5,
@@ -967,7 +967,7 @@ export const BOATS = {
   carrier: {
     name: "Aircraft Carrier",
     short: "Carrier",
-    level: 6,
+    level: 10,
     price: 25000,
     cap: {},
     deck: 8,
@@ -988,7 +988,7 @@ export const BOATS = {
   },
   liner: {
     name: "Ocean Liner",
-    level: 6,
+    level: 10,
     price: 15000,
     cap: { pax: 24, cargo: 8, fuel: 0 },
     speed: 7,
@@ -1009,7 +1009,7 @@ export const BOATS = {
   megatanker: {
     name: "Mega Tanker",
     short: "Mega Tanker",
-    level: 7,
+    level: 11,
     price: 20000,
     cap: { fuel: 24 },
     harbor: true,
@@ -1030,7 +1030,7 @@ export const BOATS = {
   cruise: {
     name: "Super Cruise Ship",
     short: "Cruise Ship",
-    level: 8,
+    level: 12,
     price: 40000,
     cap: { pax: 60, mail: 4 },
     harbor: true,
@@ -1060,7 +1060,7 @@ export const BARGES = {
   deck: {
     name: "Deck barge",
     short: "Deck",
-    level: 3,
+    level: 6,
     price: 300,
     holds: "cargo",
     cap: 6,
@@ -1073,7 +1073,7 @@ export const BARGES = {
   hopper: {
     name: "Hopper barge",
     short: "Hopper",
-    level: 3,
+    level: 6,
     price: 300,
     holds: "bulk",
     cap: 8,
@@ -1088,7 +1088,7 @@ export const BARGES = {
   tank: {
     name: "Tank barge",
     short: "Tank",
-    level: 3,
+    level: 6,
     price: 400,
     holds: "fuel",
     cap: 6,
@@ -1209,7 +1209,7 @@ export const TRUCKS = {
   },
   largebus: {
     name: "Large Bus",
-    level: 3,
+    level: 4,
     price: 2400,
     cap: { pax: 10 },
     maxCars: 0,
@@ -1248,7 +1248,7 @@ export const TRUCKS = {
   sleeper: {
     name: "Sleeper Cab",
     short: "Sleeper",
-    level: 4,
+    level: 5,
     price: 3200,
     maxCars: 2,
     speed: 7,
@@ -1271,7 +1271,7 @@ export const TRUCKS = {
   oversize: {
     name: "Oversize Rig",
     short: "Oversize",
-    level: 6,
+    level: 8,
     price: 6000,
     maxCars: 2,
     pulls: ["lowboy"],
@@ -1295,7 +1295,7 @@ export const TRUCKS = {
   },
   roadtrain: {
     name: "Road Train",
-    level: 5,
+    level: 9,
     price: 5000,
     maxCars: 4,
     speed: 6.5,
@@ -1315,7 +1315,7 @@ export const TRUCKS = {
   },
   coach: {
     name: "Coach",
-    level: 6,
+    level: 9,
     price: 6500,
     cap: { pax: 18 },
     maxCars: 0,
@@ -1336,7 +1336,7 @@ export const TRUCKS = {
   esemi: {
     name: "Electric Semi",
     short: "E-Semi",
-    level: 7,
+    level: 10,
     price: 9000,
     maxCars: 3,
     speed: 7,
@@ -1359,7 +1359,7 @@ export const TRUCKS = {
   hauler: {
     name: "Heavy Hauler",
     short: "Hauler",
-    level: 8,
+    level: 11,
     price: 14000,
     maxCars: 6,
     speed: 6,
@@ -1400,7 +1400,7 @@ export const TRAILERS = {
   dump: {
     name: "Dump trailer",
     short: "Dump",
-    level: 2,
+    level: 4,
     price: 200,
     holds: "bulk",
     cap: 3,
@@ -1416,7 +1416,7 @@ export const TRAILERS = {
   tank: {
     name: "Tank trailer",
     short: "Tank",
-    level: 3,
+    level: 6,
     price: 300,
     holds: "fuel",
     cap: 2,
@@ -1432,7 +1432,7 @@ export const TRAILERS = {
   lowboy: {
     name: "Lowboy trailer",
     short: "Lowboy",
-    level: 6,
+    level: 8,
     price: 900,
     holds: "wide",
     cap: 1,

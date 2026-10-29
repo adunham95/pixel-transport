@@ -259,7 +259,7 @@ export const WEAR = { per: 2500, step: 0.1, max: 0.5, service: 0.5 };
 export const MAIL = { level: 2, ttl: 4 * 60 * 1000 };
 // wide loads (turbine blades, boat hulls, little houses) only go by road, on lowboy trailers,
 // between mainland towns joined by roads
-export const WIDE = { level: 6 };
+export const WIDE = { level: 8 };
 // towns grow as jobs to and from them are delivered: GROWTH[i] deliveries to reach size i + 1.
 // Each size up adds jobs, spawns them faster and pays 10% more for jobs leaving the town.
 export const GROWTH = [0, 25, 75, 175, 350];
@@ -269,7 +269,7 @@ export const SIZE_NAME = ["Village", "Town", "City", "Big city", "Metropolis"];
 export const DEPOT = { level: 3, price: 3000, service: 0.5, repair: 150 };
 
 // xp needed to reach level i+1
-export const LEVELS = [0, 400, 1000, 2000, 3500, 5500, 8500, 12500, 18000];
+export const LEVELS = [0, 850, 2500, 4400, 6350, 8400, 10850, 13800, 17250, 21350, 26350, 31950];
 // job types; bulk (coal, grain, ore) turns up in batches and pays less per load
 export const JOB_TYPES = ["pax", "cargo", "fuel", "bulk", "mail", "wide"];
 export const RATES = { pax: 0.9, cargo: 0.8, fuel: 1.3, bulk: 0.45, mail: 1.6, wide: 2.6 };
