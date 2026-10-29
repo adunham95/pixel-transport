@@ -1126,7 +1126,8 @@ export const BARGES = {
 // pulls: [trailer, ...] limits a tractor to those TRAILERS. beacons: [[x, y], ...] amber lights,
 // in the art's sub pixel units, that flash on the map while it drives (beaconColors: ["r,g,b", ...]
 // colors them instead). escort: "pilot", "police", "pusher" or "bucket" means it carries nothing,
-// but rides along in a superload's convoy (see SUPERLOAD in data.js).
+// but rides along in a superload's convoy (see SUPERLOAD in data.js). hitch is where, in the art's
+// sub pixel units, the front of the first trailer sits: over the fifth wheel, just behind the cab.
 export const TRUCKS = {
   pickup: {
     name: "Pickup",
@@ -1365,6 +1366,7 @@ export const TRUCKS = {
     level: 2,
     price: 1400,
     maxCars: 1,
+    hitch: 0,
     speed: 6,
     run: 0.05,
     deck: 1,
@@ -1384,6 +1386,7 @@ export const TRUCKS = {
     level: 5,
     price: 3200,
     maxCars: 2,
+    hitch: -1.5,
     speed: 7,
     run: 0.06,
     deck: 2,
@@ -1407,6 +1410,7 @@ export const TRUCKS = {
     level: 8,
     price: 6000,
     maxCars: 2,
+    hitch: -1.1,
     pulls: ["lowboy"],
     beacons: [[0.9, -1.25], [0.9, 1.25]],
     speed: 6.5,
@@ -1431,6 +1435,7 @@ export const TRUCKS = {
     level: 9,
     price: 5000,
     maxCars: 4,
+    hitch: -0.1,
     speed: 6.5,
     run: 0.08,
     deck: 2,
@@ -1472,6 +1477,7 @@ export const TRUCKS = {
     level: 10,
     price: 9000,
     maxCars: 3,
+    hitch: -1.2,
     speed: 7,
     run: 0.03,
     deck: 1,
@@ -1495,6 +1501,7 @@ export const TRUCKS = {
     level: 11,
     price: 14000,
     maxCars: 6,
+    hitch: -0.1,
     speed: 6,
     run: 0.12,
     deck: 3,

@@ -94,16 +94,24 @@ export function drawArt(ctx, x, y, ang, kind, model, { shadow = false, spin = 0 
 // what each kind of lead unit pulls
 const TAIL = { train: 'car', truck: 'trailer', boat: 'barge' };
 
-// each unit of a train, truck or tow, front first: its art, and how far its center sits behind the lead unit's center
+// each unit of a train, truck or tow, front first: its art, and how far its center sits behind the lead unit's center.
+// A tractor with a hitch carries its first trailer's front end over its fifth wheel; the rest couple up behind.
 export function trainUnits(kind, model, cars) {
-  const units = [{ kind, model, off: 0 }];
+  const units = [{ kind, model, off: 0 }], hitch = specOf(kind, model).hitch;
   let back = artSize(kind, model).w / 2;
-  for (const t of cars) {
+  cars.forEach((t, i) => {
     const w = artSize(TAIL[kind], t).w;
-    units.push({ kind: TAIL[kind], model: t, off: back + COUPLER + w / 2 });
-    back += COUPLER + w;
-  }
+    const off = i === 0 && hitch != null ? w / 2 - hitch : back + COUPLER + w / 2;
+    units.push({ kind: TAIL[kind], model: t, off });
+    back = off + w / 2;
+  });
   return units;
+}
+
+// the order to paint units in, so the right ones end up on top: a semi trailer lies over its
+// tractor's fifth wheel, while engines and tugs sit over what they pull
+export function paintOrder(kind, units) {
+  return kind === 'truck' ? units : units.slice().reverse();
 }
 
 export function consistBox(kind, model, cars) {
@@ -116,5 +124,5 @@ export function consistBox(kind, model, cars) {
 export function drawConsistRow(ctx, ex, y, kind, model, cars) {
   const units = trainUnits(kind, model, cars);
   for (const u of units) drawArt(ctx, ex - u.off + 0.7, y + 1, 0, u.kind, u.model, { shadow: true });
-  for (const u of units.slice().reverse()) drawArt(ctx, ex - u.off, y, 0, u.kind, u.model);
+  for (const u of paintOrder(kind, units)) drawArt(ctx, ex - u.off, y, 0, u.kind, u.model);
 }

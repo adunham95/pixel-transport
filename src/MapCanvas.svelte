@@ -3,7 +3,7 @@
   import { game, ui, cityById, leg, planLegs, toggleStop, selectCity, posAt, tripProgress, gameNow, isOpen, fx, darkness, loopStops, isCarrier, carrierAt, townSize, escortsOf } from './game.svelte.js';
   import { CITIES, ENGINES, PLANES, CARS, TRUCKS, W, H } from './data.js';
   import { buildTerrain, makeWaterPattern, R } from './terrain.js';
-  import { drawArt, trainUnits, artSize, loadArt } from './sprites.js';
+  import { drawArt, trainUnits, paintOrder, artSize, loadArt } from './sprites.js';
   import { dockOf } from './sea.js';
   import { reduced } from './motion.js';
 
@@ -443,7 +443,7 @@
         const units = trainUnits(v.kind, v.model, v.cars).map((u) => ({ ...u, off: (u.off * V) / R }));
         const placed = units.filter((u) => d - u.off > 0.2).map((u) => ({ ...u, p: posAt(t.pts, d - u.off) }));
         for (const u of placed) big(u.p.x * R + 0.7 * V, u.p.y * R + V, () => drawArt(b, 0, 0, u.p.ang, u.kind, u.model, { shadow: true }));
-        for (const u of placed.slice().reverse()) big(u.p.x * R, u.p.y * R, () => drawArt(b, 0, 0, u.p.ang, u.kind, u.model));
+        for (const u of paintOrder(v.kind, placed)) big(u.p.x * R, u.p.y * R, () => drawArt(b, 0, 0, u.p.ang, u.kind, u.model));
         const e = placed[0];
         if (e && v.kind === 'train' && ENGINES[v.model].steam != null) steam(e.p.x * R, e.p.y * R, e.p.ang, ENGINES[v.model].steam, now);
         const later = dk ? (f) => lights.push(f) : null;
