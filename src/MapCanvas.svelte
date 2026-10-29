@@ -140,6 +140,42 @@
       }
     }
 
+    const path = (pts, off = 0) => { b.beginPath(); pts.forEach(([x, y], i) => (i ? b.lineTo(x * R + off, y * R + off) : b.moveTo(x * R + off, y * R + off))); b.stroke(); };
+    // a leg's points split where the vehicle is: the part behind it and the part ahead
+    function splitAt(pts, d) {
+      const p = posAt(pts, d), behind = [pts[0]], ahead = [[p.x, p.y]];
+      let acc = 0;
+      for (let i = 1; i < pts.length; i++) {
+        acc += Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]);
+        (acc <= d ? behind : ahead).push(pts[i]);
+      }
+      behind.push([p.x, p.y]);
+      return [behind, ahead];
+    }
+    function stopDot(id) {
+      const c = cityById[id];
+      rect('#121626', c.x * R - 2, c.y * R - 2, 5, 5);
+      rect('#ffd23f', c.x * R - 1, c.y * R - 1, 3, 3);
+    }
+    // the tracked vehicle's route: dashed where it's been, solid where it's headed
+    function trackedRoute(v, gnow) {
+      const t = v.trip, [behind, ahead] = splitAt(t.pts, tripProgress(t, gnow) * t.len);
+      b.save();
+      b.lineWidth = 1.5; b.setLineDash([3, 3]);
+      b.strokeStyle = 'rgba(255,255,255,0.55)'; path(behind);
+      b.setLineDash([]); b.lineWidth = 2;
+      for (const pts of [ahead, ...(v.next ?? []).map((l) => l.pts)]) {
+        b.strokeStyle = 'rgba(18,22,38,0.6)'; path(pts, 1);
+        b.strokeStyle = '#ffd23f'; path(pts);
+      }
+      b.restore();
+      stopDot(v.depart?.from ?? t.from);
+      for (const l of [t, ...(v.next ?? [])]) stopDot(l.to);
+    }
+    const marker = (x, y) => { b.fillStyle = '#ffd23f'; b.beginPath(); b.moveTo(x - 3, y - 4); b.lineTo(x + 3, y - 4); b.lineTo(x, y); b.fill(); };
+    const marked = (v) => ui.follow === v.id || ui.track === v.id;
+    let hits = []; // where moving vehicles were drawn this frame, for tapping them
+
     let raf;
     function frame() {
       raf = requestAnimationFrame(frame);
@@ -187,10 +223,8 @@
         b.lineWidth = 2; b.setLineDash([4, 3]); b.lineDashOffset = -Math.floor(now / 80) % 7;
         for (const l of planLegs(pv, ui.plan)) {
           if (!l) continue;
-          b.strokeStyle = 'rgba(18,22,38,0.6)';
-          b.beginPath(); l.pts.forEach(([x, y], i) => (i ? b.lineTo(x * R + 1, y * R + 1) : b.moveTo(x * R + 1, y * R + 1))); b.stroke();
-          b.strokeStyle = '#ffd23f';
-          b.beginPath(); l.pts.forEach(([x, y], i) => (i ? b.lineTo(x * R, y * R) : b.moveTo(x * R, y * R))); b.stroke();
+          b.strokeStyle = 'rgba(18,22,38,0.6)'; path(l.pts, 1);
+          b.strokeStyle = '#ffd23f'; path(l.pts);
         }
         b.restore();
       }
@@ -205,6 +239,10 @@
         if (pv && leg(pv, lastStop, c.id)) ring(c, now);
         if (c.id === game.selected && (blink || pv)) brackets(c);
       }
+
+      const tv = ui.track != null && game.vehicles.find((v) => v.id === ui.track && v.trip);
+      if (tv) trackedRoute(tv, gnow);
+      hits = [];
 
       // parked vehicles
       const pt = {}, pp = {}, pb = {};
@@ -249,7 +287,8 @@
         for (const u of placed.slice().reverse()) big(u.p.x * R, u.p.y * R, () => drawArt(b, 0, 0, u.p.ang, u.kind, u.model));
         const e = placed[0];
         if (e && ENGINES[v.model].steam != null) steam(e.p.x * R, e.p.y * R, e.p.ang, ENGINES[v.model].steam, now);
-        if (e && ui.follow === v.id) { b.fillStyle = '#ffd23f'; b.beginPath(); b.moveTo(e.p.x * R - 3, e.p.y * R - 10); b.lineTo(e.p.x * R + 3, e.p.y * R - 10); b.lineTo(e.p.x * R, e.p.y * R - 6); b.fill(); }
+        if (e) hits.push({ id: v.id, x: e.p.x * R, y: e.p.y * R });
+        if (e && marked(v)) marker(e.p.x * R, e.p.y * R - 6);
       }
 
       // boats on the move
@@ -259,7 +298,8 @@
         wake(x, y, p.ang, artSize('boat', v.model).w, now);
         big(x + 0.7 * V, y + V, () => drawArt(b, 0, 0, p.ang, 'boat', v.model, { shadow: true }));
         big(x, y, () => drawArt(b, 0, 0, p.ang, 'boat', v.model));
-        if (ui.follow === v.id) { b.fillStyle = '#ffd23f'; b.beginPath(); b.moveTo(x - 3, y - 14); b.lineTo(x + 3, y - 14); b.lineTo(x, y - 10); b.fill(); }
+        hits.push({ id: v.id, x, y });
+        if (marked(v)) marker(x, y - 10);
       }
 
       // planes on the move
@@ -271,7 +311,8 @@
         const x = p.x * R, y = p.y * R;
         big(x + 2 + lift * 0.4, y + 3 + lift * 0.8, () => drawArt(b, 0, 0, p.ang, 'plane', v.model, { shadow: true }));
         big(x, y - lift, () => drawArt(b, 0, 0, p.ang, 'plane', v.model, { spin: now / 45 }));
-        if (ui.follow === v.id) { b.fillStyle = '#ffd23f'; b.beginPath(); b.moveTo(x - 3, y - lift - 22); b.lineTo(x + 3, y - lift - 22); b.lineTo(x, y - lift - 18); b.fill(); }
+        hits.push({ id: v.id, x, y: y - lift });
+        if (marked(v)) marker(x, y - lift - 18);
       }
       b.restore();
 
@@ -325,15 +366,21 @@
     }
     function tap(e) {
       const w = toWorld(e);
+      const pv = ui.picking ? game.vehicles.find((v) => v.id === ui.activeVehicle && v.city) : null;
+      if (!pv) {
+        // moving vehicles take the tap before towns, so you can pick one out as it passes through
+        let hit = null, hd = 11;
+        for (const h of hits) { const d = Math.hypot(h.x - w.x * R, h.y - w.y * R); if (d < hd) { hd = d; hit = h; } }
+        if (hit) { ui.track = ui.follow = hit.id; return; }
+      }
       let best = null, bd = 13;
       for (const c of CITIES) { const d = Math.hypot(c.x - w.x, c.y - 2 - w.y); if (d < bd) { bd = d; best = c; } }
-      if (!best) return;
-      const pv = ui.picking ? game.vehicles.find((v) => v.id === ui.activeVehicle && v.city) : null;
       if (pv) {
-        if (best.id !== pv.city || ui.plan.length) toggleStop(pv, best.id);
+        if (best && (best.id !== pv.city || ui.plan.length)) toggleStop(pv, best.id);
         return;
       }
-      selectCity(best.id);
+      ui.track = ui.follow = null;
+      if (best) selectCity(best.id);
     }
     function down(e) {
       canvas.setPointerCapture(e.pointerId);

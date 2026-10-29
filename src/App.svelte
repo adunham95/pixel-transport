@@ -5,6 +5,7 @@
   import FleetPanel from './FleetPanel.svelte';
   import ShopPanel from './ShopPanel.svelte';
   import DevPanel from './DevPanel.svelte';
+  import VehicleCard from './VehicleCard.svelte';
   import Icon from './Icon.svelte';
   import { game, ui, dev, start, fmt, cityById } from './game.svelte.js';
   import { LEVELS } from './data.js';
@@ -34,6 +35,7 @@
   <main class="stage">
     <MapCanvas {sheetPx} />
     <div class="toasts" aria-live="polite">
+      <VehicleCard />
       {#each ui.toasts as t (t.id)}<div class="toast {t.kind}">{t.text}</div>{/each}
     </div>
     <section class="sheet" class:open={ui.sheetOpen} bind:offsetHeight={sheetPx}>

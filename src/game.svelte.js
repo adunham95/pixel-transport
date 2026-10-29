@@ -257,7 +257,7 @@ const loaded = load();
 export const game = $state(loaded ?? fresh());
 export const ui = $state({
   tab: 'city', sheetOpen: true, activeVehicle: null, picking: false, plan: [],
-  focusVehicle: null, toasts: [], focus: null, follow: null,
+  focusVehicle: null, toasts: [], focus: null, follow: null, track: null,
 });
 // Game time runs ahead of the wall clock when dev mode speeds it up. The extra is kept
 // in skew, which is saved so trips stay in place across reloads.
@@ -299,6 +299,20 @@ export function etaText(v) {
   return fmtTime((v.trip.startAt + v.trip.dur - clock.now) / 1000);
 }
 
+// the whole route a moving vehicle is on, from where it set out to its last stop
+export function tripInfo(v, now = clock.now) {
+  const t = v.trip, rest = v.next ?? [];
+  const left = (1 - tripProgress(t, now)) * t.len + rest.reduce((s, l) => s + l.len, 0);
+  // saves from before routes were tracked only know about the current leg
+  const d = v.depart ?? { from: t.from, at: t.startAt, len: t.len + rest.reduce((s, l) => s + l.len, 0) };
+  const endAt = tripEnd(v) + rest.reduce((s, l) => s + l.dur, 0);
+  return {
+    from: d.from, to: rest.length ? rest[rest.length - 1].to : t.to, next: t.to, stops: rest.length,
+    departAt: d.at, nextAt: tripEnd(v), endAt, len: d.len, left,
+    progress: Math.min(1, Math.max(0, (now - d.at) / (endAt - d.at))),
+  };
+}
+
 function unlocksAt(level) {
   const out = [];
   for (const s of [...Object.values(PLANES), ...Object.values(ENGINES), ...Object.values(CARS), ...Object.values(BOATS)]) if (s.level === level) out.push(s.short ?? s.name);
@@ -337,6 +351,8 @@ function arrive(v, at) {
   }
   v.city = to;
   v.trip = null;
+  delete v.depart;
+  if (ui.track === v.id) ui.track = null;
   if (n) toast(`${v.name} delivered ${n} at ${name}. +$${fmt(total)}`, 'good');
   else toast(`${v.name} arrived at ${name}`);
 }
@@ -430,6 +446,7 @@ export function openLoad(v) {
 
 export function followVehicle(v) {
   ui.follow = v.id;
+  ui.track = v.id;
 }
 
 export function loadJob(v, job) {
@@ -476,6 +493,7 @@ export function dispatch(v, stops) {
   const [first, ...rest] = legs.map((l) => ({ from: l.from, to: l.to, pts: l.pts, len: l.len, dur: l.time * 1000, cost: l.cost }));
   v.trip = { ...first, startAt: gameNow() };
   v.next = rest;
+  v.depart = { from: v.city, at: v.trip.startAt, len: legs.reduce((s, l) => s + l.len, 0) };
   v.city = null;
   toast(rest.length ? `${v.name} left on a ${legs.length} stop route. Fuel $${fmt(cost)}` : `${v.name} left for ${cityById[first.to].name}. Fuel $${cost}`);
   return true;
@@ -592,7 +610,7 @@ export function resetGame() {
   reachCache.clear();
   skew = 0;
   dev.speed = 1;
-  Object.assign(ui, { tab: 'city', sheetOpen: true, activeVehicle: null, picking: false, plan: [], focusVehicle: null, follow: null, focus: { x: cityById.bay.x, y: cityById.bay.y, t: Date.now() } });
+  Object.assign(ui, { tab: 'city', sheetOpen: true, activeVehicle: null, picking: false, plan: [], focusVehicle: null, follow: null, track: null, focus: { x: cityById.bay.x, y: cityById.bay.y, t: Date.now() } });
   save();
 }
 
