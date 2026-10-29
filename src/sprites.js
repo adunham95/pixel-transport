@@ -54,9 +54,30 @@ export function loadArt() {
 export function specOf(kind, model) { return SPECS[kind][model]; }
 export function artSize(kind, model) { const { w, h } = entry(specOf(kind, model)); return { w, h }; }
 
+// rotor discs and blades, turned by spin (radians); neighbours turn opposite ways
+function drawRotors(ctx, rotors, spin, shadow) {
+  rotors.forEach(([rx, ry, r], i) => {
+    ctx.beginPath(); ctx.arc(rx, ry, r, 0, Math.PI * 2);
+    if (shadow) { ctx.fillStyle = 'rgba(8,20,40,0.12)'; ctx.fill(); return; }
+    // bold enough to survive the map's one pixel per sub pixel buffer
+    ctx.fillStyle = 'rgba(20,22,28,0.22)'; ctx.fill();
+    ctx.strokeStyle = 'rgba(20,22,28,0.6)'; ctx.lineWidth = 0.5; ctx.stroke();
+    const a0 = (i % 2 ? -spin : spin) + i * 1.1;
+    ctx.beginPath();
+    for (let k = 0; k < 3; k++) {
+      const a = a0 + (k * Math.PI * 2) / 3;
+      ctx.moveTo(rx, ry); ctx.lineTo(rx + Math.cos(a) * r * 0.95, ry + Math.sin(a) * r * 0.95);
+    }
+    ctx.strokeStyle = '#1c1b1f'; ctx.lineWidth = 1.1; ctx.lineCap = 'round'; ctx.stroke();
+    ctx.fillStyle = '#4a454d';
+    ctx.beginPath(); ctx.arc(rx, ry, 0.9, 0, Math.PI * 2); ctx.fill();
+  });
+}
+
 // draw one model centered at x, y, facing ang. Nothing is drawn until loadArt() finishes.
-export function drawArt(ctx, x, y, ang, kind, model, { shadow = false } = {}) {
-  const e = entry(specOf(kind, model));
+// spin is the rotor angle for models with rotors.
+export function drawArt(ctx, x, y, ang, kind, model, { shadow = false, spin = 0 } = {}) {
+  const spec = specOf(kind, model), e = entry(spec);
   const src = shadow ? e.shadow : e.img;
   if (!src) return;
   ctx.save();
@@ -64,6 +85,7 @@ export function drawArt(ctx, x, y, ang, kind, model, { shadow = false } = {}) {
   ctx.rotate(ang);
   ctx.imageSmoothingEnabled = true;
   ctx.drawImage(src, -e.w / 2, -e.h / 2, e.w, e.h);
+  if (spec.rotors) drawRotors(ctx, spec.rotors, spin, shadow);
   ctx.restore();
 }
 

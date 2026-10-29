@@ -183,6 +183,8 @@ export const CARS = {
 
 // range is in world units; fuel is coins per world unit flown.
 // vtol: true means it can land at any city (helicopters, tiltrotors), not just airports.
+// rotors: [[x, y, radius], ...] in the art's sub pixel units. They're drawn on top of the
+// art and spin while flying, so leave them out of the svg itself.
 export const PLANES = {
   sparrow: {
     name: "Sparrow",
@@ -361,6 +363,7 @@ export const PLANES = {
     color: "#5b6b3a",
     trim: "#3f4a28",
     vtol: true,
+    rotors: [[5.6, 0, 6.9], [-6.2, 0, 6.9]],
     art: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-13 -8 26 16">
       <path d="M-8.6 -2Q-9.4 -2 -9.4 -1.2L-9.4 1.2Q-9.4 2 -8.6 2L7 2Q9.4 2 9.6 0Q9.4 -2 7 -2Z" fill="#5b6b3a" stroke="rgba(18,24,38,0.9)" stroke-width="1" stroke-linejoin="round"/>
       <rect x="-8.6" y="-1.5" width="15" height="0.5" fill="rgba(255,255,255,0.18)"/>
@@ -369,12 +372,6 @@ export const PLANES = {
       <g fill="#2d2a2e"><rect x="-2.9" y="-1.3" width="0.4" height="0.7"/><rect x="-2.1" y="-1.3" width="0.4" height="0.7"/><rect x="-2.9" y="0.6" width="0.4" height="0.7"/><rect x="-2.1" y="0.6" width="0.4" height="0.7"/></g>
       <path d="M6.8 -1.5Q8.8 -1.3 9.1 0Q8.8 1.3 6.8 1.5Z" fill="#23344f"/>
       <rect x="7.2" y="-1.2" width="0.6" height="0.45" fill="rgba(170,215,255,0.85)"/>
-      <circle cx="5.6" cy="0" r="6.9" fill="rgba(30,32,38,0.16)" stroke="rgba(30,32,38,0.35)" stroke-width="0.3"/>
-      <path d="M5.6 0L11.76 2.24M5.6 0L0.58 4.21M5.6 0L4.46 -6.46" stroke="#2d2a2e" stroke-width="0.55" stroke-linecap="round"/>
-      <circle cx="5.6" cy="0" r="0.6" fill="#4a454d"/>
-      <circle cx="-6.2" cy="0" r="6.9" fill="rgba(30,32,38,0.16)" stroke="rgba(30,32,38,0.35)" stroke-width="0.3"/>
-      <path d="M-6.2 0L-5.06 6.46M-6.2 0L-12.36 -2.24M-6.2 0L-1.18 -4.21" stroke="#2d2a2e" stroke-width="0.55" stroke-linecap="round"/>
-      <circle cx="-6.2" cy="0" r="0.6" fill="#4a454d"/>
     </svg>`,
   },
   skyliner: {
@@ -423,6 +420,7 @@ export const PLANES = {
     color: "#8a949e",
     trim: "#4a525a",
     vtol: true,
+    rotors: [[0.5, -6.2, 4.7], [0.5, 6.2, 4.7]],
     art: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-11 -11.5 22 23">
       <path d="M1.6 -1.4L1.6 -6.2L-1.4 -6.2L-1.4 -1.4ZM1.6 1.4L1.6 6.2L-1.4 6.2L-1.4 1.4ZM-6 -0.6L-7.4 -3.4L-8.8 -3.4L-8.6 -0.6ZM-6 0.6L-7.4 3.4L-8.8 3.4L-8.6 0.6ZM-8.8 -1.2Q-9.3 0 -8.8 1.2L5 1.55Q8.6 1.35 9 0Q8.6 -1.35 5 -1.55Z" fill="none" stroke="rgba(18,24,38,0.9)" stroke-width="1.2" stroke-linejoin="round"/>
       <path d="M1.6 -1.4L1.6 -6.2L-1.4 -6.2L-1.4 -1.4ZM1.6 1.4L1.6 6.2L-1.4 6.2L-1.4 1.4ZM-6 -0.6L-7.4 -3.4L-8.8 -3.4L-8.6 -0.6ZM-6 0.6L-7.4 3.4L-8.8 3.4L-8.6 0.6Z" fill="#79838d"/>
@@ -433,12 +431,6 @@ export const PLANES = {
       <path d="M5.4 -1.1Q8 -1 8.4 0Q8 1 5.4 1.1Z" fill="#23344f"/>
       <rect x="5.9" y="-0.85" width="0.6" height="0.4" fill="rgba(170,215,255,0.85)"/>
       <rect x="-1.6" y="-7.2" width="4.2" height="2" rx="0.9" fill="#4a525a" stroke="rgba(18,24,38,0.9)" stroke-width="0.4"/><rect x="-1.6" y="5.2" width="4.2" height="2" rx="0.9" fill="#4a525a" stroke="rgba(18,24,38,0.9)" stroke-width="0.4"/>
-      <circle cx="0.5" cy="-6.2" r="4.7" fill="rgba(30,32,38,0.16)" stroke="rgba(30,32,38,0.35)" stroke-width="0.3"/>
-      <path d="M0.5 -6.2L4.90 -5.42M0.5 -6.2L-2.37 -2.78M0.5 -6.2L-1.03 -10.40" stroke="#2d2a2e" stroke-width="0.55" stroke-linecap="round"/>
-      <circle cx="0.5" cy="-6.2" r="0.6" fill="#4a454d"/>
-      <circle cx="0.5" cy="6.2" r="4.7" fill="rgba(30,32,38,0.16)" stroke="rgba(30,32,38,0.35)" stroke-width="0.3"/>
-      <path d="M0.5 6.2L2.03 10.40M0.5 6.2L-3.90 5.42M0.5 6.2L3.37 2.78" stroke="#2d2a2e" stroke-width="0.55" stroke-linecap="round"/>
-      <circle cx="0.5" cy="6.2" r="0.6" fill="#4a454d"/>
     </svg>`,
   },
   jumbo: {

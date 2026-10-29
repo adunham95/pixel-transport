@@ -265,7 +265,7 @@
         const lift = Math.sin(pr * Math.PI) * 14;
         const x = p.x * R, y = p.y * R;
         big(x + 2 + lift * 0.4, y + 3 + lift * 0.8, () => drawArt(b, 0, 0, p.ang, 'plane', v.model, { shadow: true }));
-        big(x, y - lift, () => drawArt(b, 0, 0, p.ang, 'plane', v.model));
+        big(x, y - lift, () => drawArt(b, 0, 0, p.ang, 'plane', v.model, { spin: now / 45 }));
         if (ui.follow === v.id) { b.fillStyle = '#ffd23f'; b.beginPath(); b.moveTo(x - 3, y - lift - 22); b.lineTo(x + 3, y - lift - 22); b.lineTo(x, y - lift - 18); b.fill(); }
       }
       b.restore();
