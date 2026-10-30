@@ -13,7 +13,7 @@
   // the map is drawn in sub pixels into a buffer that's stretched to fill the screen. Zoomed in, a
   // sub pixel would cover a big block, so the buffer gets finer, to about PIX screen pixels a
   // buffer pixel: terrain and towns keep their pixel look, while vehicles and effects stay sharp.
-  const PIX = 3;
+  const PIX = 2;
   const TRAY_ORDER = { train: 0, truck: 1, boat: 2, plane: 3 };
   let canvas;
 
