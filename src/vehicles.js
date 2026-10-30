@@ -447,6 +447,32 @@ export const PLANES = {
       <circle cx="0" cy="0" r="1.1" fill="#f4f6f8" stroke="rgba(18,24,38,0.6)" stroke-width="0.3"/>
     </svg>`,
   },
+  goldjet: {
+    name: "Gold Jet",
+    level: 12,
+    price: 40000,
+    pax: 4,
+    cargo: 0,
+    range: 420,
+    speed: 14,
+    fuel: 0.5,
+    pips: 5,
+    pays: { pax: 2 },
+    celebrity: true,
+    factoryPaint: true,
+    color: "#e8b830",
+    trim: "#1c1b1f",
+    art: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-8 -7 16 14">
+      <path d="M1.4 -1L-2.6 -5.8H-3.8L-2 -1ZM1.4 1L-2.6 5.8H-3.8L-2 1Z" fill="#d9a92c" stroke="rgba(18,24,38,0.9)" stroke-width="0.5" stroke-linejoin="round"/>
+      <path d="M-5.2 -0.8L-6.6 -2.8H-7.3L-6.6 -0.8ZM-5.2 0.8L-6.6 2.8H-7.3L-6.6 0.8Z" fill="#d9a92c" stroke="rgba(18,24,38,0.9)" stroke-width="0.4" stroke-linejoin="round"/>
+      <path d="M-6.4 -1H3.8Q7.4 -0.9 7.6 0Q7.4 0.9 3.8 1H-6.4Q-7 0.6 -7 0Q-7 -0.6 -6.4 -1Z" fill="#e8b830" stroke="rgba(18,24,38,0.9)" stroke-width="0.55" stroke-linejoin="round"/>
+      <g fill="#3a3f47" stroke="rgba(18,24,38,0.9)" stroke-width="0.25"><rect x="-5.4" y="-1.75" width="2.2" height="0.8" rx="0.35"/><rect x="-5.4" y="0.95" width="2.2" height="0.8" rx="0.35"/></g>
+      <rect x="-5.6" y="-0.12" width="10.4" height="0.24" fill="#1c1b1f"/>
+      <g fill="#1c1b1f">${[-2.6, -1.6, -0.6, 0.4, 1.4].map((x) => `<rect x="${x}" y="-0.75" width="0.45" height="0.3" rx="0.1"/><rect x="${x}" y="0.45" width="0.45" height="0.3" rx="0.1"/>`).join("")}</g>
+      <path d="M5.2 -0.6Q6.6 -0.5 6.9 0Q6.6 0.5 5.2 0.6Z" fill="#23344f"/>
+      <rect x="-4" y="-0.9" width="8" height="0.3" fill="rgba(255,255,255,0.35)"/>
+    </svg>`,
+  },
   islander: {
     name: "Islander",
     level: 2,
@@ -1401,12 +1427,15 @@ export const BARGES = {
 // on a car ferry, plus each trailer's; noFerry: true means it's too long to board one.
 // pulls: [trailer, ...] limits a tractor to those TRAILERS. beacons: [[x, y], ...] amber lights,
 // in the art's sub pixel units, that flash on the map while it drives (beaconColors: ["r,g,b", ...]
-// colors them instead). escort: "pilot", "police", "pusher", "bucket" or "fire" means it carries nothing,
-// but rides along in a superload's convoy (see SUPERLOAD in data.js). hitch is where, in the art's
+// colors them instead). escort: "pilot", "police", "pusher", "bucket", "fire" or "tow" means it carries
+// nothing, but rides along in a superload's convoy (see SUPERLOAD in data.js) or goes out to a
+// breakdown (see BREAKDOWN in data.js). hitch is where, in the art's
 // sub pixel units, the front of the first trailer sits: over the fifth wheel, just behind the cab.
 // superload: true means it carries nothing but one superload at a time, which brings its own
 // trailer (see SUPERLOAD_TRAILERS below). escortedBy: an escort kind that can ride along if you like
 // (valuables pay more with one).
+// auto: true means it drives itself, finding and carrying its own passengers; it needs the HQ's auto
+// dispatch. celebrity: true means celebrities will ride in it (see CELEB in data.js).
 // pays: { type: n } means those jobs pay n times as much on board. factoryPaint: true keeps its own
 // colors when the fleet is in company colors (escorts always do). amphibious: true means it can also
 // swim between ports at `swim` speed, and be based at island ports with no roads.
@@ -1561,6 +1590,7 @@ export const TRUCKS = {
     price: 25000,
     cap: { pax: 2 },
     pays: { pax: 3 },
+    celebrity: true,
     factoryPaint: true,
     maxCars: 0,
     speed: 8,
@@ -1664,6 +1694,73 @@ export const TRUCKS = {
       <rect x="2.3" y="-1.6" width="0.55" height="3.2" fill="#9fd0ff"/>
       <rect x="3.45" y="-2" width="0.45" height="4" rx="0.2" fill="#f2c14e" stroke="rgba(18,24,38,0.9)" stroke-width="0.3"/>
       <g fill="#c9ced4"><circle cx="0.4" cy="-1.9" r="0.3"/><circle cx="0.4" cy="1.9" r="0.3"/></g>
+    </svg>`,
+  },
+  tow: {
+    name: "Tow Truck",
+    short: "Tow",
+    level: 1,
+    price: 500,
+    cap: {},
+    escort: "tow",
+    maxCars: 0,
+    beacons: [[0.9, -1.1], [0.9, 1.1]],
+    speed: 6.5,
+    run: 0.03,
+    deck: 1,
+    pips: 2,
+    art: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-3.8 -1.8 7.6 3.6">
+      <rect x="-3.4" y="-1.25" width="4" height="2.5" rx="0.3" fill="#3a3f47" stroke="rgba(18,24,38,0.9)" stroke-width="0.5"/>
+      <rect x="-3.1" y="-0.2" width="3.3" height="0.4" fill="#f2c14e"/>
+      <path d="M-3.7 -0.55H-3.1V0.55H-3.7Z" fill="#c9ced4"/>
+      <circle cx="-3.6" cy="0" r="0.25" fill="none" stroke="#c9ced4" stroke-width="0.18"/>
+      <path d="M0.5 -1.4H2.6A0.8 0.8 0 0 1 3.4 -0.6V0.6A0.8 0.8 0 0 1 2.6 1.4H0.5Z" fill="#f4f6f8" stroke="rgba(18,24,38,0.9)" stroke-width="0.6" stroke-linejoin="round"/>
+      <rect x="0.7" y="-1.1" width="1.2" height="2.2" fill="#dfe4ea"/>
+      <rect x="0.75" y="-1.25" width="0.3" height="2.5" fill="#e08a2c"/>
+      <rect x="2.1" y="-1.1" width="0.5" height="2.2" fill="#9fd0ff"/>
+      <g fill="#fff3a8"><rect x="3" y="-1" width="0.4" height="0.4"/><rect x="3" y="0.6" width="0.4" height="0.4"/></g>
+    </svg>`,
+  },
+  robotaxi: {
+    name: "Robotaxi",
+    level: 8,
+    price: 6000,
+    cap: { pax: 3 },
+    auto: true,
+    maxCars: 0,
+    speed: 6.5,
+    run: 0.02,
+    deck: 1,
+    pips: 3,
+    art: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-3 -1.8 6 3.6">
+      <rect x="-2.6" y="-1.4" width="5.2" height="2.8" rx="0.9" fill="#eef1f4" stroke="rgba(18,24,38,0.9)" stroke-width="0.55"/>
+      <rect x="-1.9" y="-1" width="3.8" height="2" rx="0.5" fill="#23344f"/>
+      <rect x="-1.6" y="-0.75" width="3.2" height="0.35" rx="0.15" fill="#5d7fa8"/>
+      <g fill="#2fb8a8"><rect x="-2.45" y="-0.8" width="0.3" height="1.6" rx="0.1"/><rect x="2.15" y="-0.8" width="0.3" height="1.6" rx="0.1"/></g>
+      <g fill="#3a3f47"><circle cx="-2.1" cy="-1.15" r="0.22"/><circle cx="2.1" cy="-1.15" r="0.22"/><circle cx="-2.1" cy="1.15" r="0.22"/><circle cx="2.1" cy="1.15" r="0.22"/></g>
+    </svg>`,
+  },
+  selfsuv: {
+    name: "Self-Driving SUV",
+    short: "Self-Driving",
+    level: 9,
+    price: 9000,
+    cap: { pax: 4 },
+    auto: true,
+    maxCars: 0,
+    speed: 7.5,
+    run: 0.025,
+    deck: 1,
+    pips: 3,
+    art: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-3.4 -1.8 6.8 3.6">
+      <path d="M-2.6 -1.35H2.2A0.9 0.9 0 0 1 3.1 -0.45V0.45A0.9 0.9 0 0 1 2.2 1.35H-2.6A0.4 0.4 0 0 1 -3 0.95V-0.95A0.4 0.4 0 0 1 -2.6 -1.35Z" fill="#f4f6f8" stroke="rgba(18,24,38,0.9)" stroke-width="0.55" stroke-linejoin="round"/>
+      <rect x="-2.6" y="-1" width="3.8" height="2" rx="0.3" fill="#dfe4ea"/>
+      <rect x="1.2" y="-1.05" width="0.5" height="2.1" fill="#9fd0ff"/>
+      <rect x="-2.75" y="-0.9" width="0.35" height="1.8" fill="#9fd0ff"/>
+      <circle cx="-0.6" cy="0" r="0.62" fill="#3a3f47" stroke="rgba(18,24,38,0.9)" stroke-width="0.2"/>
+      <circle cx="-0.6" cy="0" r="0.3" fill="#5d7fa8"/>
+      <g fill="#3a3f47"><rect x="1.5" y="-1.6" width="0.45" height="0.3" rx="0.1"/><rect x="1.5" y="1.3" width="0.45" height="0.3" rx="0.1"/><rect x="3" y="-0.25" width="0.25" height="0.5" rx="0.1"/></g>
+      <g fill="#fff3a8"><rect x="2.8" y="-1.05" width="0.3" height="0.35"/><rect x="2.8" y="0.7" width="0.3" height="0.35"/></g>
     </svg>`,
   },
   pilot: {

@@ -1,5 +1,5 @@
 <script>
-  import { game, ui, dev, clock, cityById, spec, tripInfo, fmt, fmtTime, stopRepeating, consistOf, paintOf } from './game.svelte.js';
+  import { game, ui, dev, clock, cityById, spec, tripInfo, fmt, fmtTime, stopRepeating, consistOf, paintOf, sendHelp, callRoadside, calloutCost, stillNeeded, escortText } from './game.svelte.js';
   import { MI } from './data.js';
   import Sprite from './Sprite.svelte';
   import LoadBadges from './LoadBadges.svelte';
@@ -30,6 +30,16 @@
       <button class="x" aria-label="Close" onclick={() => (ui.track = ui.follow = null)}>×</button>
     </div>
 
+    {#if v.broken}
+      {@const left = stillNeeded(v)}
+      <div class="broke">
+        <span class="grow"><b>Broken down</b><small>{v.broken.fixAt ? 'The roadside service is on its way' : Object.keys(left).length ? `Needs ${escortText(left)}` : 'Help is on the way'}</small></span>
+        {#if !v.broken.fixAt}
+          {#if Object.keys(left).length}<button class="btn small primary" onclick={() => sendHelp(v)}>Send help</button>{/if}
+          <button class="btn small" disabled={game.coins < calloutCost(v)} onclick={() => callRoadside(v)}>${fmt(calloutCost(v))}</button>
+        {/if}
+      </div>
+    {/if}
     <div class="ends">
       <div><small>From</small><b>{cityById[info.from].name}</b><small>Left {fmtTime((clock.now - info.departAt) / 1000)} ago</small></div>
       <div class="to"><small>To</small><b>{cityById[info.to].name}</b><small>ETA {fmtTime((info.endAt - clock.now) / 1000)} · {clockAt(info.endAt)}</small></div>
@@ -53,6 +63,8 @@
 {/if}
 
 <style>
+  .broke { display: flex; align-items: center; gap: 6px; margin: 8px 0 4px; padding: 6px 8px 6px 10px; border-radius: 10px; background: color-mix(in srgb, #c0392b 12%, var(--panel-2)); }
+  .broke small { display: block; font-size: 12px; color: var(--ink-soft); }
   .track { pointer-events: auto; width: 100%; background: var(--panel-2); color: var(--ink); border-radius: 14px; box-shadow: 0 6px 20px rgba(10,16,30,.28); padding: 10px 12px; }
   .track-head { display: flex; align-items: center; gap: 10px; }
   /* the vehicle itself opens its card in the Fleet tab */

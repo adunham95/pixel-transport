@@ -62,6 +62,7 @@
       return { block: false, text: '' };
     }
     if (spec(v).superload) return { block: true, text: `A ${spec(v).name} only carries superloads` };
+    if (j.celeb && !spec(v).celebrity) return { block: true, text: `${j.celeb} only rides in a gold limo or gold jet` };
     if (!cap[j.type]) {
       const what = TYPE_LABEL[j.type].toLowerCase();
       if (j.type === 'wide' && v.kind !== 'truck' && v.kind !== 'train') return { block: true, text: 'Wide loads only go overland, on a lowboy trailer or flatcar' };

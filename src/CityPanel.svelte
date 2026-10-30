@@ -1,12 +1,15 @@
 <script>
-  import { game, ui, cityById, etaText, fmtTime, clock, followVehicle, isOpen, connections, unlockPrice, unlockCity, carrierAt, fmt, townSize, sizeName, growthOf, buyDepot, fetcher, consistOf, paintOf, buildHQ, hqPrice, setLivery, nextContractsPerk, buyContractsPerk, contractSlots, nextSuperloadsPerk, buySuperloadsPerk, superloadSlots } from './game.svelte.js';
-  import { CITY_PRICE, DEPOT, HQ } from './data.js';
+  import { game, ui, cityById, etaText, fmtTime, clock, followVehicle, isOpen, connections, unlockPrice, unlockCity, carrierAt, fmt, townSize, sizeName, growthOf, buyDepot, fetcher, consistOf, paintOf, buildHQ, hqPrice, setLivery, nextContractsPerk, buyContractsPerk, contractSlots, nextSuperloadsPerk, buySuperloadsPerk, superloadSlots, buyAutoPerk } from './game.svelte.js';
+  import { CITY_PRICE, DEPOT, HQ, TYPE_LABEL } from './data.js';
+  import Icon from './Icon.svelte';
   import Sprite from './Sprite.svelte';
   import JobRow from './JobRow.svelte';
   import LoadPanel from './LoadPanel.svelte';
   import SendPanel from './SendPanel.svelte';
   import { fly, slide, flip } from './motion.js';
   const c = $derived(cityById[game.selected]);
+  // the job types this town turns up more of than most, strongest lean first
+  const knownFor = $derived(Object.entries(c.mix).filter(([, m]) => m > 1).sort((a, b) => b[1] - a[1]).map(([t]) => t));
   const here = $derived(game.vehicles.filter((v) => v.city === c.id));
   // vehicles with this city anywhere on their route, and when they'll get here
   const incoming = $derived(game.vehicles.flatMap((v) => {
@@ -43,6 +46,7 @@
       {#if game.hq === c.id}<span class="tag hub">HQ</span>{/if}
       {#if game.depots[c.id]}<span class="tag">Depot</span>{/if}
       {#if carrierAt(c.id)}<span class="tag hub">{c.anchor || !c.air ? 'Carrier landing strip' : 'Carrier in port'}</span>{/if}
+      {#each knownFor as t (t)}<span class="tag known t-{t}" title="Turns up more {t === 'celeb' ? 'celebrities' : TYPE_LABEL[t].toLowerCase()} than most towns"><Icon name={t} size={12} />{t === 'celeb' ? 'Celebrities' : TYPE_LABEL[t]}</span>{/each}
     </div>
   </div>
   {#if c.anchor}
@@ -98,6 +102,10 @@
     <div class="row hq">
       <span class="grow"><b>Contracts office{game.hqContracts ? ` ${game.hqContracts + 1}` : ''}</b><small>{perk ? `Work on ${contractSlots() + 1} contracts at a time instead of ${contractSlots()}, with one more offer on the board.` : `Fully staffed. You can work on ${contractSlots()} contracts at a time.`}</small></span>
       {#if perk}<button class="btn small" disabled={game.level < perk.level || game.coins < perk.price} onclick={buyContractsPerk}>{game.level < perk.level ? `Lv ${perk.level}` : `$${fmt(perk.price)}`}</button>{/if}
+    </div>
+    <div class="row hq">
+      <span class="grow"><b>Auto dispatch</b><small>{game.hqAuto ? 'On. Self-driving vehicles find their own passengers, and rescuers set off for breakdowns on their own.' : 'Unlocks self-driving vehicles that find their own passengers, and sends rescuers out to breakdowns on their own.'}</small></span>
+      {#if !game.hqAuto}<button class="btn small" disabled={game.level < HQ.auto.level || game.coins < HQ.auto.price} onclick={buyAutoPerk}>{game.level < HQ.auto.level ? `Lv ${HQ.auto.level}` : `$${fmt(HQ.auto.price)}`}</button>{/if}
     </div>
     <div class="row hq">
       <span class="grow"><b>Heavy haul office{game.hqSuperloads ? ` ${game.hqSuperloads + 1}` : ''}</b><small>{heavy ? `Run ${superloadSlots() + 1} superloads at a time by road, by rail and by sea, instead of ${superloadSlots()} of each.` : `Fully staffed. You can run ${superloadSlots()} superloads at a time by road, by rail and by sea.`}</small></span>

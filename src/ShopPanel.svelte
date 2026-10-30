@@ -44,6 +44,9 @@
     if (s.maglev) out.push('Maglev lines only');
     if (s.harbor) out.push('Ports with a station only');
     if (s.amphibious) out.push('Swims between ports');
+    if (s.auto) out.push(game.hqAuto ? 'Drives itself, finding its own passengers' : 'Drives itself. Needs auto dispatch at your HQ');
+    if (s.celebrity) out.push('Celebrities ride in it');
+    if (s.escort === 'tow') out.push('Goes out to trucks that break down');
     if (s.noFerry) out.push('Too long for car ferries');
     return out;
   }
@@ -93,6 +96,7 @@
   {#snippet row(k, s)}
     {@const locked = game.level < s.level}
     {@const here = !c.anchor && isOpen(c.id) && canBase(tab.id, k, c)}
+    {@const needsHq = s.auto && !game.hqAuto}
     {@const cap = capOf(tab.id, s)}
     {@const pulled = tailsOf(tab.id, s)}
     <div class="shop" class:locked>
@@ -107,7 +111,7 @@
         {#if notes(tab.id, s).length}<small>{notes(tab.id, s).join('. ')}</small>{/if}
         <small>{s.range ? `Range ${Math.round(s.range * MI)} mi. ` : ''}Speed <span class="pips">{#each [1, 2, 3, 4, 5] as n}<i class:on={n <= s.pips}></i>{/each}</span></small>
       </span>
-      <button class="btn primary" disabled={locked || !here || game.coins < s.price} onclick={() => tab.buy(k)}>{locked ? `Lv ${s.level}` : !here ? 'Not here' : `$${fmt(s.price)}`}</button>
+      <button class="btn primary" disabled={locked || !here || needsHq || game.coins < s.price} onclick={() => tab.buy(k)}>{locked ? `Lv ${s.level}` : needsHq ? 'Needs HQ' : !here ? 'Not here' : `$${fmt(s.price)}`}</button>
     </div>
   {/snippet}
 

@@ -1,5 +1,5 @@
 <script>
-  import { game, ui, dev, setDev, cityById, capacity, endRoute, addCar, removeCar, canRemoveCar, upgradeEngine, upgradeCost, sellVehicle, sellValue, resetGame, openLoad, followVehicle, etaText, fmt, stopRepeating, spec, tailSpecs, tailName, aboard, carrierOf, deckUsed, deckRoom, deckFor, finances, clock, wear, service, serviceCost, escortee, consistOf, paintOf, paintFor, isIdle, idleVehicles, quickSend, quickSendAll, startQueue, toast } from './game.svelte.js';
+  import { game, ui, dev, setDev, cityById, capacity, endRoute, addCar, removeCar, canRemoveCar, upgradeEngine, upgradeCost, sellVehicle, sellValue, resetGame, openLoad, followVehicle, etaText, fmt, stopRepeating, spec, tailSpecs, tailName, aboard, carrierOf, deckUsed, deckRoom, deckFor, finances, clock, wear, service, serviceCost, escortee, consistOf, paintOf, paintFor, isIdle, idleVehicles, quickSend, quickSendAll, startQueue, toast, brokenVehicles, sendHelp, callRoadside, calloutCost, stillNeeded, escortText } from './game.svelte.js';
   import { ENGINES, TRUCKS, BOATS, PLANES, MI, JOB_TYPES, ESCORT_LABEL } from './data.js';
   import Sprite from './Sprite.svelte';
   import LoadBadges from './LoadBadges.svelte';
@@ -21,12 +21,20 @@
   // finding a vehicle: by kind, by what it's up to, and by name or town
   const KINDS = [['plane', 'Planes'], ['train', 'Trains'], ['truck', 'Trucks'], ['boat', 'Boats']];
   const STATUS = [
+    ['broken', 'Broken down', (v) => !!v.broken],
     ['idle', 'Idle', isIdle],
     ['moving', 'Moving', (v) => !!v.trip],
     ['loop', 'Repeating', (v) => !!v.loop],
     ['service', 'Needs service', (v) => wear(v) >= 0.3],
   ];
   const idle = $derived(idleVehicles());
+  const broken = $derived(brokenVehicles());
+  // what a broken down vehicle is waiting for
+  function helpText(v) {
+    if (v.broken.fixAt) return 'The roadside service is on its way';
+    const left = stillNeeded(v), coming = game.vehicles.some((x) => x.trip?.rescue === v.id);
+    return Object.keys(left).length ? `Needs ${escortText(left)}${coming ? '. Help is on the way' : ''}` : 'Help is on the way';
+  }
   const kinds = $derived(KINDS.map(([k, label]) => ({ k, label, n: game.vehicles.filter((v) => v.kind === k).length })).filter((x) => x.n));
   const statuses = $derived(STATUS.map(([k, label, test]) => ({ k, label, test, n: game.vehicles.filter(test).length })).filter((x) => x.n || ui.fleetStatus === x.k));
   const placeOf = (v) => cityById[v.city ?? v.trip?.to]?.name ?? '';
@@ -54,6 +62,15 @@
   <div><small>Profit</small><b class:loss={total.earned < total.fuel}>{money(total.earned - total.fuel)}</b></div>
   <div><small>Per hour</small><b class:loss={total.perHour < 0}>{money(total.perHour)}</b></div>
 </div>
+{#if broken.length}
+  <div class="idle broken">
+    <span class="grow"><b>{broken.length} broken down</b><small>Send a tow truck, police car, fire truck, tug or helper engine from a nearby town, or call the roadside service.</small></span>
+    <div class="idle-btns">
+      <button class="btn small" onclick={() => (ui.fleetStatus = 'broken')}>Show</button>
+      <button class="btn primary small" onclick={() => broken.forEach((v) => sendHelp(v))}>Send help to all</button>
+    </div>
+  </div>
+{/if}
 {#if idle.length}
   <div class="idle">
     <span class="grow"><b>{idle.length} parked with nothing to do</b><small>Quick send loads each one with the best paying jobs it can deliver and sets off.</small></span>
@@ -70,7 +87,7 @@
 </div>
 <div class="chips">
   {#if kinds.length > 1}{#each kinds as x}<button class:on={ui.fleetKind === x.k} onclick={() => (ui.fleetKind = ui.fleetKind === x.k ? null : x.k)}>{x.label} <em>{x.n}</em></button>{/each}<span class="sep"></span>{/if}
-  {#each statuses as x}<button class:on={ui.fleetStatus === x.k} class:hot={x.k === 'idle' || x.k === 'service'} onclick={() => (ui.fleetStatus = ui.fleetStatus === x.k ? null : x.k)}>{x.label} <em>{x.n}</em></button>{/each}
+  {#each statuses as x}<button class:on={ui.fleetStatus === x.k} class:hot={x.k === 'idle' || x.k === 'service' || x.k === 'broken'} onclick={() => (ui.fleetStatus = ui.fleetStatus === x.k ? null : x.k)}>{x.label} <em>{x.n}</em></button>{/each}
 </div>
 {#if !shown.length}<p class="muted">No vehicles match. <button class="link" onclick={clear}>Show all</button></p>{/if}
 {#each shown as v (v.id)}
@@ -81,7 +98,7 @@
     <button class="row vrow card-head" onclick={() => (ui.focusVehicle = open ? null : v.id)}>
       <span class="pv"><Sprite kind={v.kind} model={v.model} cars={consistOf(v)} scale={3} paint={paintOf(v)} /></span>
       <span class="grow">
-        <b>{v.name}{#if isIdle(v)}<span class="tag mini idle-tag">Idle</span>{/if}{#if v.loop}<span class="tag hub mini">Repeating</span>{/if}{#if f.perHour != null}<span class="tag mini" class:loss={f.perHour < 0}>{money(f.perHour)}/h</span>{/if}{#if wr >= 0.3}<span class="tag mini loss">Needs service</span>{/if}</b>
+        <b>{v.name}{#if v.broken}<span class="tag mini loss-tag">Broken down</span>{/if}{#if isIdle(v)}<span class="tag mini idle-tag">Idle</span>{/if}{#if v.loop}<span class="tag hub mini">Repeating</span>{/if}{#if f.perHour != null}<span class="tag mini" class:loss={f.perHour < 0}>{money(f.perHour)}/h</span>{/if}{#if wr >= 0.3}<span class="tag mini loss">Needs service</span>{/if}</b>
         <small>{v.trip ? `To ${cityById[v.trip.to].name}, ${etaText(v)} left${v.next?.length ? `, then ${v.next.length} more stop${v.next.length > 1 ? 's' : ''}` : ''}` : where(v)}</small>
         <LoadBadges {v} />
       </span>
@@ -170,6 +187,17 @@
           <p class="muted small">Holds {JOB_TYPES.filter((t) => cap[t]).map((t) => `${cap[t]} ${t === 'pax' ? 'seats' : t}`).join(', ')}. Want more? Bigger planes are in the Shop.</p>
         {/if}
 
+        {#if v.broken}
+          <div class="row breakdown">
+            <span class="grow"><b>Broken down</b><small>{helpText(v)}.</small></span>
+          </div>
+          {#if !v.broken.fixAt}
+            <div class="actions">
+              {#if Object.keys(stillNeeded(v)).length}<button class="btn primary" onclick={() => sendHelp(v)}>Send help</button>{/if}
+              <button class="btn" disabled={game.coins < calloutCost(v)} onclick={() => callRoadside(v)}>Roadside service ${fmt(calloutCost(v))}</button>
+            </div>
+          {/if}
+        {/if}
         {#if paintFor(v.kind, v.model)}
           <label class="row paint">
             <input type="checkbox" checked={!v.factoryPaint} onchange={(e) => (v.factoryPaint = !e.currentTarget.checked)} />
@@ -208,6 +236,10 @@
   .idle small { display: block; color: var(--ink-soft); font-size: 12px; }
   .idle-btns { display: flex; gap: 6px; }
   .idle-tag { background: var(--accent-soft); color: var(--ink); }
+  .loss-tag { background: color-mix(in srgb, #c0392b 15%, transparent); color: #c0392b; }
+  .idle.broken { background: color-mix(in srgb, #c0392b 12%, var(--panel-2)); }
+  .breakdown { margin: 8px 0; border-color: #c0392b; }
+  .breakdown small { display: block; }
   .find { display: flex; gap: 6px; align-items: center; margin-bottom: 6px; }
   .find input { flex: 1; min-width: 0; padding: 8px 12px; font: inherit; font-size: 14px; border: 1px solid var(--line); border-radius: 999px; background: var(--panel-2); color: var(--ink); }
   .chips { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 10px; }

@@ -268,6 +268,14 @@
     }
     const marker = (x, y) => { b.fillStyle = '#ffd23f'; b.beginPath(); b.moveTo(x - 3, y - 4); b.lineTo(x + 3, y - 4); b.lineTo(x, y); b.fill(); };
     const marked = (v) => ui.follow === v.id || ui.track === v.id;
+    // a blinking warning sign over a vehicle that's broken down
+    const hazard = (x, y, now) => {
+      if (Math.floor(now / 450) % 2 && !reduced) return;
+      x = Math.round(x); y = Math.round(y);
+      b.fillStyle = '#1d2433'; b.beginPath(); b.moveTo(x, y - 7); b.lineTo(x + 5, y + 1); b.lineTo(x - 5, y + 1); b.fill();
+      b.fillStyle = '#f2c14e'; b.beginPath(); b.moveTo(x, y - 5.5); b.lineTo(x + 3.6, y); b.lineTo(x - 3.6, y); b.fill();
+      b.fillStyle = '#1d2433'; b.fillRect(x - 0.5, y - 4, 1, 2); b.fillRect(x - 0.5, y - 1, 1, 0.8);
+    };
     let hits = []; // where moving vehicles were drawn this frame, for tapping them
     const ripples = []; // rings spreading out from taps, in sub pixels
 
@@ -487,7 +495,8 @@
         if (dk) lights.push(() => consistLights(v, placed));
         convoy(v, t, d, units, now, later);
         if (e) hits.push({ id: v.id, x: e.p.x * R, y: e.p.y * R });
-        if (e && marked(v)) marker(e.p.x * R, e.p.y * R - 6);
+        if (e && v.broken) { hazard(e.p.x * R, e.p.y * R - 6, now); later?.(() => lamp([e.p.x * R, e.p.y * R - 8], '255,190,60', 0.8)); }
+        if (e && marked(v)) marker(e.p.x * R, e.p.y * R - (v.broken ? 14 : 6));
       }
 
       // boats on the move
@@ -513,7 +522,8 @@
           if (last) lamp(onArt(last.p.x * R, last.p.y * R, last.p.ang, -artSize('barge', last.model).w / 2, 0), '255,255,235', 0.8);
         });
         hits.push({ id: v.id, x, y });
-        if (marked(v)) marker(x, y - 10);
+        if (v.broken) { hazard(x, y - 9, now); later?.(() => lamp([x, y - 11], '255,190,60', 0.8)); }
+        if (marked(v)) marker(x, y - (v.broken ? 17 : 10));
       }
 
       // planes on the move

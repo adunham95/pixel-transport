@@ -67,7 +67,10 @@ export const CONTINENTS = [
   },
 ];
 
-// id, name, x, y, continent index (-1 for a lone island), r = station, a = airport, p = sea port
+// id, name, x, y, continent index (-1 for a lone island), r = station, a = airport, p = sea port,
+// and an optional job mix: how much more (or less) often than usual the town turns up each job
+// type, as multipliers on its weight (pax, cargo, fuel, bulk, mail, wide, secure), plus celeb
+// for celebrities. A town still only turns up the types it can (fuel needs a station or port).
 const RAW = [
   // Westmark
   ["frost", "Frostholm", 124, 40, 0, "rap"],
@@ -77,9 +80,9 @@ const RAW = [
   ["mill", "Millbrook", 154, 184, 0, "rp"],
   ["cedar", "Cedar Falls", 124, 214, 0, "r"],
   ["mid", "Midland", 142, 262, 0, "ra"],
-  ["copper", "Copperton", 94, 286, 0, "r"],
+  ["copper", "Copperton", 94, 286, 0, "r", { bulk: 3 }],
   ["red", "Redrock", 130, 310, 0, "r"],
-  ["sun", "Sunhaven", 160, 340, 0, "rap"],
+  ["sun", "Sunhaven", 160, 340, 0, "rap", { pax: 1.5, celeb: 4, fuel: 0.5 }],
   ["dusty", "Dusty Gulch", 106, 352, 0, "r"],
   ["palm", "Palmetto", 136, 382, 0, "r"],
   ["south", "Southport", 106, 412, 0, "ra"],
@@ -119,7 +122,7 @@ const RAW = [
   ["hollowell", "Hollowell", 418, 472, 2, "rap"],
   // Sunreach
   ["mirage", "Mirage", 664, 484, 3, "r"],
-  ["dunmore", "Dunmore", 706, 496, 3, "rap"],
+  ["dunmore", "Dunmore", 706, 496, 3, "rap", { fuel: 4, pax: 0.5 }],
   ["saltflat", "Saltflat", 760, 502, 3, "r"],
   ["ochresprings", "Ochre Springs", 814, 502, 3, "r"],
   ["cactusflats", "Cactus Flats", 568, 508, 3, "rap"],
@@ -127,7 +130,7 @@ const RAW = [
   ["amberwells", "Amber Wells", 670, 526, 3, "r"],
   ["sandhollow", "Sandhollow", 760, 544, 3, "ra"],
   ["sirocco", "Sirocco", 610, 556, 3, "r"],
-  ["goldmesa", "Goldmesa", 862, 556, 3, "r"],
+  ["goldmesa", "Goldmesa", 862, 556, 3, "r", { secure: 3 }],
   ["drycreek", "Dry Creek", 820, 562, 3, "rap"],
   ["sunspire", "Sunspire", 664, 568, 3, "r"],
   ["camelback", "Camelback", 706, 568, 3, "ra"],
@@ -180,7 +183,7 @@ const ANCHORAGES = [
   ["westdeep", "Western Deep", 40, 300],
 ];
 export const CITIES = [
-  ...RAW.map(([id, name, x, y, cont, s]) => ({
+  ...RAW.map(([id, name, x, y, cont, s, mix = {}]) => ({
     id,
     name,
     x,
@@ -192,8 +195,22 @@ export const CITIES = [
     island: cont < 0,
     // every mainland town is on the road network
     road: cont >= 0,
+    mix,
   })),
-  ...ANCHORAGES.map(([id, name, x, y]) => ({ id, name, x, y, cont: -1, rail: false, air: false, port: false, island: false, road: false, anchor: true })),
+  ...ANCHORAGES.map(([id, name, x, y]) => ({
+    id,
+    name,
+    x,
+    y,
+    cont: -1,
+    rail: false,
+    air: false,
+    port: false,
+    island: false,
+    road: false,
+    anchor: true,
+    mix: {},
+  })),
 ];
 
 // rails join neighbors on the same continent: a pair is linked unless some third
@@ -233,7 +250,15 @@ export const ROADS = [];
         b = st[j];
       if (a.cont !== b.cont) continue;
       const ab = d(a, b);
-      if (!st.some((c) => c !== a && c !== b && c.cont === a.cont && Math.max(d(a, c), d(b, c)) < ab * 0.8))
+      if (
+        !st.some(
+          (c) =>
+            c !== a &&
+            c !== b &&
+            c.cont === a.cont &&
+            Math.max(d(a, c), d(b, c)) < ab * 0.8,
+        )
+      )
         ROADS.push([a.id, b.id]);
     }
 }
@@ -248,16 +273,64 @@ export function roadSide(ax, ay, bx, by) {
   return [(-(by - ay) / L) * k, ((bx - ax) / L) * k];
 }
 
-export { ENGINES, CARS, PLANES, BOATS, BARGES, TRUCKS, TRAILERS, SUPERLOAD_TRAILERS } from "./vehicles.js";
+export {
+  ENGINES,
+  CARS,
+  PLANES,
+  BOATS,
+  BARGES,
+  TRUCKS,
+  TRAILERS,
+  SUPERLOAD_TRAILERS,
+} from "./vehicles.js";
 
 // your headquarters, built once in any town from this level on. It unlocks repeating routes for the
 // whole fleet and company colors, and sells perks, each tier bought in order: a `contracts` tier lets
 // you work on one more contract at a time and puts one more offer on the board; a `superloads` tier
 // lets you run one more superload at a time of each kind (road, rail and sea).
 export const HQ = {
-  level: 3, price: 4000,
-  contracts: [{ level: 6, price: 15000 }, { level: 10, price: 60000 }],
-  superloads: [{ level: 10, price: 50000 }, { level: 12, price: 150000 }],
+  level: 3,
+  price: 4000,
+  contracts: [
+    { level: 6, price: 15000 },
+    { level: 10, price: 60000 },
+  ],
+  superloads: [
+    { level: 10, price: 50000 },
+    { level: 12, price: 150000 },
+  ],
+  // auto dispatch: self-driving vehicles (TRUCKS with auto: true) can be bought, and find and carry
+  // their own passengers; and rescuers set off for breakdowns on their own
+  auto: { level: 8, price: 30000 },
+};
+// trucks, trains and boats break down now and then as they age: each leg has a chance of their wear
+// (0 to WEAR.max) times `chance` of stopping partway along until help arrives. What helps is an
+// escort kind (see TRUCKS): a tow truck for a truck, plus a fire truck if it's carrying fuel, and
+// sometimes a police car for a crash; a tug for a boat, plus a fireboat for fuel; a helper engine
+// for a train. Each only once it's in the shop. Or a roadside service fixes it after calloutTime
+// (game time), for calloutBase plus `callout` of the vehicle's price.
+export const BREAKDOWN = {
+  chance: 0.25,
+  crash: 0.25,
+  calloutBase: 150,
+  callout: 0.1,
+  calloutTime: 90 * 1000,
+};
+// now and then from this level a celebrity turns up wanting a ride: a passenger job that only goes
+// in style (models with celebrity: true), paying mult times as much and leaving after ttl (game time)
+export const CELEB = {
+  level: 12,
+  chance: 0.04,
+  mult: 8,
+  ttl: 5 * 60 * 1000,
+  who: [
+    "A film star",
+    "A pop star",
+    "A royal",
+    "A tech billionaire",
+    "A sports legend",
+    "A famous chef",
+  ],
 };
 // vehicles age as they travel: fuel costs step more for every `per` world units, up to max.
 // A service resets it, costing the vehicle's price times its wear times `service`.
@@ -296,40 +369,203 @@ export const DEPOT = { level: 3, price: 3000, service: 0.5, repair: 150 };
 // from the loads open at your level; the bonus is (base + perUnit * distance) * mult.
 // Each load's level must be at least its carrier's and every escort's it needs.
 export const SUPERLOAD = {
-  level: 9, chance: 0.3, minDist: 60, base: 1000, perUnit: 12,
+  level: 9,
+  chance: 0.3,
+  minDist: 60,
+  base: 1000,
+  perUnit: 12,
   loads: [
-    { name: "Yacht hull", trailer: "yacht", level: 9, needs: { pilot: 1 }, mult: 1 },
-    { name: "Bridge beam", trailer: "beam", level: 9, needs: { pilot: 2 }, mult: 1.5 },
-    { name: "Wind turbine blade", trailer: "blade", level: 9, needs: { pilot: 2 }, mult: 1.5 },
-    { name: "Rocket stage", trailer: "rocket", level: 10, needs: { pilot: 1, police: 1 }, mult: 2 },
-    { name: "Transformer", trailer: "transformer", level: 10, needs: { pilot: 1, pusher: 1 }, mult: 2 },
-    { name: "Distillation tower", trailer: "tower", level: 11, needs: { pilot: 1, police: 1, bucket: 1 }, mult: 2.6 },
-    { name: "LNG tank", trailer: "lng", level: 11, needs: { pilot: 1, police: 1, fire: 1 }, mult: 2.8 },
-    { name: "Mining dump truck", trailer: "dumptruck", level: 12, needs: { pilot: 2, police: 1, pusher: 1 }, mult: 3.2 },
-    { name: "Space shuttle", trailer: "shuttle", level: 12, needs: { pilot: 2, police: 2, pusher: 1, bucket: 1, fire: 1 }, mult: 5 },
-    { name: "Locomotive", trailer: "loco", by: "rail", level: 10, needs: { inspect: 1 }, mult: 1.5 },
-    { name: "Generator stator", trailer: "stator", by: "rail", level: 10, needs: { helper: 1 }, mult: 1.8 },
-    { name: "Reactor vessel", trailer: "reactor", by: "rail", level: 11, needs: { helper: 1, inspect: 1 }, mult: 2.6 },
-    { name: "Oil rig jacket", trailer: "jacket", by: "sea", level: 10, needs: { tug: 2 }, mult: 1.8 },
-    { name: "Wind turbine towers", trailer: "towers", by: "sea", level: 10, needs: { tug: 1, pilotboat: 1 }, mult: 1.6 },
-    { name: "Container crane", trailer: "crane", by: "sea", level: 11, needs: { tug: 2, pilotboat: 1 }, mult: 2.6 },
-    { name: "Submarine", trailer: "sub", by: "sea", level: 12, needs: { tug: 2, pilotboat: 1, fireboat: 1 }, mult: 3.6 },
+    {
+      name: "Yacht hull",
+      trailer: "yacht",
+      level: 9,
+      needs: { pilot: 1 },
+      mult: 1,
+    },
+    {
+      name: "Bridge beam",
+      trailer: "beam",
+      level: 9,
+      needs: { pilot: 2 },
+      mult: 1.5,
+    },
+    {
+      name: "Wind turbine blade",
+      trailer: "blade",
+      level: 9,
+      needs: { pilot: 2 },
+      mult: 1.5,
+    },
+    {
+      name: "Rocket stage",
+      trailer: "rocket",
+      level: 10,
+      needs: { pilot: 1, police: 1 },
+      mult: 2,
+    },
+    {
+      name: "Transformer",
+      trailer: "transformer",
+      level: 10,
+      needs: { pilot: 1, pusher: 1 },
+      mult: 2,
+    },
+    {
+      name: "Distillation tower",
+      trailer: "tower",
+      level: 11,
+      needs: { pilot: 1, police: 1, bucket: 1 },
+      mult: 2.6,
+    },
+    {
+      name: "LNG tank",
+      trailer: "lng",
+      level: 11,
+      needs: { pilot: 1, police: 1, fire: 1 },
+      mult: 2.8,
+    },
+    {
+      name: "Mining dump truck",
+      trailer: "dumptruck",
+      level: 12,
+      needs: { pilot: 2, police: 1, pusher: 1 },
+      mult: 3.2,
+    },
+    {
+      name: "Space shuttle",
+      trailer: "shuttle",
+      level: 12,
+      needs: { pilot: 2, police: 2, pusher: 1, bucket: 1, fire: 1 },
+      mult: 5,
+    },
+    {
+      name: "Locomotive",
+      trailer: "loco",
+      by: "rail",
+      level: 10,
+      needs: { inspect: 1 },
+      mult: 1.5,
+    },
+    {
+      name: "Generator stator",
+      trailer: "stator",
+      by: "rail",
+      level: 10,
+      needs: { helper: 1 },
+      mult: 1.8,
+    },
+    {
+      name: "Reactor vessel",
+      trailer: "reactor",
+      by: "rail",
+      level: 11,
+      needs: { helper: 1, inspect: 1 },
+      mult: 2.6,
+    },
+    {
+      name: "Oil rig jacket",
+      trailer: "jacket",
+      by: "sea",
+      level: 10,
+      needs: { tug: 2 },
+      mult: 1.8,
+    },
+    {
+      name: "Wind turbine towers",
+      trailer: "towers",
+      by: "sea",
+      level: 10,
+      needs: { tug: 1, pilotboat: 1 },
+      mult: 1.6,
+    },
+    {
+      name: "Container crane",
+      trailer: "crane",
+      by: "sea",
+      level: 11,
+      needs: { tug: 2, pilotboat: 1 },
+      mult: 2.6,
+    },
+    {
+      name: "Submarine",
+      trailer: "sub",
+      by: "sea",
+      level: 12,
+      needs: { tug: 2, pilotboat: 1, fireboat: 1 },
+      mult: 3.6,
+    },
   ],
 };
 // what each kind of escort is called, one and many
-export const ESCORT_LABEL = { pilot: "pilot car", police: "police car", pusher: "push truck", bucket: "bucket truck", fire: "fire truck", helper: "helper engine", inspect: "track inspection car", tug: "tugboat", pilotboat: "pilot boat", fireboat: "fireboat" };
+export const ESCORT_LABEL = {
+  pilot: "pilot car",
+  police: "police car",
+  pusher: "push truck",
+  bucket: "bucket truck",
+  fire: "fire truck",
+  helper: "helper engine",
+  inspect: "track inspection car",
+  tug: "tugboat",
+  pilotboat: "pilot boat",
+  fireboat: "fireboat",
+  tow: "tow truck",
+};
 export const CONTRACTS = {
-  level: 3, offers: 3, active: 2, every: 45 * 1000, offerTtl: 10 * 60 * 1000,
-  size: { pax: [5, 9], cargo: [4, 8], mail: [4, 7], fuel: [3, 6], bulk: [6, 12], wide: [2, 3], secure: [2, 4] },
-  waitSlack: 2, trips: 2, speed: 5, speedUp: 0.6, extra: 2 * 60 * 1000, perMin: 30, payUp: 0.1,
+  level: 3,
+  offers: 3,
+  active: 2,
+  every: 45 * 1000,
+  offerTtl: 10 * 60 * 1000,
+  size: {
+    pax: [5, 9],
+    cargo: [4, 8],
+    mail: [4, 7],
+    fuel: [3, 6],
+    bulk: [6, 12],
+    wide: [2, 3],
+    secure: [2, 4],
+  },
+  waitSlack: 2,
+  trips: 2,
+  speed: 5,
+  speedUp: 0.6,
+  extra: 2 * 60 * 1000,
+  perMin: 30,
+  payUp: 0.1,
 };
 
 // xp needed to reach level i+1
-export const LEVELS = [0, 850, 2500, 4400, 6350, 8400, 10850, 13800, 17250, 21350, 26350, 31950];
+export const LEVELS = [
+  0, 850, 2500, 4400, 6350, 8400, 10850, 13800, 17250, 21350, 26350, 31950,
+];
 // job types; bulk (coal, grain, ore) turns up in batches and pays less per load
-export const JOB_TYPES = ["pax", "cargo", "fuel", "bulk", "mail", "wide", "secure"];
-export const RATES = { pax: 0.9, cargo: 0.8, fuel: 1.3, bulk: 0.45, mail: 1.6, wide: 2.6, secure: 3 };
-export const TYPE_LABEL = { pax: "Passengers", cargo: "Cargo", fuel: "Fuel", bulk: "Bulk", mail: "Mail", wide: "Wide load", secure: "Valuables" };
+export const JOB_TYPES = [
+  "pax",
+  "cargo",
+  "fuel",
+  "bulk",
+  "mail",
+  "wide",
+  "secure",
+];
+export const RATES = {
+  pax: 0.9,
+  cargo: 0.8,
+  fuel: 1.3,
+  bulk: 0.45,
+  mail: 1.6,
+  wide: 2.6,
+  secure: 3,
+};
+export const TYPE_LABEL = {
+  pax: "Passengers",
+  cargo: "Cargo",
+  fuel: "Fuel",
+  bulk: "Bulk",
+  mail: "Mail",
+  wide: "Wide load",
+  secure: "Valuables",
+};
 // maglev express lines: each is a list of towns, joined in order by an elevated guideway.
 // Maglev trains only run on these and only stop at their towns.
 export const MAGLEV_LINES = [

@@ -1,4 +1,4 @@
-import { CITIES, RAILS, ROADS, ROAD_OFF, LANE, roadSide, ENGINES, CARS, PLANES, BOATS, BARGES, TRUCKS, TRAILERS, LEVELS, RATES, SPEED, CITY_PRICE, START_CITIES, JOB_TYPES, MAGLEV_LINES, HQ, WEAR, MAIL, WIDE, SECURE, GROWTH, SIZE_NAME, DEPOT, TYPE_LABEL, CONTRACTS, SUPERLOAD, ESCORT_LABEL } from './data.js';
+import { CITIES, RAILS, ROADS, ROAD_OFF, LANE, roadSide, ENGINES, CARS, PLANES, BOATS, BARGES, TRUCKS, TRAILERS, LEVELS, RATES, SPEED, CITY_PRICE, START_CITIES, JOB_TYPES, MAGLEV_LINES, HQ, WEAR, MAIL, WIDE, SECURE, GROWTH, SIZE_NAME, DEPOT, TYPE_LABEL, CONTRACTS, SUPERLOAD, ESCORT_LABEL, BREAKDOWN, CELEB } from './data.js';
 import { seaLane } from './sea.js';
 
 const KEY = 'pixel-transport-save-v1';
@@ -7,7 +7,7 @@ const LOOP_WAIT = 30 * 1000;
 const JOB_CAP = 6;
 // a job left waiting at its town this long (game time) goes elsewhere, so towns can't clog up
 export const JOB_TTL = 15 * 60 * 1000;
-export const jobTtl = (j) => (j.type === 'mail' ? MAIL.ttl : j.type === 'secure' ? SECURE.ttl : JOB_TTL);
+export const jobTtl = (j) => (j.celeb ? CELEB.ttl : j.type === 'mail' ? MAIL.ttl : j.type === 'secure' ? SECURE.ttl : JOB_TTL);
 
 export const cityById = Object.fromEntries(CITIES.map((c) => [c.id, c]));
 
@@ -134,6 +134,8 @@ export function used(v) {
 export function canLoad(v, job) {
   // a superload carrier carries one superload of its own kind (road, rail or sea) and nothing else
   if (job.escort) return v.kind === SUPER_KIND[job.by ?? 'road'] && !!spec(v).superload && !v.cargo.some((j) => j.escort);
+  // celebrities only ride in style
+  if (job.celeb && !spec(v).celebrity) return false;
   return used(v)[job.type] < capacity(v)[job.type];
 }
 
@@ -251,16 +253,16 @@ function pickWeighted(items) {
 const TYPE_LEVEL = { pax: 1, cargo: 1, bulk: 4, fuel: 6, mail: MAIL.level, wide: WIDE.level, secure: SECURE.level };
 const TYPE_WEIGHT = { pax: 5, cargo: 4, fuel: 2, bulk: 2, mail: 3, wide: 1, secure: 2 };
 
-// the job types town A turns up, as [type, weight] pairs
+// the job types town A turns up, as [type, weight] pairs, leaning the way the town's mix does
 function jobTypes(g, A) {
-  const types = [['pax', TYPE_WEIGHT.pax], ['cargo', TYPE_WEIGHT.cargo]];
+  const types = ['pax', 'cargo'];
   // fuel and bulk only move by rail car or ship, so they start and end at stations and ports
-  if ((A.rail || A.port) && g.level >= TYPE_LEVEL.fuel) types.push(['fuel', TYPE_WEIGHT.fuel]);
-  if ((A.rail || A.port) && g.level >= TYPE_LEVEL.bulk) types.push(['bulk', TYPE_WEIGHT.bulk]);
-  if (g.level >= MAIL.level) types.push(['mail', TYPE_WEIGHT.mail]);
-  if (g.level >= SECURE.level) types.push(['secure', TYPE_WEIGHT.secure]);
-  if (A.road && g.level >= WIDE.level && jobDests(g, A, 'wide').length) types.push(['wide', TYPE_WEIGHT.wide]);
-  return types;
+  if ((A.rail || A.port) && g.level >= TYPE_LEVEL.fuel) types.push('fuel');
+  if ((A.rail || A.port) && g.level >= TYPE_LEVEL.bulk) types.push('bulk');
+  if (g.level >= MAIL.level) types.push('mail');
+  if (g.level >= SECURE.level) types.push('secure');
+  if (A.road && g.level >= WIDE.level && jobDests(g, A, 'wide').length) types.push('wide');
+  return types.map((t) => [t, TYPE_WEIGHT[t] * (A.mix[t] ?? 1)]).filter(([, w]) => w > 0);
 }
 
 // where a job of this type leaving town A could be headed, as [id, weight] pairs. lean is a
@@ -279,7 +281,9 @@ function jobDests(g, A, type, lean = null) {
 // a new job at an unlocked town, headed to another unlocked town (null if there's nowhere to go)
 function makeJob(g, from, forceTo, forceType) {
   const A = cityById[from];
-  const type = forceType ?? pickWeighted(jobTypes(g, A));
+  const types = forceType ? null : jobTypes(g, A);
+  if (types && !types.length) return null;
+  const type = forceType ?? pickWeighted(types);
   const dests = jobDests(g, A, type);
   if (!forceTo && !dests.length) return null;
   const to = forceTo ?? pickWeighted(dests);
@@ -304,6 +308,7 @@ function fresh() {
   g.vehicles.push(newVehicle(g, 'plane', 'sparrow', 'frost'));
   g.vehicles.push(newVehicle(g, 'boat', 'coaster', 'frost'));
   g.vehicles.push(newVehicle(g, 'truck', 'pickup', 'frost'));
+  g.vehicles.push(newVehicle(g, 'truck', 'tow', 'frost'));
   for (const c of CITIES) {
     g.jobs[c.id] = [];
     g.spawnAt[c.id] = now + 4000 + Math.random() * 8000;
@@ -467,6 +472,7 @@ function arrive(v, at) {
   if (next) {
     if (v.loop) pickUp(v, to);
     v.trip = { ...next, startAt: at };
+    rollBreakdown(v);
     if (n) toast(`${v.name} dropped off ${n} at ${name}. +$${fmt(total)}`, 'good');
     return;
   }
@@ -484,6 +490,156 @@ function arrive(v, at) {
   if (ui.track === v.id) ui.track = null;
   if (n) toast(`${v.name} delivered ${n} at ${name}. +$${fmt(total)}`, 'good');
   else toast(`${v.name} arrived at ${name}`);
+}
+
+// ---------- breakdowns and rescues ----------
+
+// what a vehicle needs sent out if it breaks down, by escort kind, or null if it can't break down:
+// planes, escorts, superload convoys, and anything whose rescuers aren't in the shop yet
+function rescueNeeds(v) {
+  const s = spec(v), open = (kind, specs) => Object.values(specs).some((x) => (x.escort ?? x.helps) === kind && game.level >= x.level);
+  if (v.kind === 'plane' || s.escort || s.superload || v.escorting != null || escortsOf(v).length) return null;
+  const fuel = v.cargo.some((j) => j.type === 'fuel');
+  if (v.kind === 'truck') {
+    const need = { tow: 1 };
+    if (fuel && open('fire', TRUCKS)) need.fire = 1;
+    else if (open('police', TRUCKS) && Math.random() < BREAKDOWN.crash) need.police = 1;
+    return need;
+  }
+  if (v.kind === 'boat') return open('tug', BOATS) ? { tug: 1, ...(fuel && open('fireboat', BOATS) ? { fireboat: 1 } : {}) } : null;
+  return open('helper', ENGINES) ? { helper: 1 } : null;
+}
+
+// as a leg starts, decide whether it breaks down on the way, and how far along
+function rollBreakdown(v) {
+  if (v.trip.rescue != null || Math.random() >= wear(v) * BREAKDOWN.chance) return;
+  const need = rescueNeeds(v);
+  if (need) v.trip.breakAt = { at: 0.25 + Math.random() * 0.5, need };
+}
+
+// a broken down vehicle stays put: its trip is held at the point it stopped
+function tickBreakdowns(now) {
+  for (const v of game.vehicles) {
+    const t = v.trip;
+    if (!t || t.rescue != null) continue;
+    if (!v.broken && t.breakAt && now >= t.startAt + t.breakAt.at * t.dur) {
+      v.broken = { at: t.breakAt.at, need: { ...t.breakAt.need }, since: now };
+      delete t.breakAt;
+      toast(`${v.name} broke down on the way to ${cityById[t.to].name}. It needs ${escortText(v.broken.need)}.`, 'bad');
+    }
+    if (!v.broken) continue;
+    t.startAt = now - v.broken.at * t.dur;
+    if (v.broken.fixAt && now >= v.broken.fixAt) fixed(v, 'The roadside service');
+    else if (game.hqAuto && !v.broken.fixAt && now >= (v.broken.autoAt ?? 0)) { v.broken.autoAt = now + 5000; sendHelp(v, true); }
+  }
+}
+
+// where a broken down vehicle is, as a point on the map
+export function breakdownAt(v) {
+  const t = v.trip;
+  return posAt(t.pts, v.broken.at * t.len);
+}
+// the points of a route from the start of these points to d along them
+function ptsTo(pts, d) {
+  const out = [pts[0]];
+  for (let i = 1; i < pts.length; i++) {
+    const L = Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]);
+    if (d <= L) { const f = L ? d / L : 0; out.push([pts[i - 1][0] + (pts[i][0] - pts[i - 1][0]) * f, pts[i - 1][1] + (pts[i][1] - pts[i - 1][1]) * f]); return out; }
+    out.push(pts[i]);
+    d -= L;
+  }
+  return out;
+}
+// how a parked rescuer would get to a breakdown: to the town the broken vehicle set off from, then
+// along its route to where it stopped. Null if it can't.
+function rescueRoute(x, v) {
+  const t = v.trip, part = ptsTo(t.pts, v.broken.at * t.len), partLen = v.broken.at * t.len;
+  if (x.kind !== v.kind) return null;
+  const l = x.city === t.from ? { pts: [], len: 0, cost: 0, time: 0 } : leg(x, x.city, t.from);
+  if (!l) return null;
+  const rate = l.len ? l.cost / l.len : spec(x).run ?? 0.05, speed = l.len ? l.len / l.time : spec(x).speed * SPEED;
+  return { pts: [...l.pts, ...part], len: l.len + partLen, cost: Math.max(1, Math.round(l.cost + partLen * rate)), time: l.time + partLen / speed };
+}
+// the rescuers still needed, by kind, after counting the ones on their way and the ones already there
+export function stillNeeded(v) {
+  const need = { ...v.broken.need };
+  for (const x of game.vehicles) if (x.trip?.rescue === v.id || x.escorting === v.id) need[escortAs(x)]--;
+  return Object.fromEntries(Object.entries(need).filter(([, n]) => n > 0));
+}
+// send the nearest free rescuer of each kind still needed. Returns how many set off.
+export function sendHelp(v, auto = false) {
+  if (!v.broken || v.broken.fixAt) return 0;
+  const need = stillNeeded(v);
+  let sent = 0, missing = [];
+  for (const [kind, n] of Object.entries(need)) for (let i = 0; i < n; i++) {
+    const free = game.vehicles.filter((x) => x.city && !x.trip && !x.loop && escortAs(x) === kind).map((x) => ({ x, r: rescueRoute(x, v) })).filter((o) => o.r).sort((a, b) => a.r.len - b.r.len);
+    const o = free[0];
+    if (!o || game.coins < o.r.cost) { missing.push(kind); continue; }
+    const { x, r } = o;
+    game.coins -= r.cost;
+    books(x).fuel += r.cost;
+    x.miles = (x.miles ?? 0) + r.len;
+    x.trip = { from: x.city, to: v.trip.from, pts: r.pts, len: r.len, dur: Math.max(1000, r.time * 1000), cost: r.cost, startAt: gameNow(), rescue: v.id };
+    x.next = [];
+    x.city = null;
+    sent++;
+  }
+  if (!auto) toast(sent ? `Sent ${sent} to help ${v.name}${missing.length ? `. No free ${missing.map((k) => ESCORT_LABEL[k]).join(' or ')} can get there` : ''}` : `No free ${missing.map((k) => ESCORT_LABEL[k]).join(' or ')} can get to ${v.name}`, sent ? 'good' : 'bad');
+  else if (sent) toast(`Auto dispatch sent help to ${v.name}`);
+  return sent;
+}
+// a rescuer reaches the breakdown: it joins the broken vehicle and goes the rest of the way with it
+function reachBreakdown(x, at) {
+  const v = game.vehicles.find((y) => y.id === x.trip.rescue), town = x.trip.to;
+  x.trip = null;
+  delete x.next;
+  // fixed already (by the roadside service, say): it parks at the town it went out by
+  if (!v?.broken) { x.city = town; return; }
+  x.escorting = v.id;
+  // fixed once every rescuer it needs is there
+  if (Object.entries(v.broken.need).every(([k, n]) => escortsOf(v).filter((y) => escortAs(y) === k).length >= n)) fixed(v);
+}
+function fixed(v, who = null) {
+  delete v.broken;
+  v.miles = Math.max(0, (v.miles ?? 0) - WEAR.per);
+  toast(`${who ? `${who} fixed ${v.name}` : `Help reached ${v.name}`}. It’s on its way again.`, 'good');
+}
+// the roadside service: no rescuer needed, just money and a wait
+export const calloutCost = (v) => Math.round(BREAKDOWN.calloutBase + spec(v).price * BREAKDOWN.callout);
+export function callRoadside(v) {
+  if (!v.broken || v.broken.fixAt) return;
+  const cost = calloutCost(v);
+  if (game.coins < cost) { toast(`The roadside service costs $${fmt(cost)}`, 'bad'); return; }
+  game.coins -= cost;
+  books(v).fuel += cost;
+  v.broken.fixAt = gameNow() + BREAKDOWN.calloutTime;
+  toast(`The roadside service is on its way to ${v.name}`, 'good');
+}
+export const brokenVehicles = () => game.vehicles.filter((v) => v.broken);
+
+// ---------- self-driving vehicles ----------
+
+// with auto dispatch, a parked self-driving vehicle loads any passengers it can take here and sets
+// off; with none here, it drives empty to the nearest town with passengers waiting that no other
+// self-driving vehicle is already headed to. With nowhere to go it checks again in a while.
+function tickAuto(now) {
+  if (!game.hqAuto) return;
+  for (const v of game.vehicles) {
+    if (!spec(v).auto || !v.city || v.trip || v.loop || now < (v.autoWait ?? 0)) continue;
+    const was = quiet;
+    quiet = true;
+    try {
+      delete v.autoTo;
+      if (!v.cargo.length) autoLoad(v);
+      if (v.cargo.length) { const stops = autoPlan(v); if (stops.length && dispatch(v, stops)) continue; }
+      const headed = new Set(game.vehicles.filter((x) => x !== v && x.autoTo).map((x) => x.autoTo));
+      const taken = fetching();
+      const best = CITIES.filter((c) => c.id !== v.city && !headed.has(c.id) && isOpen(c.id) && game.jobs[c.id].some((j) => j.type === 'pax' && j.from === c.id && !taken.has(j.id) && !j.celeb && canReach(v, j.to)))
+        .map((c) => ({ c, l: leg(v, v.city, c.id) })).filter((o) => o.l).sort((a, b) => a.l.len - b.l.len)[0];
+      if (best && dispatch(v, [best.c.id])) v.autoTo = best.c.id;
+      else v.autoWait = now + 20000;
+    } finally { quiet = was; }
+  }
 }
 
 // ---------- town growth and depots ----------
@@ -542,6 +698,12 @@ export function buySuperloadsPerk() {
 }
 // how many superloads of each kind (road, rail, sea) can be under way at once
 export const superloadSlots = () => 1 + game.hqSuperloads;
+export function buyAutoPerk() {
+  if (!game.hq || game.hqAuto) return;
+  if (!spend(HQ.auto.price, HQ.auto.level, 'Auto dispatch')) return;
+  game.hqAuto = true;
+  toast('Auto dispatch is on. Self-driving vehicles are in the Shop, and rescuers now set off on their own.', 'good');
+}
 const contractOffers = () => CONTRACTS.offers + game.hqContracts;
 
 // company colors, { body, accent }, for a vehicle, or null for its factory paint. Only the lead
@@ -565,11 +727,21 @@ export function buyDepot(id) {
 
 function ownJobs(id) { return game.jobs[id].filter((j) => j.from === id).length; }
 function addJob(id) {
-  const j = makeJob(game, id);
+  const j = (game.level >= CELEB.level && Math.random() < CELEB.chance * (cityById[id].mix.celeb ?? 1) && makeCeleb(id)) || makeJob(game, id);
   if (!j) return;
   game.jobs[id].push(j);
   // bulk comes in batches of three loads headed the same way
   if (j.type === 'bulk') for (let i = 0; i < 2; i++) game.jobs[id].push({ ...j, id: game.nextId++ });
+}
+
+// a celebrity wanting a ride to a town a limo can drive to or a gold jet can fly to, or null
+function makeCeleb(id) {
+  const A = cityById[id];
+  const ok = (c) => (A.road && c.road && roadPath(A.id, c.id)) || (A.air && c.air);
+  const dests = jobDests(game, A, 'pax').filter(([to]) => ok(cityById[to]));
+  if (!dests.length) return null;
+  const j = makeJob(game, id, pickWeighted(dests), 'pax');
+  return { ...j, pay: j.pay * CELEB.mult, celeb: CELEB.who[Math.floor(Math.random() * CELEB.who.length)] };
 }
 
 // ---------- contracts ----------
@@ -858,10 +1030,13 @@ function step() {
   // earliest arrival first, again and again, since one arrival can start a leg that's also done
   for (;;) {
     let v = null;
-    for (const x of game.vehicles) if (x.trip && now >= tripEnd(x) && (!v || tripEnd(x) < tripEnd(v))) v = x;
+    for (const x of game.vehicles) if (x.trip && !x.broken && now >= tripEnd(x) && (!v || tripEnd(x) < tripEnd(v))) v = x;
     if (!v) break;
-    arrive(v, tripEnd(v));
+    if (v.trip.rescue != null) reachBreakdown(v, tripEnd(v));
+    else arrive(v, tripEnd(v));
   }
+  tickBreakdowns(now);
+  tickAuto(now);
   for (const v of game.vehicles) books(v);
   tickContracts(now);
   for (const v of game.vehicles) if (v.loop && v.city && !v.trip && now >= (v.loop.wait ?? 0)) runLoop(v, now);
@@ -920,14 +1095,15 @@ export function openLoad(v) {
 
 // ---------- idle vehicles ----------
 
-// parked in town with nothing to do: not repeating, and not an escort, which only moves with a convoy
-export const isIdle = (v) => !!v.city && !v.trip && !v.loop && !escortKind(v);
+// parked in town with nothing to do: not repeating, not an escort, which only moves with a convoy
+// or to a breakdown, and not self-driving with auto dispatch on, which finds its own work
+export const isIdle = (v) => !!v.city && !v.trip && !v.loop && !escortKind(v) && !(spec(v).auto && game.hqAuto);
 export const idleVehicles = () => game.vehicles.filter(isIdle);
 
 // load the best paying jobs it can deliver and set off on the nearest-first route, all in one go.
 // False if there was nothing to take, or it couldn't leave. Superload carriers wait for their convoy.
 export function quickSend(v) {
-  if (!isIdle(v) || spec(v).superload) return false;
+  if (!isIdle(v) || spec(v).superload || spec(v).auto) return false;
   const was = quiet;
   quiet = true;
   try {
@@ -1051,6 +1227,7 @@ export function dispatch(v, stops, { repeat = false, lap = null, escort = false 
   if (v.kind === 'boat' && isCarrier(v.model)) reachCache.clear();
   const [first, ...rest] = legs.map((l) => ({ from: l.from, to: l.to, pts: l.pts, len: l.len, dur: l.time * 1000, cost: l.cost, sea: l.sea }));
   v.trip = { ...first, startAt: lap ?? gameNow() };
+  rollBreakdown(v);
   v.next = rest;
   v.depart = { from: v.city, at: v.trip.startAt, len: legs.reduce((s, l) => s + l.len, 0) };
   if (repeat) v.loop = escort ? { stops, escort } : { stops };
@@ -1085,6 +1262,7 @@ export function fetchPlan(v, job, at) {
   if (v.loop) return { why: 'Running a repeating route' };
   const cap = capacity(v)[job.type];
   if (job.escort) return { why: 'Superloads need their escorts. Drive over with them and load it there.' };
+  if (job.celeb && !spec(v).celebrity) return { why: 'Only rides in a gold limo or gold jet' };
   if (!cap) return { why: `Can’t carry ${TYPE_LABEL[job.type].toLowerCase()}` };
   if (used(v)[job.type] >= cap) return { why: 'No room left on board' };
   const there = stopsTo(v, v.city, at);
@@ -1198,6 +1376,7 @@ export function buyTruck(model) {
   const c = cityById[game.selected], t = TRUCKS[model];
   if (!shopHere(c)) return;
   if (!canBase('truck', model, c)) { toast(`${c.name} has no roads. Pick a mainland town first.`, 'bad'); return; }
+  if (t.auto && !game.hqAuto) { toast(`A ${t.name} needs auto dispatch at your HQ`, 'bad'); return; }
   if (!spend(t.price, t.level, t.name)) return;
   const v = newVehicle(game, 'truck', model, c.id, []);
   game.vehicles.push(v);
@@ -1397,6 +1576,21 @@ export function devSuperload(load = null) {
   if (!o) { toast(`No two open towns that ${load ? `a ${load.name.toLowerCase()} can go` : 'a superload can go'} between. Unlock some first.`, 'bad'); return; }
   game.contracts.offers = [...game.contracts.offers.filter((x) => !x.super || byOf(x) !== o.by), o];
   toast(`Superload on offer: ${contractText(o)}`, 'good');
+}
+
+// break down a moving truck, train or boat right where it is: the one being followed, or any
+export function devBreakdown() {
+  const now = gameNow(), can = (v) => v.trip && !v.broken && v.trip.rescue == null && rescueNeeds(v);
+  const v = game.vehicles.find((x) => x.id === ui.track && can(x)) ?? game.vehicles.find(can);
+  if (!v) { toast('Nothing on the move that can break down. Send a truck, train or boat somewhere.', 'bad'); return; }
+  v.trip.breakAt = { at: Math.min(0.98, tripProgress(v.trip, now) + 0.001), need: rescueNeeds(v) };
+}
+// a celebrity waiting at the selected town
+export function devCeleb() {
+  const j = isOpen(game.selected) && makeCeleb(game.selected);
+  if (!j) { toast('No celebrity can go anywhere from here', 'bad'); return; }
+  game.jobs[game.selected].push(j);
+  toast(`${j.celeb} is waiting at ${cityById[game.selected].name}`, 'good');
 }
 
 export function devFillJobs() {

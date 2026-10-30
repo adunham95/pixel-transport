@@ -10,6 +10,8 @@
     <path d="M2.5 19.5 8 10l3.5 5 3-4.5 7 9z" /><path d="M8 10l1.5 3M14.5 10.5l1 2.5" />
   {:else if name === 'fuel'}
     <path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z" />
+  {:else if name === 'celeb'}
+    <path d="m12 3 2.7 5.6 6.1.8-4.5 4.2 1.1 6.1L12 16.8l-5.4 2.9 1.1-6.1-4.5-4.2 6.1-.8z" />
   {:else if name === 'mail'}
     <rect x="3" y="5.5" width="18" height="13" rx="2" /><path d="m3.5 7 8.5 6.5L20.5 7" />
   {:else if name === 'wide'}
