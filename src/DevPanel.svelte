@@ -1,8 +1,11 @@
 <script>
   import { game, dev, cityById, devCoins, devMaxLevel, devSpawn, devFinishLegs, devFillJobs, devUnlockAll, devSkipHalfDay, devSuperload, setDev, isOpen, canBase, fmt } from './game.svelte.js';
-  import { ENGINES, PLANES, BOATS, TRUCKS, LEVELS } from './data.js';
+  import { ENGINES, PLANES, BOATS, TRUCKS, LEVELS, SUPERLOAD } from './data.js';
   import Sprite from './Sprite.svelte';
   const c = $derived(cityById[game.selected]);
+  // which superload to put on the board: its index in SUPERLOAD.loads, or -1 for any
+  let pick = $state(-1);
+  const BY = [['road', 'By road'], ['rail', 'By rail'], ['sea', 'By sea']];
   const groups = $derived([
     { kind: 'train', title: 'Trains', specs: ENGINES },
     { kind: 'plane', title: 'Planes', specs: PLANES },
@@ -39,8 +42,16 @@
   <button class="btn small" onclick={devUnlockAll}>Unlock all towns</button>
   <button class="btn small" onclick={devSkipHalfDay}>Skip half a day</button>
 </div>
-<div class="grid3 two">
-  <button class="btn small" onclick={devSuperload}>Superload contract{c.road && isOpen(c.id) ? ` from ${c.name}` : ''}</button>
+<div class="superload">
+  <select bind:value={pick} aria-label="Superload">
+    <option value={-1}>Any superload</option>
+    {#each BY as [by, label]}
+      <optgroup {label}>
+        {#each SUPERLOAD.loads as l, i}{#if (l.by ?? 'road') === by}<option value={i}>{l.name} (Lv {l.level})</option>{/if}{/each}
+      </optgroup>
+    {/each}
+  </select>
+  <button class="btn small" onclick={() => devSuperload(SUPERLOAD.loads[pick] ?? null)}>Offer it{isOpen(c.id) ? ` from ${c.name}` : ''}</button>
 </div>
 
 {#if !isOpen(c.id)}<p class="muted small">{c.name} is locked, so nothing can be spawned there.</p>{/if}
@@ -59,3 +70,8 @@
 {/each}
 
 <button class="btn ghost reset" onclick={() => setDev(false)}>Turn off dev mode</button>
+
+<style>
+  .superload { display: flex; gap: 6px; margin-bottom: 8px; }
+  .superload select { flex: 1; min-width: 0; padding: 6px 8px; font: inherit; font-size: 13px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel-2); color: var(--ink); }
+</style>

@@ -1,5 +1,5 @@
 <script>
-  import { game, ui, cityById, capacity, used, loadJob, unloadJob, autoLoad, destinations, dispatch, route, canReach, planLegs, autoPlan, toggleStop, fmt, fmtTime, loopStops, aboard, canBoard, fitsAboard, deckFor, deckSize, deckUsed, deckRoom, driveOn, driveOff, wear, fetcher, convoyNeeds, pickEscorts, escortText, consistOf, optionalEscort, paintOf, spec, nextInQueue, queueLeft } from './game.svelte.js';
+  import { game, ui, cityById, capacity, used, loadJob, unloadJob, autoLoad, destinations, dispatch, route, canReach, planLegs, autoPlan, toggleStop, fmt, fmtTime, loopStops, aboard, canBoard, fitsAboard, deckFor, deckSize, deckUsed, deckRoom, driveOn, driveOff, wear, fetcher, convoyNeeds, pickEscorts, escortText, consistOf, optionalEscort, paintOf, spec, nextInQueue, queueLeft, escortAs, superloadCarrier, SUPER_KIND } from './game.svelte.js';
   import Icon from './Icon.svelte';
   import Sprite from './Sprite.svelte';
   import JobRow from './JobRow.svelte';
@@ -57,11 +57,11 @@
     const f = fetcher(j);
     if (f) return { block: true, text: `${f.name} is on its way for it` };
     if (j.escort) {
-      if (v.kind !== 'truck' || !TRUCKS[v.model].superload) return { block: true, text: 'Superloads need a superload tractor' };
+      if (v.kind !== SUPER_KIND[j.by ?? 'road'] || !spec(v).superload) return { block: true, text: `Goes by ${j.by ?? 'road'}, on a ${superloadCarrier(j.by)}` };
       if (v.cargo.some((x) => x.escort)) return { block: true, text: 'Already carrying a superload' };
       return { block: false, text: '' };
     }
-    if (v.kind === 'truck' && TRUCKS[v.model].superload) return { block: true, text: 'Superload tractors only carry superloads' };
+    if (spec(v).superload) return { block: true, text: `A ${spec(v).name} only carries superloads` };
     if (!cap[j.type]) {
       const what = TYPE_LABEL[j.type].toLowerCase();
       if (j.type === 'wide' && v.kind !== 'truck' && v.kind !== 'train') return { block: true, text: 'Wide loads only go overland, on a lowboy trailer or flatcar' };
@@ -117,10 +117,10 @@
 {#if Object.keys(needs).length}
   <div class="convoy" class:ready={!convoy.missing.length}>
     <b>Superload convoy</b>
-    <small>{convoy.missing.length ? `Needs ${escortText(Object.fromEntries(convoy.missing))} more parked at ${city.name} to set off.` : `Ready. ${escortText(needs)} will drive along${ui.plan.length ? `, $${fmt(escFuel)} of fuel` : ''}.`}</small>
+    <small>{convoy.missing.length ? `Needs ${escortText(Object.fromEntries(convoy.missing))} more parked at ${city.name} to set off.` : `Ready. ${escortText(needs)} will go along${ui.plan.length ? `, $${fmt(escFuel)} of fuel` : ''}.`}</small>
     <div class="chips">
       {#each Object.entries(needs) as [k, n]}
-        {@const got = convoy.picked.filter((x) => TRUCKS[x.model].escort === k).length}
+        {@const got = convoy.picked.filter((x) => escortAs(x) === k).length}
         <span class="chip" class:short={got < n}>{ESCORT_LABEL[k]} {got}/{n}</span>
       {/each}
     </div>

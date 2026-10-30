@@ -1,7 +1,7 @@
 <script>
   import { onMount } from 'svelte';
   import { game, ui, cityById, leg, planLegs, toggleStop, selectCity, posAt, tripProgress, gameNow, isOpen, fx, darkness, loopStops, isCarrier, carrierAt, townSize, escortsOf, consistOf, paintOf } from './game.svelte.js';
-  import { CITIES, ENGINES, PLANES, CARS, TRUCKS, W, H } from './data.js';
+  import { CITIES, ENGINES, PLANES, CARS, TRUCKS, BOATS, W, H } from './data.js';
   import { buildTerrain, makeWaterPattern, R } from './terrain.js';
   import { drawArt, trainUnits, paintOrder, artSize, loadArt } from './sprites.js';
   import { dockOf } from './sea.js';
@@ -155,6 +155,25 @@
       rect('#c9ced4', x, y, 1, 12);
       rect(paint.body, x + 1, y + wave * 0.5, 4, 3);
       rect(paint.accent, x + 1, y + 1 + wave * 0.5, 4, 1);
+    }
+
+    // a superload's escorts go along with it, the first just ahead, the next just behind, and so on.
+    // units are what it's drawn as (from trainUnits), with offsets in world units; later queues night lights.
+    function convoy(v, t, d, units, now, later) {
+      let front = -artSize(v.kind, v.model).w / 2, back = Math.max(...units.map((u) => (u.off * R) / V + artSize(u.kind, u.model).w / 2));
+      escortsOf(v).forEach((x, i) => {
+        const w = artSize(x.kind, x.model).w, ahead = i % 2 === 0;
+        const off = ahead ? front - CONVOY_GAP - w / 2 : back + CONVOY_GAP + w / 2;
+        if (ahead) front = off - w / 2; else back = off + w / 2;
+        const dd = d - (off * V) / R;
+        if (dd <= 0.2) return;
+        const p = posAt(t.pts, dd), u = [{ kind: x.kind, model: x.model, off: 0, p }];
+        if (x.kind === 'boat') wake(p.x * R, p.y * R, p.ang, w, now);
+        big(p.x * R + 0.7 * V, p.y * R + V, () => drawArt(b, 0, 0, p.ang, x.kind, x.model, { shadow: true }));
+        big(p.x * R, p.y * R, () => drawArt(b, 0, 0, p.ang, x.kind, x.model, { paint: paintOf(x) }));
+        beacons(x, p, now, later);
+        later?.(() => (x.kind === 'boat' ? boatLights(p.x * R, p.y * R, p.ang, x.model) : consistLights(x, u)));
+      });
     }
 
     function drawCity(c, now) {
@@ -331,11 +350,13 @@
     }
     // trains: a headlight, lit passenger windows, a red lamp on the last car, maglevs glowing underneath.
     // trucks and buses: headlights, and tail lights on the back of each trailer (or the truck itself)
-    // oversize rigs and escorts flash their beacons in turn, day and night: amber unless they say otherwise
+    // oversize rigs, superload carriers and escorts flash their beacons in turn, day and night: amber
+    // unless they say otherwise. A tug only lights its convoy beacons while it's escorting.
     function beacons(v, p, now, later) {
-      const s = TRUCKS[v.model];
-      if (!s.beacons) return;
-      const i = Math.floor(now / 280) % s.beacons.length, on = s.beacons[i], color = s.beaconColors?.[i] ?? '255,170,30';
+      const s = { train: ENGINES, truck: TRUCKS, boat: BOATS }[v.kind]?.[v.model];
+      const list = s?.beacons ?? (v.escorting != null ? s?.convoyBeacons : null);
+      if (!list) return;
+      const i = Math.floor(now / 280) % list.length, on = list[i], color = s.beaconColors?.[i] ?? '255,170,30';
       const at = onArt(p.x * R, p.y * R, p.ang, on[0], on[1]);
       lamp(at, color);
       later?.(() => lamp(at, color));
@@ -462,22 +483,9 @@
         const e = placed[0];
         if (e && v.kind === 'train' && ENGINES[v.model].steam != null) steam(e.p.x * R, e.p.y * R, e.p.ang, ENGINES[v.model].steam, now);
         const later = dk ? (f) => lights.push(f) : null;
-        if (e && v.kind === 'truck') beacons(v, e.p, now, later);
+        if (e) beacons(v, e.p, now, later);
         if (dk) lights.push(() => consistLights(v, placed));
-        // a superload's escorts drive along, the first just ahead, the next just behind, and so on
-        let front = -artSize(v.kind, v.model).w / 2, back = units.length ? (units[units.length - 1].off * R) / V + artSize(units[units.length - 1].kind, units[units.length - 1].model).w / 2 : 0;
-        escortsOf(v).forEach((x, i) => {
-          const w = artSize('truck', x.model).w, ahead = i % 2 === 0;
-          const off = ahead ? front - CONVOY_GAP - w / 2 : back + CONVOY_GAP + w / 2;
-          if (ahead) front = off - w / 2; else back = off + w / 2;
-          const dd = d - (off * V) / R;
-          if (dd <= 0.2) return;
-          const p = posAt(t.pts, dd), u = [{ kind: 'truck', model: x.model, off: 0, p }];
-          big(p.x * R + 0.7 * V, p.y * R + V, () => drawArt(b, 0, 0, p.ang, 'truck', x.model, { shadow: true }));
-          big(p.x * R, p.y * R, () => drawArt(b, 0, 0, p.ang, 'truck', x.model));
-          beacons(x, p, now, later);
-          if (dk) lights.push(() => consistLights(x, u));
-        });
+        convoy(v, t, d, units, now, later);
         if (e) hits.push({ id: v.id, x: e.p.x * R, y: e.p.y * R });
         if (e && marked(v)) marker(e.p.x * R, e.p.y * R - 6);
       }
@@ -487,12 +495,18 @@
         if (!v.trip || v.kind !== 'boat') continue;
         const t = v.trip, d = tripProgress(t, gnow) * t.len, p = posAt(t.pts, d), x = p.x * R, y = p.y * R;
         wake(x, y, p.ang, artSize('boat', v.model).w, now);
-        // barges follow the tug along the lane, like cars behind an engine
-        const tow = trainUnits('boat', v.model, v.cars ?? []).slice(1).map((u) => ({ ...u, p: posAt(t.pts, d - (u.off * V) / R) })).filter((u) => d - (u.off * V) / R > 0.2);
+        // barges follow the tug along the lane, like cars behind an engine; a heavy lift ship's load rides on its deck
+        const units = trainUnits('boat', v.model, consistOf(v)).map((u) => ({ ...u, off: (u.off * V) / R }));
+        const placed = units.slice(1).map((u) => ({ ...u, p: posAt(t.pts, d - u.off) })), deck = placed.filter((u) => u.over);
+        const tow = placed.filter((u) => !u.over && d - u.off > 0.2);
         for (const u of tow) big(u.p.x * R + 0.7 * V, u.p.y * R + V, () => drawArt(b, 0, 0, u.p.ang, 'barge', u.model, { shadow: true }));
         for (const u of tow) big(u.p.x * R, u.p.y * R, () => drawArt(b, 0, 0, u.p.ang, 'barge', u.model));
         big(x + 0.7 * V, y + V, () => drawArt(b, 0, 0, p.ang, 'boat', v.model, { shadow: true }));
         big(x, y, () => drawArt(b, 0, 0, p.ang, 'boat', v.model, { paint: paintOf(v) }));
+        for (const u of deck) big(u.p.x * R, u.p.y * R, () => drawArt(b, 0, 0, u.p.ang, 'load', u.model));
+        const later = dk ? (f) => lights.push(f) : null;
+        beacons(v, p, now, later);
+        convoy(v, t, d, units, now, later);
         if (dk) lights.push(() => {
           boatLights(x, y, p.ang, v.model);
           const last = tow[tow.length - 1];

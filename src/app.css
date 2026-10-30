@@ -201,7 +201,8 @@ button.row:disabled { opacity: .5; cursor: default; }
 @media (min-width: 900px) {
   .stage { display: flex; }
   .mapwrap { position: relative; inset: auto; flex: 1; min-width: 0; }
-  .sheet { position: relative; left: auto; transform: none; width: clamp(360px, 32vw, 440px); height: auto; flex: none; border-radius: 0; box-shadow: -6px 0 24px rgba(10,16,30,.18); transition: none; }
+  /* .sheet.open too, or the phone sheet's open height wins and the sidebar stops partway down */
+  .sheet, .sheet.open { position: relative; left: auto; transform: none; width: clamp(360px, 32vw, 440px); height: auto; flex: none; border-radius: 0; box-shadow: -6px 0 24px rgba(10,16,30,.18); transition: none; }
   .sheet-head { cursor: default; padding-top: 10px; }
   .grab { display: none; }
   .hud { padding: 10px 20px; }

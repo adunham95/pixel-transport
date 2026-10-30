@@ -251,9 +251,14 @@ export function roadSide(ax, ay, bx, by) {
 export { ENGINES, CARS, PLANES, BOATS, BARGES, TRUCKS, TRAILERS, SUPERLOAD_TRAILERS } from "./vehicles.js";
 
 // your headquarters, built once in any town from this level on. It unlocks repeating routes for the
-// whole fleet and company colors, and sells perks: each `contracts` tier, bought in order, lets you
-// work on one more contract at a time and puts one more offer on the board.
-export const HQ = { level: 3, price: 4000, contracts: [{ level: 6, price: 15000 }, { level: 10, price: 60000 }] };
+// whole fleet and company colors, and sells perks, each tier bought in order: a `contracts` tier lets
+// you work on one more contract at a time and puts one more offer on the board; a `superloads` tier
+// lets you run one more superload at a time of each kind (road, rail and sea).
+export const HQ = {
+  level: 3, price: 4000,
+  contracts: [{ level: 6, price: 15000 }, { level: 10, price: 60000 }],
+  superloads: [{ level: 10, price: 50000 }, { level: 12, price: 150000 }],
+};
 // vehicles age as they travel: fuel costs step more for every `per` world units, up to max.
 // A service resets it, costing the vehicle's price times its wear times `service`.
 export const WEAR = { per: 2500, step: 0.1, max: 0.5, service: 0.5 };
@@ -282,12 +287,14 @@ export const DEPOT = { level: 3, price: 3000, service: 0.5, repair: 150 };
 // where they come from at an everyday speed (speed, plus speedUp a level), plus extra. The bonus
 // is perMin for every minute allowed, plus payUp of that a level.
 // superloads (transformers, rocket stages, bridge beams) only come from contracts: one load from
-// one town to another, by road on a superload tractor, with no time limit. Each brings its own
-// trailer (`trailer`, from SUPERLOAD_TRAILERS in vehicles.js). The tractor can't set off
-// with one until the escorts it needs (TRUCKS with an `escort` kind) are parked alongside, and
-// they drive the route with it as a convoy. A new offer is a superload `chance` of the time,
-// picking from the loads open at your level; the bonus is (base + perUnit * distance) * mult.
-// Each load's level must be at least the superload tractor's and every escort's it needs.
+// one town to another with no time limit. `by` is how it goes: by road (the default) on a superload
+// tractor between towns joined by road, by rail on a heavy haul engine between stations, or by sea
+// on a heavy lift ship between ports. Each brings its own trailer, car or deck art (`trailer`, from
+// SUPERLOAD_TRAILERS in vehicles.js). The carrier can't set off with one until the escorts it needs
+// (vehicles with an `escort` kind, or a `helps` kind when they're free) are parked alongside, and
+// they go the route with it as a convoy. A new offer is a superload `chance` of the time, picking
+// from the loads open at your level; the bonus is (base + perUnit * distance) * mult.
+// Each load's level must be at least its carrier's and every escort's it needs.
 export const SUPERLOAD = {
   level: 9, chance: 0.3, minDist: 60, base: 1000, perUnit: 12,
   loads: [
@@ -300,10 +307,17 @@ export const SUPERLOAD = {
     { name: "LNG tank", trailer: "lng", level: 11, needs: { pilot: 1, police: 1, fire: 1 }, mult: 2.8 },
     { name: "Mining dump truck", trailer: "dumptruck", level: 12, needs: { pilot: 2, police: 1, pusher: 1 }, mult: 3.2 },
     { name: "Space shuttle", trailer: "shuttle", level: 12, needs: { pilot: 2, police: 2, pusher: 1, bucket: 1, fire: 1 }, mult: 5 },
+    { name: "Locomotive", trailer: "loco", by: "rail", level: 10, needs: { inspect: 1 }, mult: 1.5 },
+    { name: "Generator stator", trailer: "stator", by: "rail", level: 10, needs: { helper: 1 }, mult: 1.8 },
+    { name: "Reactor vessel", trailer: "reactor", by: "rail", level: 11, needs: { helper: 1, inspect: 1 }, mult: 2.6 },
+    { name: "Oil rig jacket", trailer: "jacket", by: "sea", level: 10, needs: { tug: 2 }, mult: 1.8 },
+    { name: "Wind turbine towers", trailer: "towers", by: "sea", level: 10, needs: { tug: 1, pilotboat: 1 }, mult: 1.6 },
+    { name: "Container crane", trailer: "crane", by: "sea", level: 11, needs: { tug: 2, pilotboat: 1 }, mult: 2.6 },
+    { name: "Submarine", trailer: "sub", by: "sea", level: 12, needs: { tug: 2, pilotboat: 1, fireboat: 1 }, mult: 3.6 },
   ],
 };
 // what each kind of escort is called, one and many
-export const ESCORT_LABEL = { pilot: "pilot car", police: "police car", pusher: "push truck", bucket: "bucket truck", fire: "fire truck" };
+export const ESCORT_LABEL = { pilot: "pilot car", police: "police car", pusher: "push truck", bucket: "bucket truck", fire: "fire truck", helper: "helper engine", inspect: "track inspection car", tug: "tugboat", pilotboat: "pilot boat", fireboat: "fireboat" };
 export const CONTRACTS = {
   level: 3, offers: 3, active: 2, every: 45 * 1000, offerTtl: 10 * 60 * 1000,
   size: { pax: [5, 9], cargo: [4, 8], mail: [4, 7], fuel: [3, 6], bulk: [6, 12], wide: [2, 3], secure: [2, 4] },

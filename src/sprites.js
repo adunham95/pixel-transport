@@ -151,11 +151,13 @@ const TAIL = { train: 'car', truck: 'trailer', boat: 'barge' };
 // each unit of a train, truck or tow, front first: its art, and how far its center sits behind the lead unit's center.
 // A tractor with a hitch carries its first trailer's front end over its fifth wheel; the rest couple up behind.
 // cars are tail models, or { kind, model } for anything else, like a superload's own trailer.
+// A ship's superload rides on its deck instead (over: true), at the ship's deckAt.
 export function trainUnits(kind, model, cars) {
-  const units = [{ kind, model, off: 0 }], hitch = specOf(kind, model).hitch;
+  const lead = specOf(kind, model), units = [{ kind, model, off: 0 }], hitch = lead.hitch;
   let back = artSize(kind, model).w / 2;
   cars.forEach((c, i) => {
     const [k, t] = typeof c === 'string' ? [TAIL[kind], c] : [c.kind, c.model];
+    if (kind === 'boat' && k === 'load') { units.push({ kind: k, model: t, off: -(lead.deckAt ?? 0), over: true }); return; }
     const w = artSize(k, t).w;
     const off = i === 0 && hitch != null ? w / 2 - hitch : back + COUPLER + w / 2;
     units.push({ kind: k, model: t, off });
@@ -165,15 +167,16 @@ export function trainUnits(kind, model, cars) {
 }
 
 // the order to paint units in, so the right ones end up on top: a semi trailer lies over its
-// tractor's fifth wheel, while engines and tugs sit over what they pull
+// tractor's fifth wheel, while engines and tugs sit over what they pull, and a ship's deck load over the ship
 export function paintOrder(kind, units) {
-  return kind === 'truck' ? units : units.slice().reverse();
+  if (kind === 'truck') return units;
+  return [...units.filter((u) => !u.over).reverse(), ...units.filter((u) => u.over)];
 }
 
 export function consistBox(kind, model, cars) {
-  const u = trainUnits(kind, model, cars), last = u[u.length - 1];
+  const u = trainUnits(kind, model, cars);
   const h = Math.max(...u.map((x) => artSize(x.kind, x.model).h));
-  return { w: artSize(kind, model).w / 2 + last.off + artSize(last.kind, last.model).w / 2, h };
+  return { w: artSize(kind, model).w / 2 + Math.max(...u.map((x) => x.off + artSize(x.kind, x.model).w / 2)), h };
 }
 
 // straight consist: lead unit centered at ex facing +x, the rest trailing toward -x. Only the

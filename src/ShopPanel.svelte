@@ -32,6 +32,7 @@
     const tails = tailsOf(kind, s), what = KINDS.find((k) => k.id === kind).tail;
     if (s.superload) out.push('Carries one superload from a contract');
     if (s.escort) out.push(`Escorts superloads as a ${ESCORT_LABEL[s.escort]}`);
+    if (s.helps) out.push(`Can also escort superloads as a ${ESCORT_LABEL[s.helps]}`);
     if (tails.length) out.push(`Pulls up to ${s.maxCars} ${s.pulls ? s.pulls.map((k) => KINDS.find((x) => x.id === kind).tails[k].short.toLowerCase()).join(' or ') + ' ' : s.freightOnly ? 'freight ' : ''}${what}${s.maxCars > 1 ? 's' : ''}`);
     for (const [t, n] of Object.entries(s.pays ?? {})) out.push(`${TYPE_LABEL[t]} pay ${n}×`);
     // a truck's deck is the ferry space it takes up, not room it has
@@ -138,7 +139,8 @@
   // demo consist for the shop picture: what it pulls, or a superload tractor's rocket stage
   function demo(kind, s) {
     if (!s.maxCars && !s.superload) return [];
-    if (kind === 'truck') return s.superload ? [{ kind: 'load', model: 'rocket' }] : (s.pulls ? Array(s.maxCars).fill(s.pulls[0]) : ['van', 'dump', 'tank']).slice(0, Math.min(3, s.maxCars));
+    if (s.superload) return [{ kind: 'load', model: { truck: 'rocket', train: 'reactor', boat: 'crane' }[kind] }];
+    if (kind === 'truck') return (s.pulls ? Array(s.maxCars).fill(s.pulls[0]) : ['van', 'dump', 'tank']).slice(0, Math.min(3, s.maxCars));
     if (kind === 'boat') return ['deck', 'hopper', 'tank'].slice(0, s.maxCars);
     return (s.pulls ? Array(s.maxCars).fill(s.pulls[0]) : s.freightOnly ? ['box', 'hopper', 'tank'] : ['pax', 'box', 'tank']).slice(0, Math.min(3, s.maxCars));
   }

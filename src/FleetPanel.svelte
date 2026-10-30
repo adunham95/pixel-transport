@@ -1,6 +1,6 @@
 <script>
   import { game, ui, dev, setDev, cityById, capacity, endRoute, addCar, removeCar, canRemoveCar, upgradeEngine, upgradeCost, sellVehicle, sellValue, resetGame, openLoad, followVehicle, etaText, fmt, stopRepeating, spec, tailSpecs, tailName, aboard, carrierOf, deckUsed, deckRoom, deckFor, finances, clock, wear, service, serviceCost, escortee, consistOf, paintOf, paintFor, isIdle, idleVehicles, quickSend, quickSendAll, startQueue, toast } from './game.svelte.js';
-  import { ENGINES, TRUCKS, BOATS, PLANES, MI, JOB_TYPES } from './data.js';
+  import { ENGINES, TRUCKS, BOATS, PLANES, MI, JOB_TYPES, ESCORT_LABEL } from './data.js';
   import Sprite from './Sprite.svelte';
   import LoadBadges from './LoadBadges.svelte';
   import { slide, reduced } from './motion.js';
@@ -150,6 +150,10 @@
           {:else}
             <p class="muted small">{what[0].toUpperCase() + what.slice(1)}s can be changed once it’s parked.</p>
           {/if}
+        {:else if spec(v).superload}
+          <p class="muted small">Carries one superload at a time, from a contract. Take on one in the Contracts tab, then park its escorts alongside to set off.</p>
+        {:else if spec(v).escort}
+          <p class="muted small">Goes along with superload convoys as a {ESCORT_LABEL[spec(v).escort]}. Park it where a superload is waiting.</p>
         {:else if v.kind === 'truck'}
           <p class="muted small">Drives the roads between mainland towns. Bigger trucks and buses are in the Shop.</p>
         {:else if deckRoom(v)}

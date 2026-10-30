@@ -1,5 +1,5 @@
 <script>
-  import { game, clock, cityById, selectCity, acceptContract, dropContract, canAccept, superloadAt, escortText, followVehicle, fmt, fmtTime, contractSlots } from './game.svelte.js';
+  import { game, clock, cityById, selectCity, acceptContract, dropContract, canAccept, superloadAt, escortText, followVehicle, fmt, fmtTime, contractSlots, superloadCarrier } from './game.svelte.js';
   import { CONTRACTS, SUPERLOAD, TYPE_LABEL } from './data.js';
   import Icon from './Icon.svelte';
   import { slide, flip } from './motion.js';
@@ -10,7 +10,7 @@
   function status(c) {
     const at = superloadAt(c);
     if (at.v) return at.v.trip ? { text: `On its way with ${at.v.name}`, v: at.v } : { text: `On ${at.v.name} at ${cityById[at.v.city].name}` };
-    if (at.town) return { text: at.town === c.from ? `Waiting at ${cityById[c.from].name} for a superload tractor and its escorts` : `Waiting at ${cityById[at.town].name}` };
+    if (at.town) return { text: at.town === c.from ? `Waiting at ${cityById[c.from].name} for a ${superloadCarrier(c.by)} and its escorts` : `Waiting at ${cityById[at.town].name}` };
     return { text: '' };
   }
 </script>
@@ -21,7 +21,7 @@
   <p class="note">Contracts unlock at level {CONTRACTS.level}. Each one asks for a batch of deliveries to one town before time runs out, and pays a bonus on top of what the jobs pay.</p>
 {:else}
   <p class="note">Deliver a batch of one kind of job to a town before time runs out for a bonus on top of what the jobs pay. Jobs headed there turn up more often while a contract is running.
-    {#if game.level >= SUPERLOAD.level} Superloads are one huge load by road on a superload tractor, bringing its own trailer, with escorts driving along. They have no time limit and don’t use up a contract slot.{/if}</p>
+    {#if game.level >= SUPERLOAD.level} Superloads are one huge load by road, rail or sea, on a superload tractor, heavy haul engine or heavy lift ship, with escorts going along. They have no time limit and don’t use up a contract slot, but you can only run one of each kind at a time, or more with the heavy haul office at your HQ.{/if}</p>
 
   <h3>Working on ({usual} of {contractSlots()})</h3>
   {#each k.active as c (c.id)}
@@ -31,7 +31,7 @@
         {@const s = status(c)}
         <span class="grow">
           <b>{c.name}: {@render town(c.from)} to {@render town(c.to)}</b>
-          <small>Needs a superload tractor and {escortText(c.needs)} · no time limit</small>
+          <small>By {c.by ?? 'road'}. Needs a {superloadCarrier(c.by)} and {escortText(c.needs)} · no time limit</small>
           <small>{s.text}</small>
         </span>
         <span class="side">
@@ -63,7 +63,7 @@
       <span class="grow">
         {#if c.super}
           <b><span class="tag hub mini">Superload</span> {c.name}: {@render town(c.from)} to {@render town(c.to)}</b>
-          <small>Needs a superload tractor and {escortText(c.needs)} · no time limit · offer ends in {fmtTime((c.until - clock.now) / 1000)}</small>
+          <small>By {c.by ?? 'road'}. Needs a {superloadCarrier(c.by)} and {escortText(c.needs)} · no time limit · offer ends in {fmtTime((c.until - clock.now) / 1000)}</small>
         {:else}
           <b>{what(c)} to {@render town(c.to)}</b>
           <small>{fmtTime(c.time / 1000)} to finish once taken · offer ends in {fmtTime((c.until - clock.now) / 1000)}</small>

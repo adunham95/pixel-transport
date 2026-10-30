@@ -132,8 +132,8 @@ export function used(v) {
 }
 
 export function canLoad(v, job) {
-  // a superload tractor carries one superload and nothing else
-  if (job.escort) return v.kind === 'truck' && !!TRUCKS[v.model].superload && !v.cargo.some((j) => j.escort);
+  // a superload carrier carries one superload of its own kind (road, rail or sea) and nothing else
+  if (job.escort) return v.kind === SUPER_KIND[job.by ?? 'road'] && !!spec(v).superload && !v.cargo.some((j) => j.escort);
   return used(v)[job.type] < capacity(v)[job.type];
 }
 
@@ -298,7 +298,7 @@ function newVehicle(g, kind, model, city, cars) {
 
 function fresh() {
   const now = Date.now();
-  const g = { v: 1, coins: 600, xp: 0, level: 1, nextId: 1, selected: 'frost', vehicles: [], jobs: {}, spawnAt: {}, growth: {}, depots: {}, hqContracts: 0, contracts: { offers: [], active: [], nextAt: 0 }, saved: now };
+  const g = { v: 1, coins: 600, xp: 0, level: 1, nextId: 1, selected: 'frost', vehicles: [], jobs: {}, spawnAt: {}, growth: {}, depots: {}, hqContracts: 0, hqSuperloads: 0, contracts: { offers: [], active: [], nextAt: 0 }, saved: now };
   g.unlocked = Object.fromEntries(START_CITIES.map((id) => [id, true]));
   g.vehicles.push(newVehicle(g, 'train', 'puffer', 'frost', ['pax', 'box']));
   g.vehicles.push(newVehicle(g, 'plane', 'sparrow', 'frost'));
@@ -327,6 +327,7 @@ function load() {
     g.growth ??= {};
     g.depots ??= {};
     g.hqContracts ??= 0;
+    g.hqSuperloads ??= 0;
     g.contracts ??= { offers: [], active: [], nextAt: 0 };
     if (!g.unlocked) {
       // older saves predate unlocking: keep the starting towns plus anywhere the fleet is, is headed or has cargo for
@@ -530,6 +531,17 @@ export function buyContractsPerk() {
   toast(`You can work on ${contractSlots()} contracts at a time now`, 'good');
 }
 export const contractSlots = () => CONTRACTS.active + game.hqContracts;
+// the next superloads perk, or null once you have them all
+export const nextSuperloadsPerk = () => HQ.superloads[game.hqSuperloads] ?? null;
+export function buySuperloadsPerk() {
+  const p = nextSuperloadsPerk();
+  if (!game.hq || !p) return;
+  if (!spend(p.price, p.level, 'Heavy haul office')) return;
+  game.hqSuperloads++;
+  toast(`You can run ${superloadSlots()} superloads of each kind at a time now`, 'good');
+}
+// how many superloads of each kind (road, rail, sea) can be under way at once
+export const superloadSlots = () => 1 + game.hqSuperloads;
 const contractOffers = () => CONTRACTS.offers + game.hqContracts;
 
 // company colors, { body, accent }, for a vehicle, or null for its factory paint. Only the lead
@@ -612,25 +624,36 @@ function makeContract(now) {
   return { id: game.nextId++, type, to, n, done: 0, reward, time, until: now + CONTRACTS.offerTtl };
 }
 
-// a superload offer: one named load between two mainland towns joined by road, or null if there's
-// no such pair open yet. from fixes where it starts; any picks from every load, whatever the level.
-function makeSuperload(now, { from = null, any = false } = {}) {
-  const loads = SUPERLOAD.loads.filter((l) => any || game.level >= l.level);
-  const towns = CITIES.filter((c) => c.road && isOpen(c.id));
-  for (let tries = 0; loads.length && tries < 12; tries++) {
+// what carries each way a superload can go, and the towns and routes it can use
+export const SUPER_KIND = { road: 'truck', rail: 'train', sea: 'boat' };
+const SUPER_TOWN = { road: (c) => c.road, rail: (c) => c.rail, sea: (c) => c.port && !c.anchor };
+const SUPER_ROUTE = { road: roadPath, rail: (a, b) => railPath(a, b), sea: seaLane };
+// what a superload going this way needs to carry it: "superload tractor", "heavy haul engine"...
+export function superloadCarrier(by = 'road') {
+  return Object.values(SPECS[SUPER_KIND[by]]).find((s) => s.superload).name.toLowerCase();
+}
+
+// a superload offer: one named load between two towns it can go between (by road, rail or sea),
+// or null if there's no such pair open yet. from fixes where it starts; any picks from every
+// load, whatever the level; load picks that one; skip leaves out those ways (road, rail, sea).
+function makeSuperload(now, { from = null, any = false, load: only = null, skip = [] } = {}) {
+  const loads = only ? [only] : SUPERLOAD.loads.filter((l) => (any || game.level >= l.level) && !skip.includes(l.by ?? 'road'));
+  for (let tries = 0; loads.length && tries < 24; tries++) {
+    const load = loads[Math.floor(Math.random() * loads.length)], by = load.by ?? 'road';
+    const towns = CITIES.filter((c) => SUPER_TOWN[by](c) && isOpen(c.id));
     const A = from ? cityById[from] : towns[Math.floor(Math.random() * towns.length)];
-    const far = towns.filter((c) => c.cont === A.cont && dist(A.id, c.id) >= SUPERLOAD.minDist);
+    if (!A || !towns.includes(A)) continue;
+    const far = towns.filter((c) => c !== A && dist(A.id, c.id) >= SUPERLOAD.minDist && SUPER_ROUTE[by](A.id, c.id));
     if (!far.length) continue;
     const B = far[Math.floor(Math.random() * far.length)];
-    if (!roadPath(A.id, B.id)) continue;
-    const load = loads[Math.floor(Math.random() * loads.length)];
     const reward = Math.round(((SUPERLOAD.base + SUPERLOAD.perUnit * dist(A.id, B.id)) * load.mult) / 10) * 10;
-    return { id: game.nextId++, super: true, name: load.name, trailer: load.trailer, needs: { ...load.needs }, type: 'wide', from: A.id, to: B.id, n: 1, done: 0, reward, until: now + CONTRACTS.offerTtl };
+    return { id: game.nextId++, super: true, by, name: load.name, trailer: load.trailer, needs: { ...load.needs }, type: 'wide', from: A.id, to: B.id, n: 1, done: 0, reward, until: now + CONTRACTS.offerTtl };
   }
   return null;
 }
 
 const isSuper = (c) => !!c.super;
+const byOf = (c) => c.by ?? 'road';
 // what a contract asks for, for toasts
 export function contractText(c) {
   return c.super ? `${c.name} from ${cityById[c.from].name} to ${cityById[c.to].name}` : `${c.n} ${TYPE_LABEL[c.type].toLowerCase()} to ${cityById[c.to].name}`;
@@ -643,12 +666,13 @@ function tickContracts(now) {
   for (const c of k.active.filter(late)) toast(`Contract missed: ${c.done} of ${contractText(c)}`, 'bad');
   if (k.active.some(late)) k.active = k.active.filter((c) => !late(c));
   if (game.level < CONTRACTS.level) return;
-  // an empty board fills right up; after that a new offer turns up every so often
+  // an empty board fills right up; after that a new offer turns up every so often. Superload
+  // offers don't take up room on the board, but there's at most one of each kind (road, rail, sea).
   const fill = !k.offers.length;
-  while (k.offers.length < contractOffers() && (fill || now >= k.nextAt)) {
-    // at most one superload on the board at a time
-    const sup = game.level >= SUPERLOAD.level && !k.offers.some(isSuper) && Math.random() < SUPERLOAD.chance;
-    const o = (sup && makeSuperload(now)) || makeContract(now);
+  while (k.offers.filter((o) => !o.super).length < contractOffers() && (fill || now >= k.nextAt)) {
+    const offered = k.offers.filter(isSuper).map(byOf);
+    const sup = game.level >= SUPERLOAD.level && offered.length < 3 && Math.random() < SUPERLOAD.chance;
+    const o = (sup && makeSuperload(now, { skip: offered })) || makeContract(now);
     if (!o) break;
     k.offers.push(o);
     k.nextAt = now + CONTRACTS.every;
@@ -680,21 +704,22 @@ export function contractFor(j) {
   return game.contracts.active.find((c) => (j.contract != null ? c.id === j.contract : !c.super && c.type === j.type && c.to === j.to)) ?? null;
 }
 
-// superloads don't take up one of the usual contract slots, but only one can be under way at a time
+// superloads don't take up one of the usual contract slots, but only so many of each kind (road,
+// rail, sea) can be under way at a time
 export function canAccept(c) {
   const a = game.contracts.active;
-  return c.super ? !a.some(isSuper) : a.filter((x) => !x.super).length < contractSlots();
+  return c.super ? a.filter((x) => x.super && byOf(x) === byOf(c)).length < superloadSlots() : a.filter((x) => !x.super).length < contractSlots();
 }
 
 export function acceptContract(id) {
   const k = game.contracts, i = k.offers.findIndex((o) => o.id === id);
   if (i < 0) return;
-  if (!canAccept(k.offers[i])) { toast(k.offers[i].super ? 'Finish the superload you have first' : `You can work on ${contractSlots()} contracts at a time`, 'bad'); return; }
+  if (!canAccept(k.offers[i])) { toast(k.offers[i].super ? `You can run ${superloadSlots()} superload${superloadSlots() > 1 ? 's' : ''} by ${byOf(k.offers[i])} at a time. Finish one first.` : `You can work on ${contractSlots()} contracts at a time`, 'bad'); return; }
   const [c] = k.offers.splice(i, 1);
   if (c.super) {
     // no time limit: the load waits at its town until a convoy comes for it
     c.until = null;
-    game.jobs[c.from].push({ id: game.nextId++, type: 'wide', from: c.from, to: c.to, pay: Math.round(10 + dist(c.from, c.to) * RATES.wide), name: c.name, trailer: c.trailer, escort: { ...c.needs }, contract: c.id });
+    game.jobs[c.from].push({ id: game.nextId++, type: 'wide', from: c.from, to: c.to, pay: Math.round(10 + dist(c.from, c.to) * RATES.wide), name: c.name, trailer: c.trailer, by: c.by ?? 'road', escort: { ...c.needs }, contract: c.id });
   } else c.until = gameNow() + c.time;
   k.active.push(c);
   toast(`Contract taken: ${contractText(c)}`, 'good');
@@ -724,7 +749,10 @@ export function consistOf(v) {
   return loads.length ? [...(v.cars ?? []), ...loads] : v.cars ?? [];
 }
 
-export const escortKind = (v) => (v.kind === 'truck' ? TRUCKS[v.model].escort ?? null : null);
+// the kind of escort a vehicle is built to be, if any
+export const escortKind = (v) => spec(v).escort ?? null;
+// the kind of escort it can ride along as right now: its own, or the one it helps out as when it's empty
+export const escortAs = (v) => escortKind(v) ?? (v.cargo.length ? null : spec(v).helps ?? null);
 // the escorts the loads on board need, by kind
 export function convoyNeeds(v) {
   const need = {};
@@ -733,13 +761,13 @@ export function convoyNeeds(v) {
 }
 // escorts parked here, free to join a convoy
 export function freeEscorts(at, but = null) {
-  return game.vehicles.filter((x) => x.id !== but && x.city === at && !x.trip && !x.loop && escortKind(x));
+  return game.vehicles.filter((x) => x.id !== but && x.city === at && !x.trip && !x.loop && escortAs(x));
 }
 // which free escorts would go with this vehicle, or what's missing: { picked, missing: [[kind, n], ...] }
 export function pickEscorts(v) {
   const need = convoyNeeds(v), free = freeEscorts(v.city, v.id), picked = [], missing = [];
   for (const k in need) {
-    const got = free.filter((x) => escortKind(x) === k).slice(0, need[k]);
+    const got = free.filter((x) => escortAs(x) === k).slice(0, need[k]);
     picked.push(...got);
     if (got.length < need[k]) missing.push([k, need[k] - got.length]);
   }
@@ -897,9 +925,9 @@ export const isIdle = (v) => !!v.city && !v.trip && !v.loop && !escortKind(v);
 export const idleVehicles = () => game.vehicles.filter(isIdle);
 
 // load the best paying jobs it can deliver and set off on the nearest-first route, all in one go.
-// False if there was nothing to take, or it couldn't leave.
+// False if there was nothing to take, or it couldn't leave. Superload carriers wait for their convoy.
 export function quickSend(v) {
-  if (!isIdle(v)) return false;
+  if (!isIdle(v) || spec(v).superload) return false;
   const was = quiet;
   quiet = true;
   try {
@@ -1185,7 +1213,7 @@ export function buyEngine(model) {
   if (!spend(e.price, e.level, e.name)) return;
   const v = newVehicle(game, 'train', model, c.id, []);
   game.vehicles.push(v);
-  toast(`${v.name} is at ${c.name}. Add some cars to it.`, 'good');
+  toast(e.maxCars ? `${v.name} is at ${c.name}. Add some cars to it.` : `${v.name} is at ${c.name}`, 'good');
   ui.tab = 'fleet';
   ui.focusVehicle = v.id;
 }
@@ -1361,12 +1389,13 @@ export function devFinishLegs() {
   step();
 }
 
-// a superload offer on the board, starting at the selected town if it has roads, in place of any already there
-export function devSuperload() {
-  const c = cityById[game.selected];
-  const o = makeSuperload(gameNow(), { from: c.road && isOpen(c.id) ? c.id : null, any: true });
-  if (!o) { toast('No two open towns joined by road to send a superload between. Unlock some first.', 'bad'); return; }
-  game.contracts.offers = [...game.contracts.offers.filter((x) => !x.super), o];
+// a superload offer on the board (that one, or any), starting at the selected town if it can, in
+// place of any already there
+export function devSuperload(load = null) {
+  const c = cityById[game.selected], now = gameNow();
+  const o = makeSuperload(now, { from: isOpen(c.id) ? c.id : null, any: true, load }) ?? makeSuperload(now, { any: true, load });
+  if (!o) { toast(`No two open towns that ${load ? `a ${load.name.toLowerCase()} can go` : 'a superload can go'} between. Unlock some first.`, 'bad'); return; }
+  game.contracts.offers = [...game.contracts.offers.filter((x) => !x.super || byOf(x) !== o.by), o];
   toast(`Superload on offer: ${contractText(o)}`, 'good');
 }
 

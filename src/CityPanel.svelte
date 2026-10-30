@@ -1,5 +1,5 @@
 <script>
-  import { game, ui, cityById, etaText, fmtTime, clock, followVehicle, isOpen, connections, unlockPrice, unlockCity, carrierAt, fmt, townSize, sizeName, growthOf, buyDepot, fetcher, consistOf, paintOf, buildHQ, hqPrice, setLivery, nextContractsPerk, buyContractsPerk, contractSlots } from './game.svelte.js';
+  import { game, ui, cityById, etaText, fmtTime, clock, followVehicle, isOpen, connections, unlockPrice, unlockCity, carrierAt, fmt, townSize, sizeName, growthOf, buyDepot, fetcher, consistOf, paintOf, buildHQ, hqPrice, setLivery, nextContractsPerk, buyContractsPerk, contractSlots, nextSuperloadsPerk, buySuperloadsPerk, superloadSlots } from './game.svelte.js';
   import { CITY_PRICE, DEPOT, HQ } from './data.js';
   import Sprite from './Sprite.svelte';
   import JobRow from './JobRow.svelte';
@@ -84,6 +84,7 @@
   {#if game.hq === c.id}
     {@const lv = game.livery ?? { body: '#2a6fd6', accent: '#f2c14e', on: false }}
     {@const perk = nextContractsPerk()}
+    {@const heavy = nextSuperloadsPerk()}
     <h3>Headquarters</h3>
     <label class="row hq">
       <input type="checkbox" checked={lv.on} onchange={(e) => setLivery({ on: e.currentTarget.checked })} />
@@ -97,6 +98,10 @@
     <div class="row hq">
       <span class="grow"><b>Contracts office{game.hqContracts ? ` ${game.hqContracts + 1}` : ''}</b><small>{perk ? `Work on ${contractSlots() + 1} contracts at a time instead of ${contractSlots()}, with one more offer on the board.` : `Fully staffed. You can work on ${contractSlots()} contracts at a time.`}</small></span>
       {#if perk}<button class="btn small" disabled={game.level < perk.level || game.coins < perk.price} onclick={buyContractsPerk}>{game.level < perk.level ? `Lv ${perk.level}` : `$${fmt(perk.price)}`}</button>{/if}
+    </div>
+    <div class="row hq">
+      <span class="grow"><b>Heavy haul office{game.hqSuperloads ? ` ${game.hqSuperloads + 1}` : ''}</b><small>{heavy ? `Run ${superloadSlots() + 1} superloads at a time by road, by rail and by sea, instead of ${superloadSlots()} of each.` : `Fully staffed. You can run ${superloadSlots()} superloads at a time by road, by rail and by sea.`}</small></span>
+      {#if heavy}<button class="btn small" disabled={game.level < heavy.level || game.coins < heavy.price} onclick={buySuperloadsPerk}>{game.level < heavy.level ? `Lv ${heavy.level}` : `$${fmt(heavy.price)}`}</button>{/if}
     </div>
   {/if}
   <h3>Parked here</h3>
