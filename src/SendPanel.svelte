@@ -1,18 +1,19 @@
 <script>
-  import { game, ui, cityById, fetchPlan, sendFor, fmt, fmtTime, consistOf, paintOf } from './game.svelte.js';
+  import { game, ui, cityById, fetchPlan, sendFor, fmt, fmtTime, consistOf, paintOf, escortKind } from './game.svelte.js';
   import Sprite from './Sprite.svelte';
   import JobRow from './JobRow.svelte';
   let { job, at } = $props();
-  // parked vehicles elsewhere, soonest to arrive at the top
+  // parked vehicles, the ones already here first, then soonest to arrive. Escorts never carry jobs,
+  // so they're left out.
   const options = $derived(
     game.vehicles
-      .filter((v) => v.city && v.city !== at)
+      .filter((v) => v.city && !escortKind(v))
       .map((v) => ({ v, p: fetchPlan(v, job, at) }))
-      .sort((a, b) => (a.p.pickIn ?? 0) - (b.p.pickIn ?? 0))
+      .sort((a, b) => (a.p.pickIn ?? 0) - (b.p.pickIn ?? 0) || (a.p.time ?? 0) - (b.p.time ?? 0))
   );
-  const able = $derived(options.filter((o) => !o.p.why));
+  const here = $derived(options.filter((o) => !o.p.why && o.v.city === at));
+  const able = $derived(options.filter((o) => !o.p.why && o.v.city !== at));
   const unable = $derived(options.filter((o) => o.p.why));
-  const parkedHere = $derived(game.vehicles.filter((v) => v.city === at).length);
   function send(v) { if (sendFor(v, job, at)) ui.sendJob = null; }
 </script>
 
@@ -21,6 +22,21 @@
   <div class="grow"><b>Send a vehicle</b><small>to pick up at {cityById[at].name}</small></div>
 </div>
 <JobRow {job} {at} />
+
+{#if here.length}
+  <h3>Parked at {cityById[at].name}</h3>
+  {#each here as { v, p } (v.id)}
+    {@const profit = job.pay - p.cost}
+    <button class="row vrow" disabled={game.coins < p.cost} onclick={() => send(v)}>
+      <span class="pv"><Sprite kind={v.kind} model={v.model} cars={consistOf(v)} scale={3} paint={paintOf(v)} /></span>
+      <span class="grow">
+        <b>{v.name}</b>
+        <small>Loads it now and delivers in {fmtTime(p.time)}{p.stops.length > 1 ? `, ${p.stops.length} stops` : ''}{v.cargo.length ? `. ${v.cargo.length} already on board` : ''}</small>
+      </span>
+      <span class="right"><b class:loss={profit < 0}>{profit < 0 ? '−' : '+'}${fmt(Math.abs(profit))}</b><small>Fuel ${fmt(p.cost)}</small></span>
+    </button>
+  {/each}
+{/if}
 
 <h3>Parked elsewhere</h3>
 {#each able as { v, p } (v.id)}
@@ -34,9 +50,8 @@
     <span class="right"><b class:loss={profit < 0}>{profit < 0 ? '−' : '+'}${fmt(Math.abs(profit))}</b><small>Fuel ${fmt(p.cost)}</small></span>
   </button>
 {:else}
-  <p class="muted small">No parked vehicle can fetch this. It needs room for {job.type === 'pax' ? 'passengers' : 'this load'} and a way to {cityById[at].name} and on to {cityById[job.to].name}.</p>
+  <p class="muted small">No parked vehicle {here.length ? 'elsewhere ' : ''}can fetch this. It needs room for {job.type === 'pax' ? 'passengers' : 'this load'} and a way to {cityById[at].name} and on to {cityById[job.to].name}.</p>
 {/each}
-{#if parkedHere}<p class="muted small">{parkedHere} parked at {cityById[at].name} already. Load it from there instead.</p>{/if}
 
 {#if unable.length}
   <h3>Can’t take it</h3>

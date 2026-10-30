@@ -1,6 +1,6 @@
 <script>
-  import { game, dev, cityById, devCoins, devMaxLevel, devSpawn, devFinishLegs, devFillJobs, devUnlockAll, devSkipHalfDay, devSuperload, devBreakdown, devCeleb, devFinishProjects, setDev, isOpen, canBase, fmt } from './game.svelte.js';
-  import { ENGINES, PLANES, BOATS, TRUCKS, LEVELS, SUPERLOAD } from './data.js';
+  import { game, dev, cityById, devCoins, devMaxLevel, devSpawn, devFinishLegs, devFillJobs, devUnlockAll, devSkipHalfDay, devSuperload, devBreakdown, devCeleb, devFinishProjects, devWeather, devUsedLot, setDev, isOpen, canBase, fmt } from './game.svelte.js';
+  import { ENGINES, PLANES, BOATS, TRUCKS, LEVELS, SUPERLOAD, WEATHER } from './data.js';
   import Sprite from './Sprite.svelte';
   const c = $derived(cityById[game.selected]);
   // which superload to put on the board: its index in SUPERLOAD.loads, or -1 for any
@@ -48,6 +48,10 @@
 </div>
 <div class="grid3 two">
   <button class="btn small" onclick={devFinishProjects}>Finish megaprojects</button>
+  <button class="btn small" onclick={devUsedLot}>New used lot offer</button>
+</div>
+<div class="grid3 four">
+  {#each Object.entries(WEATHER.kinds) as [k, w]}<button class="btn small" disabled={!isOpen(c.id)} onclick={() => devWeather(k)}>{w.name}</button>{/each}
 </div>
 <div class="superload">
   <select bind:value={pick} aria-label="Superload">
@@ -79,6 +83,7 @@
 <button class="btn ghost reset" onclick={() => setDev(false)}>Turn off dev mode</button>
 
 <style>
+  .four { grid-template-columns: repeat(4, 1fr); }
   .superload { display: flex; gap: 6px; margin-bottom: 8px; }
   .superload select { flex: 1; min-width: 0; padding: 6px 8px; font: inherit; font-size: 13px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel-2); color: var(--ink); }
 </style>

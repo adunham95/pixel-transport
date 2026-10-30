@@ -357,6 +357,48 @@ export const SECURE = { level: 11, ttl: 3 * 60 * 1000, escortBonus: 0.3 };
 // with room for them), in groups of `group` headed the same way. They lean toward towns with
 // landmarks and pay more going there (see PROJECTS), and like mail, only wait ttl (game time).
 export const TOURISTS = { level: 12, ttl: 5 * 60 * 1000, group: 4 };
+// lucky cargo: `chance` of everyday jobs are a mystery, paying their usual pay times whatever turns
+// out to be inside when they're delivered, one of `finds` picked by its weight
+export const LUCKY = {
+  chance: 0.06,
+  types: ["pax", "cargo", "mail", "bulk", "fuel"],
+  finds: [
+    { mult: 0.5, weight: 3, what: "a box of old socks" },
+    { mult: 1, weight: 4, what: "garden gnomes" },
+    { mult: 1.5, weight: 4, what: "vintage records" },
+    { mult: 2, weight: 3, what: "a rare stamp collection" },
+    { mult: 3, weight: 2, what: "a lost painting" },
+    { mult: 5, weight: 1, what: "a pirate's treasure chest" },
+  ],
+};
+// weather, from this level: now and then (every `every`, game time, up to `max` at once) a spell of
+// one kind settles over a circle of the map for `last`. Legs that pass through it when they set off
+// take `time` times as long and burn `fuel` times as much, for the kinds of vehicle in `hits`. Fog,
+// storms and tailwinds can turn up anywhere; snow only in the north (y below `north`).
+export const WEATHER = {
+  level: 2,
+  every: 2 * 60 * 1000,
+  max: 2,
+  last: [3 * 60 * 1000, 6 * 60 * 1000],
+  radius: [45, 80],
+  north: 140,
+  kinds: {
+    fog: { name: "Fog", hits: ["plane"], time: 1.6, fuel: 1, about: "planes fly slow" },
+    storm: { name: "Storm", hits: ["boat"], time: 1.5, fuel: 1.5, about: "boats slow down and burn more fuel" },
+    snow: { name: "Snow", hits: ["train", "truck"], time: 1.4, fuel: 1.2, about: "trains and trucks slow down" },
+    tailwind: { name: "Tailwind", hits: ["plane"], time: 0.7, fuel: 0.8, about: "planes fly faster on less fuel" },
+  },
+};
+// the used lot: one secondhand vehicle at a time, from a level or two above yours, at `price` of
+// new. It comes with `miles` (as a range of WEAR.per steps) already on it, so it burns more fuel and
+// breaks down more until it's serviced. A new one turns up every `every`, or `after` one is bought.
+export const USED = {
+  ahead: 2,
+  price: 0.6,
+  miles: [3, 4],
+  every: 6 * 60 * 1000,
+  after: 90 * 1000,
+};
 // towns grow as jobs to and from them are delivered: GROWTH[i] deliveries to reach size i + 1.
 // Each size up adds jobs, spawns them faster and pays 10% more for jobs leaving the town.
 export const GROWTH = [0, 25, 75, 175, 350];

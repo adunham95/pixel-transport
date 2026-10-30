@@ -286,6 +286,46 @@
       for (const [x, y] of pts) { if (horiz) { rect('#4d535d', x, y - 1, 1, 1); rect('#4d535d', x, y + 1, 1, 1); } else { rect('#4d535d', x - 1, y, 1, 1); rect('#4d535d', x + 1, y, 1, 1); } }
     }
 
+    // ---------- weather ----------
+
+    // particles scattered over a circle of weather, each at its own fixed spot (u, v from 0 to 1)
+    // drifting by dx, dy sub pixels a second, wrapping round inside the circle
+    function particles(w, n, now, dx, dy, draw) {
+      const x = w.x * R, y = w.y * R, r = w.r * R, t = now / 1000;
+      for (let i = 0; i < n; i++) {
+        const u = (i * 0.618034) % 1, v = (i * 0.754878) % 1;
+        const px = ((((u * 2 * r + dx * t) % (2 * r)) + 2 * r) % (2 * r)) - r, py = ((((v * 2 * r + dy * t) % (2 * r)) + 2 * r) % (2 * r)) - r;
+        if (px * px + py * py < r * r) draw(Math.round(x + px), Math.round(y + py), i);
+      }
+    }
+    // a soft disc of tint over the weather's circle
+    function haze(w, rgb, a) {
+      const x = w.x * R, y = w.y * R, r = w.r * R, g = b.createRadialGradient(x, y, 0, x, y, r);
+      g.addColorStop(0, `rgba(${rgb},${a})`); g.addColorStop(0.7, `rgba(${rgb},${a * 0.7})`); g.addColorStop(1, `rgba(${rgb},0)`);
+      b.fillStyle = g; b.fillRect(x - r, y - r, r * 2, r * 2);
+    }
+    function drawWeather(w, gnow, now) {
+      // fades in and out over its first and last ten seconds
+      const a = Math.min(1, (gnow - w.since) / 10000, (w.until - gnow) / 10000);
+      if (a <= 0) return;
+      b.save();
+      b.globalAlpha = a;
+      if (w.kind === 'fog') {
+        haze(w, '230,236,242', 0.55);
+        particles(w, 40, now, 3, 0.5, (x, y) => rect('rgba(240,244,248,0.35)', x - 6, y - 2, 12, 4));
+      } else if (w.kind === 'storm') {
+        haze(w, '40,50,72', 0.45);
+        particles(w, 120, now, -18, 90, (x, y) => rect('rgba(170,200,240,0.75)', x, y, 1, 3));
+        if (!reduced && now % 5200 < 110) haze(w, '255,255,255', 0.35);
+      } else if (w.kind === 'snow') {
+        haze(w, '255,255,255', 0.18);
+        particles(w, 110, now, 4, 14, (x, y, i) => rect(i % 3 ? '#ffffff' : '#dfe8f0', x, y, 1, 1));
+      } else {
+        particles(w, 45, now, 70, 0, (x, y) => rect('rgba(255,255,255,0.6)', x - 4, y, 8, 1));
+      }
+      b.restore();
+    }
+
     function drawCity(c, now) {
       const x = c.x * R, y = c.y * R;
       if (isOpen(c.id)) landmark(c, x, y, now);
@@ -651,6 +691,7 @@
         hits.push({ id: v.id, x, y: y - lift });
         if (marked(v)) marker(x, y - lift - 18);
       }
+      for (const w of game.weather ?? []) drawWeather(w, gnow, now);
       if (dk) {
         b.globalCompositeOperation = 'multiply';
         b.fillStyle = tint(dk); b.fillRect(cx, cy, bw, bh);

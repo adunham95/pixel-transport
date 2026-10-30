@@ -1,5 +1,5 @@
 <script>
-  import { game, ui, cityById, etaText, fmtTime, clock, followVehicle, isOpen, connections, unlockPrice, unlockCity, carrierAt, fmt, townSize, sizeName, growthOf, buyDepot, fetcher, consistOf, paintOf, buildHQ, hqPrice, setLivery, nextContractsPerk, buyContractsPerk, contractSlots, nextSuperloadsPerk, buySuperloadsPerk, superloadSlots, buyAutoPerk, mixOf, projectTowns, landmarkAt, cantHost } from './game.svelte.js';
+  import { game, ui, cityById, etaText, fmtTime, clock, followVehicle, isOpen, connections, unlockPrice, unlockCity, carrierAt, fmt, townSize, sizeName, growthOf, buyDepot, fetcher, consistOf, paintOf, buildHQ, hqPrice, setLivery, nextContractsPerk, buyContractsPerk, contractSlots, nextSuperloadsPerk, buySuperloadsPerk, superloadSlots, buyAutoPerk, mixOf, projectTowns, landmarkAt, cantHost, escortKind } from './game.svelte.js';
   import { CITY_PRICE, DEPOT, HQ, TYPE_LABEL, PROJECTS } from './data.js';
   import ProjectCard from './ProjectCard.svelte';
   import Icon from './Icon.svelte';
@@ -124,10 +124,10 @@
   {/if}
   <h3>Parked here</h3>
   {#each here as v (v.id)}
-    <button class="row vrow" animate:flip transition:slide={{ duration: 200 }} onclick={() => { ui.activeVehicle = v.id; ui.picking = false; }}>
+    <button class="row vrow" animate:flip transition:slide={{ duration: 200 }} onclick={() => { ui.activeVehicle = v.id; ui.plan = []; ui.picking = !!escortKind(v); }}>
       <span class="pv"><Sprite kind={v.kind} model={v.model} cars={consistOf(v)} scale={3} paint={paintOf(v)} /></span>
       <span class="grow"><b>{v.name}</b><small>{v.loop ? 'Repeating, waiting for jobs' : v.cargo.length ? `${v.cargo.length} on board` : 'Empty'}</small></span>
-      <span class="act">Load</span>
+      <span class="act">{escortKind(v) ? 'Move' : 'Load'}</span>
     </button>
   {:else}
     <p class="muted">{c.anchor ? 'Nothing anchored here. Send an aircraft carrier over.' : 'Nothing parked here. Send a vehicle over, or buy one in the Shop.'}</p>

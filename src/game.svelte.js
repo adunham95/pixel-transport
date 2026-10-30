@@ -1,4 +1,4 @@
-import { CITIES, RAILS, ROADS, ROAD_OFF, LANE, roadSide, ENGINES, CARS, PLANES, BOATS, BARGES, TRUCKS, TRAILERS, LEVELS, RATES, SPEED, CITY_PRICE, START_CITIES, JOB_TYPES, MAGLEV_LINES, HQ, WEAR, MAIL, WIDE, SECURE, GROWTH, SIZE_NAME, DEPOT, TYPE_LABEL, CONTRACTS, SUPERLOAD, ESCORT_LABEL, BREAKDOWN, CELEB, TOURISTS, PROJECTS, CONTINENTS } from './data.js';
+import { CITIES, RAILS, ROADS, ROAD_OFF, LANE, roadSide, ENGINES, CARS, PLANES, BOATS, BARGES, TRUCKS, TRAILERS, LEVELS, RATES, SPEED, CITY_PRICE, START_CITIES, JOB_TYPES, MAGLEV_LINES, HQ, WEAR, MAIL, WIDE, SECURE, GROWTH, SIZE_NAME, DEPOT, TYPE_LABEL, CONTRACTS, SUPERLOAD, ESCORT_LABEL, BREAKDOWN, CELEB, TOURISTS, PROJECTS, CONTINENTS, LUCKY, WEATHER, USED } from './data.js';
 import { seaLane } from './sea.js';
 
 const KEY = 'pixel-transport-save-v1';
@@ -171,8 +171,15 @@ export function wear(v) {
 }
 const fuel = (v, base) => Math.max(1, Math.ceil(base * (1 + wear(v))));
 
-// one hop between two cities for this vehicle, or null if it can't make it
+// one hop between two cities for this vehicle, or null if it can't make it. Weather it passes
+// through slows it down or speeds it up, and changes the fuel it burns (wx is which kind).
 export function leg(v, from, to) {
+  const l = baseLeg(v, from, to), w = l && weatherOn(v.kind, l.pts);
+  if (!w) return l;
+  const k = WEATHER.kinds[w.kind];
+  return { ...l, time: l.time * k.time, cost: Math.max(1, Math.ceil(l.cost * k.fuel)), wx: w.kind };
+}
+function baseLeg(v, from, to) {
   // vehicles can't stop at locked towns (trains may still roll through them on the way)
   if (!from || from === to || !isOpen(to)) return null;
   if (v.kind === 'train') {
@@ -318,7 +325,9 @@ function makeJob(g, from, forceTo, forceType) {
   const to = forceTo ?? pickWeighted(dests);
   // bigger towns and some landmarks pay more for what leaves them, and tourists pay more to see the sights
   const pay = Math.round((10 + dist(from, to) * RATES[type]) * (1 + 0.1 * (townSize(from, g) - 1) + boostAt(from, 'pay', g)) * (type === 'tour' ? 1 + sightOf(to, g) : 1));
-  return { id: g.nextId++, type, from, to, pay };
+  const j = { id: g.nextId++, type, from, to, pay };
+  if (LUCKY.types.includes(type) && Math.random() < LUCKY.chance) j.lucky = true;
+  return j;
 }
 
 function newVehicle(g, kind, model, city, cars) {
@@ -479,7 +488,13 @@ function books(v) { return (v.books ??= { earned: 0, fuel: 0, since: gameNow() }
 // hand over everything on board that's for this town, and get paid for it; at is when (game time)
 function dropOff(v, to, at = gameNow()) {
   let total = 0, n = 0;
-  const pay = (j) => Math.round(j.pay * payBoost(v, j));
+  // lucky cargo pays whatever turns out to be inside
+  const finds = [];
+  const pay = (j) => {
+    const f = j.lucky ? pickWeighted(LUCKY.finds.map((x) => [x, x.weight])) : null;
+    if (f) finds.push(f);
+    return Math.round(j.pay * payBoost(v, j) * (f?.mult ?? 1));
+  };
   v.cargo = v.cargo.filter((j) => {
     if (j.to === to) { total += pay(j); n++; grow(j.to); grow(j.from); countToward(j, at); countProject(j); return false; }
     return true;
@@ -488,6 +503,10 @@ function dropOff(v, to, at = gameNow()) {
   finishContracts();
   finishProjects();
   if (n && !quiet) fx.push({ x: cityById[to].x, y: cityById[to].y, text: `+$${fmt(total)}`, t: Date.now() });
+  for (const f of finds) {
+    toast(`Lucky cargo at ${cityById[to].name}: ${f.what}! It paid ${f.mult}×`, f.mult > 1 ? 'good' : 'info');
+    if (f.mult >= 3 && !quiet) fx.push({ x: cityById[to].x, y: cityById[to].y - 8, text: `Lucky ${f.mult}×!`, t: Date.now() + 300 });
+  }
   return { n, total };
 }
 
@@ -775,7 +794,7 @@ function makeCeleb(id) {
   const dests = jobDests(game, A, 'pax').filter(([to]) => ok(cityById[to]));
   if (!dests.length) return null;
   const j = makeJob(game, id, pickWeighted(dests), 'pax');
-  return { ...j, pay: j.pay * CELEB.mult, celeb: CELEB.who[Math.floor(Math.random() * CELEB.who.length)] };
+  return { ...j, pay: j.pay * CELEB.mult, celeb: CELEB.who[Math.floor(Math.random() * CELEB.who.length)], lucky: undefined };
 }
 
 // ---------- contracts ----------
@@ -1172,6 +1191,87 @@ function tickLaunches(now) {
   }
 }
 
+// ---------- weather ----------
+
+// does a route (a list of points) pass through this circle of weather?
+function crosses(pts, w) {
+  for (let i = 1; i < pts.length; i++) {
+    const [ax, ay] = pts[i - 1], [bx, by] = pts[i], dx = bx - ax, dy = by - ay, L = dx * dx + dy * dy;
+    const t = L ? Math.max(0, Math.min(1, ((w.x - ax) * dx + (w.y - ay) * dy) / L)) : 0;
+    if (Math.hypot(ax + dx * t - w.x, ay + dy * t - w.y) <= w.r) return true;
+  }
+  return false;
+}
+// the first spell of weather on this route that does anything to this kind of vehicle, if any
+function weatherOn(kind, pts) {
+  return (game.weather ?? []).find((w) => WEATHER.kinds[w.kind].hits.includes(kind) && crosses(pts, w)) ?? null;
+}
+// a spell of weather settling over a town (picked at random if not given), or null if there's nowhere for it
+function makeWeather(now, kind = null, at = null) {
+  const kinds = Object.keys(WEATHER.kinds);
+  kind ??= kinds[Math.floor(Math.random() * kinds.length)];
+  // somewhere you'll see it: around an open town (snow only up north, storms only by the sea, and
+  // only storms out over an anchorage)
+  const towns = at ? [cityById[at]] : CITIES.filter((c) => isOpen(c.id) && (!c.anchor || kind === 'storm') && (kind !== 'snow' || c.y < WEATHER.north) && (kind !== 'storm' || c.port || c.anchor));
+  if (!towns.length) return null;
+  const c = towns[Math.floor(Math.random() * towns.length)], span = ([a, b]) => a + Math.random() * (b - a);
+  const w = { id: game.nextId++, kind, x: c.x + (Math.random() - 0.5) * 30, y: c.y + (Math.random() - 0.5) * 30, r: span(WEATHER.radius), since: now, until: now + span(WEATHER.last) };
+  (game.weather ??= []).push(w);
+  const k = WEATHER.kinds[kind];
+  toast(`${k.name} around ${c.name}: ${k.about} through it for a while`, kind === 'tailwind' ? 'good' : 'info');
+  return w;
+}
+function tickWeather(now) {
+  game.weather ??= [];
+  if (game.weather.some((w) => now >= w.until)) game.weather = game.weather.filter((w) => now < w.until);
+  if (game.level < WEATHER.level || now < (game.weatherAt ?? 0)) return;
+  game.weatherAt = now + WEATHER.every * (0.5 + Math.random());
+  if (game.weather.length < WEATHER.max) makeWeather(now);
+}
+
+// ---------- the used lot ----------
+
+// a secondhand vehicle from a level or two ahead, waiting at a town that can take it, or null if there's none
+function makeUsed(now) {
+  const opts = [];
+  for (const [kind, specs] of Object.entries(SPECS)) for (const [model, s] of Object.entries(specs)) {
+    // no escorts, superload carriers, self-driving, celebrity or show-off models: they're special orders
+    if (s.level <= game.level || s.level > game.level + USED.ahead) continue;
+    if (s.escort || s.superload || s.auto || s.celebrity || s.cap?.tour || s.hold?.tour || isCarrier(model)) continue;
+    const towns = CITIES.filter((c) => isOpen(c.id) && !c.anchor && canBase(kind, model, c));
+    if (towns.length) opts.push({ kind, model, towns });
+  }
+  if (!opts.length) return null;
+  const pick = (list) => list[Math.floor(Math.random() * list.length)], o = pick(opts), [lo, hi] = USED.miles;
+  return {
+    kind: o.kind, model: o.model, at: pick(o.towns).id,
+    price: Math.round((SPECS[o.kind][o.model].price * USED.price) / 10) * 10,
+    miles: WEAR.per * (lo + Math.floor(Math.random() * (hi - lo + 1))),
+    until: now + USED.every,
+  };
+}
+function tickUsed(now) {
+  const u = game.usedLot;
+  if (u ? now < u.until : now < (game.usedAt ?? 0)) return;
+  game.usedLot = makeUsed(now);
+  if (!game.usedLot) game.usedAt = now + USED.after;
+}
+export function buyUsed() {
+  const u = game.usedLot;
+  if (!u) return;
+  const c = cityById[u.at], s = SPECS[u.kind][u.model];
+  if (game.coins < u.price) { toast(`You need $${fmt(u.price)} for that`, 'bad'); return; }
+  game.coins -= u.price;
+  const v = newVehicle(game, u.kind, u.model, c.id, s.maxCars != null ? [] : undefined);
+  v.miles = u.miles;
+  game.vehicles.push(v);
+  game.usedLot = null;
+  game.usedAt = gameNow() + USED.after;
+  toast(`${v.name} is waiting at ${c.name}. It has some miles on it: service it to get it running like new.`, 'good');
+  ui.tab = 'fleet';
+  ui.focusVehicle = v.id;
+}
+
 // ---------- unlocking towns ----------
 
 // anchorages are always open: there's nothing there to unlock
@@ -1212,6 +1312,8 @@ function step() {
   for (const v of game.vehicles) books(v);
   tickContracts(now);
   tickLaunches(now);
+  tickWeather(now);
+  tickUsed(now);
   for (const v of game.vehicles) if (v.loop && v.city && !v.trip && now >= (v.loop.wait ?? 0)) runLoop(v, now);
   for (const c of CITIES) {
     // jobs are stamped the first time they're seen waiting; ones dropped off for a transfer, or with
@@ -1260,17 +1362,20 @@ export function selectCity(id, focus = false) {
   if (focus) ui.focus = { x: cityById[id].x, y: cityById[id].y, t: Date.now() };
 }
 
+// open a parked vehicle's load screen; escorts carry nothing, so they go straight to planning a route
 export function openLoad(v) {
   if (!v.city) return;
   selectCity(v.city, true);
   ui.activeVehicle = v.id;
+  if (escortKind(v)) ui.picking = true;
 }
 
 // ---------- idle vehicles ----------
 
 // parked in town with nothing to do: not repeating, not an escort, which only moves with a convoy
-// or to a breakdown, and not self-driving with auto dispatch on, which finds its own work
-export const isIdle = (v) => !!v.city && !v.trip && !v.loop && !escortKind(v) && !(spec(v).auto && game.hqAuto);
+// or to a breakdown, not a superload carrier or aircraft carrier, which never take everyday jobs,
+// and not self-driving with auto dispatch on, which finds its own work
+export const isIdle = (v) => !!v.city && !v.trip && !v.loop && !escortKind(v) && !spec(v).superload && !isCarrier(v.model) && !(spec(v).auto && game.hqAuto);
 export const idleVehicles = () => game.vehicles.filter(isIdle);
 
 // load the best paying jobs it can deliver and set off on the nearest-first route, all in one go.
@@ -1428,8 +1533,9 @@ function fetching() {
 }
 export function fetcher(job) { return fetching().get(job.id) ?? null; }
 
-// how a parked vehicle would go and get a job waiting at another town and take it where it's
-// headed, or why it can't: { why } or { stops, pick (index of the pick up stop), cost, time, pickIn }
+// how a parked vehicle would go and get a job waiting at a town and take it where it's headed, or
+// why it can't: { why } or { stops, pick (index of the pick up stop), cost, time, pickIn }. One
+// parked in that town already loads it there and sets off, with pick -1.
 export function fetchPlan(v, job, at) {
   if (!v.city || v.trip) return { why: 'Out on a trip' };
   if (v.loop) return { why: 'Running a repeating route' };
@@ -1438,7 +1544,7 @@ export function fetchPlan(v, job, at) {
   if (job.celeb && !spec(v).celebrity) return { why: 'Only rides in a gold limo or gold jet' };
   if (!cap) return { why: `Can’t carry ${TYPE_LABEL[job.type].toLowerCase()}` };
   if (used(v)[job.type] >= cap) return { why: 'No room left on board' };
-  const there = stopsTo(v, v.city, at);
+  const there = v.city === at ? [] : stopsTo(v, v.city, at);
   if (!there) return { why: `Can’t reach ${cityById[at].name}` };
   const on = stopsTo(v, at, job.to);
   if (!on) return { why: `Can’t get it to ${cityById[job.to].name}` };
@@ -1452,6 +1558,13 @@ export function sendFor(v, job, at) {
   const p = fetchPlan(v, job, at), f = fetcher(job);
   if (f) { toast(`${f.name} is already on its way for that`, 'bad'); return false; }
   if (p.why) { toast(`${v.name}: ${p.why}`, 'bad'); return false; }
+  // already here: load it and go, putting it back if it can't set off
+  if (p.pick < 0) {
+    loadJob(v, job);
+    if (dispatch(v, p.stops)) return true;
+    unloadJob(v, job);
+    return false;
+  }
   if (!dispatch(v, p.stops)) return false;
   (p.pick ? v.next[p.pick - 1] : v.trip).pick = job.id;
   return true;
@@ -1792,6 +1905,15 @@ export function devFinishProjects() {
   }
   finishProjects();
   if (!n) toast('No megaprojects under way. Start one from a town page or the Upgrades tab.', 'bad');
+}
+
+// a spell of weather over the selected town, or a fresh car on the used lot
+export function devWeather(kind) {
+  if (!makeWeather(gameNow(), kind, game.selected)) toast('No weather can go there', 'bad');
+}
+export function devUsedLot() {
+  game.usedLot = makeUsed(gameNow());
+  if (!game.usedLot) toast('Nothing on the used lot: there are no models a level or two ahead that can be based in an open town', 'bad');
 }
 
 export function devFillJobs() {

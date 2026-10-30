@@ -1,10 +1,10 @@
 <script>
-  import { game, ui, cityById, capacity, used, loadJob, unloadJob, autoLoad, destinations, dispatch, route, canReach, planLegs, autoPlan, toggleStop, fmt, fmtTime, loopStops, aboard, canBoard, fitsAboard, deckFor, deckSize, deckUsed, deckRoom, driveOn, driveOff, wear, fetcher, convoyNeeds, pickEscorts, escortText, consistOf, optionalEscort, paintOf, spec, nextInQueue, queueLeft, escortAs, superloadCarrier, SUPER_KIND } from './game.svelte.js';
+  import { game, ui, cityById, capacity, used, loadJob, unloadJob, autoLoad, destinations, dispatch, route, canReach, planLegs, autoPlan, toggleStop, fmt, fmtTime, loopStops, aboard, canBoard, fitsAboard, deckFor, deckSize, deckUsed, deckRoom, driveOn, driveOff, wear, fetcher, convoyNeeds, pickEscorts, escortText, consistOf, optionalEscort, paintOf, spec, nextInQueue, queueLeft, escortAs, escortKind, superloadCarrier, SUPER_KIND } from './game.svelte.js';
   import Icon from './Icon.svelte';
   import Sprite from './Sprite.svelte';
   import JobRow from './JobRow.svelte';
   import { send, receive, flip, fly } from './motion.js';
-  import { TYPE_LABEL, JOB_TYPES, ENGINES, TRUCKS, HQ, ESCORT_LABEL, SECURE } from './data.js';
+  import { TYPE_LABEL, JOB_TYPES, ENGINES, TRUCKS, HQ, ESCORT_LABEL, SECURE, WEATHER } from './data.js';
   let { v } = $props();
   const cap = $derived(capacity(v));
   const u = $derived(used(v));
@@ -92,6 +92,11 @@
   const WORDS = { truck: { on: 'Drive on', off: 'Drive off', big: 'Too long to carry', none: 'trucks', aboard: 'drive it aboard' }, plane: { on: 'Take aboard', off: 'Launch', big: 'Too big for a carrier', none: 'planes', aboard: 'take it aboard' } };
   const w = $derived(WORDS[rides ?? 'truck']);
   function plan() { ui.plan = autoPlan(v); ui.picking = true; }
+  // escorts skip the load screen, so backing out of their route leaves them altogether
+  function back() {
+    ui.picking = false; ui.plan = [];
+    if (escortKind(v)) ui.activeVehicle = null;
+  }
   function go() {
     if (!dispatch(v, ui.plan, { repeat: looping, escort: riding.length > 0 })) return;
     ui.picking = false; ui.activeVehicle = null; ui.plan = [];
@@ -139,7 +144,7 @@
           <span class="num">{i + 1}</span>
           <span class="grow">
             <b>{cityById[id].name}</b>
-            <small>{!l ? 'Out of reach from the stop before' : drops[i].n ? `Drop off ${drops[i].n}, +$${fmt(drops[i].pay)}` : 'Nothing to drop off'}</small>
+            <small>{!l ? 'Out of reach from the stop before' : drops[i].n ? `Drop off ${drops[i].n}, +$${fmt(drops[i].pay)}` : 'Nothing to drop off'}{#if l?.wx}<span class="tag mini wx">{WEATHER.kinds[l.wx].name}</span>{/if}</small>
           </span>
           {#if l}<span class="right"><b>{fmtTime(l.time)}</b><small>Fuel ${l.cost}</small></span>{/if}
           <button class="x" aria-label="Remove {cityById[id].name}" onclick={() => ui.plan.splice(i, 1)}>×</button>
@@ -164,7 +169,7 @@
     <button class="row dest" class:has={d.n} onclick={() => toggleStop(v, d.to)}>
       <span class="grow">
         <b>{c.name}{#if c.rail + c.air + c.port > 1}<span class="tag hub mini">Hub</span>{/if}</b>
-        <small>{d.n ? `${d.n} on board for here, +$${fmt(d.pay)}` : 'Nothing on board for here'}</small>
+        <small>{d.n ? `${d.n} on board for here, +$${fmt(d.pay)}` : 'Nothing on board for here'}{#if d.wx}<span class="tag mini wx">{WEATHER.kinds[d.wx].name}</span>{/if}</small>
       </span>
       <span class="right"><b>{fmtTime(d.time)}</b><small>Fuel ${d.cost}</small></span>
     </button>
@@ -196,7 +201,7 @@
     {#if looping}<p class="muted small">Later laps earn from whatever they pick up along the way.</p>{/if}
   {/if}
   <div class="footer">
-    <button class="btn" onclick={() => { ui.picking = false; ui.plan = []; }}>Back</button>
+    <button class="btn" onclick={back}>Back</button>
     {#if unrouted}<button class="btn" onclick={plan}>Route cargo</button>{/if}
     <button class="btn primary" disabled={!ui.plan.length || broken || game.coins < total.cost || convoy.missing.length > 0} onclick={go}>
       {!ui.plan.length ? 'Go' : looping ? `Loop ${fmtTime(total.time)}, $${fmt(total.cost)} a lap` : `Go ${fmtTime(total.time)}, $${fmt(total.cost)}`}
@@ -243,6 +248,7 @@
 
 <style>
   .repeat { margin-top: 10px; cursor: pointer; }
+  .wx { margin-left: 6px; }
   .queue { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; padding: 8px 10px 8px 12px; background: var(--accent-soft); border-radius: var(--r); }
   .queue small { display: block; color: var(--ink-soft); font-size: 12px; }
   .profit { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin: 12px 0 4px; padding: 8px 10px; background: var(--panel-3); border-radius: var(--r); }

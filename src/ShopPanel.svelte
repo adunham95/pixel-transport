@@ -1,5 +1,5 @@
 <script>
-  import { game, ui, cityById, buyPlane, buyEngine, buyBoat, buyTruck, isOpen, canBase, fmt, paintFor, selectCity } from './game.svelte.js';
+  import { game, ui, cityById, buyPlane, buyEngine, buyBoat, buyTruck, isOpen, canBase, fmt, fmtTime, paintFor, selectCity, buyUsed, spec, wear, clock } from './game.svelte.js';
   import { ENGINES, CARS, PLANES, BOATS, BARGES, TRUCKS, TRAILERS, MI, TYPE_LABEL, JOB_TYPES, HQ, ESCORT_LABEL, PROJECTS } from './data.js';
   import ProjectCard from './ProjectCard.svelte';
   import Sprite from './Sprite.svelte';
@@ -69,6 +69,20 @@
   {#each KINDS as k}<button class:on={ui.shopTab === k.id} onclick={() => pick(k.id)}>{k.label}</button>{/each}
   <button class:on={ui.shopTab === 'more'} onclick={() => pick('more')}>Upgrades</button>
 </nav>
+
+{#if game.usedLot}
+  {@const u = game.usedLot}
+  {@const s = spec(u)}
+  <div class="shop used">
+    <span class="pv wide"><Sprite kind={u.kind} model={u.model} scale={4} /></span>
+    <span class="grow">
+      <b><span class="tag hub mini">Used lot</span> {s.name} <span class="lv">Lv {s.level}</span></b>
+      <small>At <button class="town" onclick={() => selectCity(u.at, true)}>{cityById[u.at].name}</button>, before you can buy one new. It has {fmt(u.miles * MI)} mi on it, so it burns {Math.round(wear(u) * 100)}% more fuel and breaks down more until it’s serviced.</small>
+      <small>Gone in {fmtTime((u.until - clock.now) / 1000)}</small>
+    </span>
+    <button class="btn primary" disabled={game.coins < u.price} onclick={buyUsed}>${fmt(u.price)}<s>${fmt(s.price)}</s></button>
+  </div>
+{/if}
 
 {#if ui.shopTab === 'more'}
   <div class="shop" class:locked={game.level < HQ.level}>
@@ -169,6 +183,12 @@
   .holds .meter { padding: 1px 7px; font-size: 12px; gap: 3px; }
   .holds .pull { opacity: .75; background: transparent; border: 1px dashed currentColor; padding: 0 6px; }
   .more { width: 100%; margin-bottom: 8px; }
+  .used { border: 1px dashed var(--accent); background: color-mix(in srgb, var(--accent) 8%, var(--panel-2)); margin-bottom: 8px; }
+  .used small { display: block; }
+  .used .lv { font-weight: 500; font-size: 12px; color: var(--ink-soft); white-space: nowrap; }
+  .used .btn { display: flex; flex-direction: column; align-items: center; line-height: 1.2; }
+  .used s { font-size: 11px; font-weight: 500; opacity: .7; }
+  .town { border: 0; background: none; padding: 0; font: inherit; color: inherit; text-decoration: underline; cursor: pointer; }
   .tails { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 6px; }
   .tail { display: flex; align-items: center; gap: 8px; padding: 7px 8px; background: var(--panel-2); border: 1px solid var(--line); border-radius: var(--r); }
   .tail.locked { opacity: .55; }
