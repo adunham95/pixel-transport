@@ -1,6 +1,7 @@
 <script>
   import { game, ui, cityById, buyPlane, buyEngine, buyBoat, buyTruck, isOpen, canBase, fmt, paintFor, selectCity } from './game.svelte.js';
-  import { ENGINES, CARS, PLANES, BOATS, BARGES, TRUCKS, TRAILERS, MI, TYPE_LABEL, JOB_TYPES, HQ, ESCORT_LABEL } from './data.js';
+  import { ENGINES, CARS, PLANES, BOATS, BARGES, TRUCKS, TRAILERS, MI, TYPE_LABEL, JOB_TYPES, HQ, ESCORT_LABEL, PROJECTS } from './data.js';
+  import ProjectCard from './ProjectCard.svelte';
   import Sprite from './Sprite.svelte';
   import Icon from './Icon.svelte';
 
@@ -30,6 +31,7 @@
   function notes(kind, s) {
     const out = [];
     const tails = tailsOf(kind, s), what = KINDS.find((k) => k.id === kind).tail;
+    if (capOf(kind, s).tour) out.push('Show-off vehicle: the only ride tourists take');
     if (s.superload) out.push('Carries one superload from a contract');
     if (s.escort) out.push(`Escorts superloads as a ${ESCORT_LABEL[s.escort]}`);
     if (s.helps) out.push(`Can also escort superloads as a ${ESCORT_LABEL[s.helps]}`);
@@ -77,6 +79,9 @@
     {#if game.hq}<button class="btn" onclick={() => selectCity(game.hq)}>Visit</button>
     {:else}<span class="pay">{game.level < HQ.level ? `Lv ${HQ.level}` : `$${fmt(HQ.price)}`}</span>{/if}
   </div>
+  <h3>Megaprojects</h3>
+  <p class="muted small">Huge builds: pay up front, then deliver what they need to the site. Landmarks change what their town turns up and draw tourists. Bridges join landmasses by road and rail.</p>
+  {#each PROJECTS as p (p.id)}<ProjectCard {p} />{/each}
 {:else}
   {#if c.anchor}
     <p class="note"><b>{c.name}</b> is open sea. Select a town to buy vehicles there.</p>

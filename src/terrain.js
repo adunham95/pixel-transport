@@ -97,7 +97,7 @@ function bfs(seedTest, passTest, max) {
   return d;
 }
 
-function bresenham(x0, y0, x1, y1) {
+export function bresenham(x0, y0, x1, y1) {
   const dx = Math.abs(x1 - x0), dy = -Math.abs(y1 - y0), sx = x0 < x1 ? 1 : -1, sy = y0 < y1 ? 1 : -1;
   let err = dx + dy;
   const pts = [];

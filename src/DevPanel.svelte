@@ -1,5 +1,5 @@
 <script>
-  import { game, dev, cityById, devCoins, devMaxLevel, devSpawn, devFinishLegs, devFillJobs, devUnlockAll, devSkipHalfDay, devSuperload, devBreakdown, devCeleb, setDev, isOpen, canBase, fmt } from './game.svelte.js';
+  import { game, dev, cityById, devCoins, devMaxLevel, devSpawn, devFinishLegs, devFillJobs, devUnlockAll, devSkipHalfDay, devSuperload, devBreakdown, devCeleb, devFinishProjects, setDev, isOpen, canBase, fmt } from './game.svelte.js';
   import { ENGINES, PLANES, BOATS, TRUCKS, LEVELS, SUPERLOAD } from './data.js';
   import Sprite from './Sprite.svelte';
   const c = $derived(cityById[game.selected]);
@@ -45,6 +45,9 @@
 <div class="grid3 two">
   <button class="btn small" onclick={devBreakdown}>Break down a vehicle</button>
   <button class="btn small" disabled={!isOpen(c.id)} onclick={devCeleb}>Celebrity at {c.name}</button>
+</div>
+<div class="grid3 two">
+  <button class="btn small" onclick={devFinishProjects}>Finish megaprojects</button>
 </div>
 <div class="superload">
   <select bind:value={pick} aria-label="Superload">

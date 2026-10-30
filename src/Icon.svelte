@@ -18,6 +18,10 @@
     <rect x="7" y="8" width="10" height="8" rx="1" /><path d="M2 12h3M19 12h3M4 10l-2 2 2 2M20 10l2 2-2 2" />
   {:else if name === 'secure'}
     <rect x="4.5" y="10.5" width="15" height="10" rx="2" /><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3M12 14.5v2.5" />
+  {:else if name === 'tour'}
+    <path d="M3 8.5A1.5 1.5 0 0 1 4.5 7h3l1.5-2.5h6L16.5 7h3A1.5 1.5 0 0 1 21 8.5v9a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 17.5z" /><circle cx="12" cy="12.5" r="3.5" />
+  {:else if name === 'project'}
+    <path d="M4 21V9l8-5 8 5v12" /><path d="M9 21v-6h6v6M4 21h16" />
   {:else if name === 'coin'}
     <circle cx="12" cy="12" r="9" fill="currentColor" stroke="none" /><path d="M12 7.5v9M14.5 9.5c-.5-1-1.4-1.5-2.5-1.5-1.5 0-2.5.8-2.5 2s1 1.6 2.5 2 2.5.8 2.5 2-1 2-2.5 2c-1.2 0-2.1-.6-2.6-1.6" stroke="#5a4314" stroke-width="1.8" />
   {/if}

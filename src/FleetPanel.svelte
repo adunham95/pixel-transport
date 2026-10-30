@@ -1,5 +1,5 @@
 <script>
-  import { game, ui, dev, setDev, cityById, capacity, endRoute, addCar, removeCar, canRemoveCar, upgradeEngine, upgradeCost, sellVehicle, sellValue, resetGame, openLoad, followVehicle, etaText, fmt, stopRepeating, spec, tailSpecs, tailName, aboard, carrierOf, deckUsed, deckRoom, deckFor, finances, clock, wear, service, serviceCost, escortee, consistOf, paintOf, paintFor, isIdle, idleVehicles, quickSend, quickSendAll, startQueue, toast, brokenVehicles, sendHelp, callRoadside, calloutCost, stillNeeded, escortText } from './game.svelte.js';
+  import { game, ui, dev, setDev, cityById, capacity, endRoute, addCar, removeCar, canRemoveCar, upgradeEngine, upgradeCost, sellVehicle, sellValue, resetGame, openLoad, followVehicle, etaText, fmt, stopRepeating, spec, tailSpecs, tailName, aboard, carrierOf, deckUsed, deckRoom, deckFor, finances, clock, wear, service, serviceCost, escortee, consistOf, paintOf, paintFor, isIdle, idleVehicles, quickSend, quickSendAll, startQueue, toast, brokenVehicles, sendHelp, callRoadside, calloutCost, stillNeeded, escortText, renameVehicle } from './game.svelte.js';
   import { ENGINES, TRUCKS, BOATS, PLANES, MI, JOB_TYPES, ESCORT_LABEL } from './data.js';
   import Sprite from './Sprite.svelte';
   import LoadBadges from './LoadBadges.svelte';
@@ -106,6 +106,10 @@
     </button>
     {#if open}
       <div class="card-body" transition:slide={{ duration: 220 }}>
+        <label class="name">
+          <small>Name</small>
+          <input value={v.name} maxlength="24" placeholder={spec(v).name} onchange={(e) => { renameVehicle(v, e.currentTarget.value); e.currentTarget.value = v.name; }} onkeydown={(e) => e.key === 'Enter' && e.currentTarget.blur()} />
+        </label>
         <div class="books small">
           <div><small>Earned</small><b>{money(f.earned)}</b></div>
           <div><small>Fuel</small><b>{money(-f.fuel)}</b></div>
@@ -167,6 +171,8 @@
           {:else}
             <p class="muted small">{what[0].toUpperCase() + what.slice(1)}s can be changed once it’s parked.</p>
           {/if}
+        {:else if capacity(v).tour}
+          <p class="muted small">A show-off vehicle. Only tourists ride in it, {capacity(v).tour} at a time, and they pay more headed for towns with landmarks. Send it round a repeating route between the sights.</p>
         {:else if spec(v).superload}
           <p class="muted small">Carries one superload at a time, from a contract. Take on one in the Contracts tab, then park its escorts alongside to set off.</p>
         {:else if spec(v).escort}
@@ -250,6 +256,9 @@
   .chips .sep { width: 1px; background: var(--line); margin: 2px 2px; }
   .link { border: 0; background: none; padding: 0; color: inherit; text-decoration: underline; cursor: pointer; font: inherit; }
   .age { margin: 8px 0; }
+  .name { display: flex; align-items: center; gap: 8px; margin: 0 0 8px; }
+  .name small { color: var(--ink-soft); font-size: 12px; }
+  .name input { flex: 1; min-width: 0; padding: 6px 10px; font: inherit; font-size: 14px; font-weight: 600; border: 1px solid var(--line); border-radius: 8px; background: var(--panel-2); color: var(--ink); }
   .paint { margin: 8px 0; cursor: pointer; }
   .paint input { width: 20px; height: 20px; flex: none; accent-color: var(--accent); }
   .books { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin: 6px 0 10px; padding: 10px 12px; background: var(--panel-2); border: 1px solid var(--line); border-radius: var(--r); }

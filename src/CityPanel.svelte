@@ -1,6 +1,7 @@
 <script>
-  import { game, ui, cityById, etaText, fmtTime, clock, followVehicle, isOpen, connections, unlockPrice, unlockCity, carrierAt, fmt, townSize, sizeName, growthOf, buyDepot, fetcher, consistOf, paintOf, buildHQ, hqPrice, setLivery, nextContractsPerk, buyContractsPerk, contractSlots, nextSuperloadsPerk, buySuperloadsPerk, superloadSlots, buyAutoPerk } from './game.svelte.js';
-  import { CITY_PRICE, DEPOT, HQ, TYPE_LABEL } from './data.js';
+  import { game, ui, cityById, etaText, fmtTime, clock, followVehicle, isOpen, connections, unlockPrice, unlockCity, carrierAt, fmt, townSize, sizeName, growthOf, buyDepot, fetcher, consistOf, paintOf, buildHQ, hqPrice, setLivery, nextContractsPerk, buyContractsPerk, contractSlots, nextSuperloadsPerk, buySuperloadsPerk, superloadSlots, buyAutoPerk, mixOf, projectTowns, landmarkAt, cantHost } from './game.svelte.js';
+  import { CITY_PRICE, DEPOT, HQ, TYPE_LABEL, PROJECTS } from './data.js';
+  import ProjectCard from './ProjectCard.svelte';
   import Icon from './Icon.svelte';
   import Sprite from './Sprite.svelte';
   import JobRow from './JobRow.svelte';
@@ -9,7 +10,7 @@
   import { fly, slide, flip } from './motion.js';
   const c = $derived(cityById[game.selected]);
   // the job types this town turns up more of than most, strongest lean first
-  const knownFor = $derived(Object.entries(c.mix).filter(([, m]) => m > 1).sort((a, b) => b[1] - a[1]).map(([t]) => t));
+  const knownFor = $derived(Object.entries(mixOf(c.id)).filter(([, m]) => m > 1).sort((a, b) => b[1] - a[1]).map(([t]) => t));
   const here = $derived(game.vehicles.filter((v) => v.city === c.id));
   // vehicles with this city anywhere on their route, and when they'll get here
   const incoming = $derived(game.vehicles.flatMap((v) => {
@@ -24,6 +25,11 @@
   const jobs = $derived([...(game.jobs[c.id] ?? [])].sort((a, b) => b.pay - a.pay));
   const active = $derived(game.vehicles.find((v) => v.id === ui.activeVehicle && v.city === c.id));
   const sending = $derived(jobs.find((j) => j.id === ui.sendJob && !fetcher(j)));
+  // megaprojects here: the ones started (a bridge ending here, the landmark going up here), and
+  // the ones that could be (bridges ending here, landmarks this town could take)
+  const open = $derived(!c.anchor && isOpen(c.id));
+  const projects = $derived(open ? PROJECTS.filter((p) => game.projects[p.id] && projectTowns(p).includes(c.id)) : []);
+  const could = $derived(open ? PROJECTS.filter((p) => !game.projects[p.id] && (p.link ? p.link.includes(c.id) : !landmarkAt(c.id) && !cantHost(p, c))) : []);
 </script>
 
 {#if active}
@@ -112,6 +118,10 @@
       {#if heavy}<button class="btn small" disabled={game.level < heavy.level || game.coins < heavy.price} onclick={buySuperloadsPerk}>{game.level < heavy.level ? `Lv ${heavy.level}` : `$${fmt(heavy.price)}`}</button>{/if}
     </div>
   {/if}
+  {#if projects.length}
+    <h3>{projects.some((p) => !game.projects[p.id].built) ? 'Megaprojects' : 'Landmarks'}</h3>
+    {#each projects as p (p.id)}<ProjectCard {p} here={c.id} />{/each}
+  {/if}
   <h3>Parked here</h3>
   {#each here as v (v.id)}
     <button class="row vrow" animate:flip transition:slide={{ duration: 200 }} onclick={() => { ui.activeVehicle = v.id; ui.picking = false; }}>
@@ -145,6 +155,11 @@
   {:else}
     <p class="muted">No jobs right now. New ones turn up every few seconds.</p>
   {/each}
+  {/if}
+  {#if could.length}
+    <h3>Build a megaproject</h3>
+    <p class="muted small">Pay up front, then deliver what it needs. {landmarkAt(c.id) ? '' : 'A town can hold one landmark, and each is only built once.'}</p>
+    {#each could as p (p.id)}<ProjectCard {p} here={c.id} />{/each}
   {/if}
   {/if}
   </div>

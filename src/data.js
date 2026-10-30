@@ -69,7 +69,7 @@ export const CONTINENTS = [
 
 // id, name, x, y, continent index (-1 for a lone island), r = station, a = airport, p = sea port,
 // and an optional job mix: how much more (or less) often than usual the town turns up each job
-// type, as multipliers on its weight (pax, cargo, fuel, bulk, mail, wide, secure), plus celeb
+// type, as multipliers on its weight (pax, cargo, fuel, bulk, mail, wide, secure, tour), plus celeb
 // for celebrities. A town still only turns up the types it can (fuel needs a station or port).
 const RAW = [
   // Westmark
@@ -345,6 +345,10 @@ export const WIDE = { level: 8 };
 // courier launches and courier jets. They pay the most per mile but, like mail, only wait ttl.
 // With a police car riding along an armored car (escortedBy in TRUCKS), they pay escortBonus more.
 export const SECURE = { level: 11, ttl: 3 * 60 * 1000, escortBonus: 0.3 };
+// tourists turn up everywhere from this level, once you own a show-off vehicle (the only models
+// with room for them), in groups of `group` headed the same way. They lean toward towns with
+// landmarks and pay more going there (see PROJECTS), and like mail, only wait ttl (game time).
+export const TOURISTS = { level: 12, ttl: 5 * 60 * 1000, group: 4 };
 // towns grow as jobs to and from them are delivered: GROWTH[i] deliveries to reach size i + 1.
 // Each size up adds jobs, spawns them faster and pays 10% more for jobs leaving the town.
 export const GROWTH = [0, 25, 75, 175, 350];
@@ -496,6 +500,137 @@ export const SUPERLOAD = {
     },
   ],
 };
+// megaprojects: huge builds paid for up front and then supplied. Every job of a type in `needs`
+// delivered to the project's town counts toward it (and those jobs lean its way while it's being
+// built), and each superload named in `supers` (from SUPERLOAD.loads) turns up at a far off town
+// to be brought there. A landmark is built in one town of your choice, one landmark to a town:
+// `where` is what the town needs (road, air or port), and it must be able to take every job type
+// it needs. A bridge has fixed ends in `link`, and deliveries to either end count; once built it
+// joins the two landmasses by road and rail. What a built landmark does for its town: mix
+// multiplies its job weights as a town's mix does, cap is more room on its job board, spawn makes
+// jobs turn up that much faster, pay is extra on jobs leaving it, and launch pays out every so
+// often (game time). sight draws tourists and makes them pay that much more going there (bridges
+// count at both ends).
+// A project's level must be at least the level each type it needs turns up at, and every superload's.
+export const PROJECTS = [
+  {
+    id: "stadium",
+    name: "Grand Stadium",
+    level: 5,
+    price: 60000,
+    where: "road",
+    needs: { cargo: 30, bulk: 24 },
+    mix: { pax: 2, celeb: 3 },
+    cap: 3,
+    sight: 0.3,
+    about: "Fans pour in: twice the passengers, celebrities drop by, and room for 3 more jobs.",
+  },
+  {
+    id: "hub",
+    name: "Hub Airport",
+    level: 7,
+    price: 180000,
+    where: "air",
+    needs: { cargo: 50, fuel: 30 },
+    spawn: 0.5,
+    pay: 0.25,
+    cap: 4,
+    sight: 0.2,
+    about: "Jobs turn up 50% faster and pay 25% more leaving, with room for 4 more.",
+  },
+  {
+    id: "harbor",
+    name: "Mega Harbor",
+    level: 8,
+    price: 300000,
+    where: "port",
+    needs: { bulk: 75, cargo: 45, fuel: 30 },
+    mix: { bulk: 2, fuel: 2 },
+    pay: 0.2,
+    cap: 4,
+    sight: 0.2,
+    about: "Twice the bulk and fuel, paying 20% more leaving, with room for 4 more jobs.",
+  },
+  {
+    id: "tower",
+    name: "Sky Tower",
+    level: 10,
+    price: 750000,
+    where: "road",
+    needs: { bulk: 120, cargo: 80, wide: 10 },
+    mix: { pax: 1.5, secure: 2, celeb: 3, tour: 3 },
+    pay: 0.3,
+    cap: 4,
+    sight: 1,
+    about: "A skyline everyone wants to see: more passengers, valuables, celebrities and tourists, and jobs leaving pay 30% more.",
+  },
+  {
+    id: "spaceport",
+    name: "Spaceport",
+    level: 12,
+    price: 2500000,
+    where: "road",
+    needs: { bulk: 180, fuel: 120, secure: 20 },
+    supers: ["Rocket stage", "Space shuttle"],
+    mix: { tour: 5, celeb: 4 },
+    sight: 2,
+    launch: { every: 8 * 60 * 1000, pay: 75000 },
+    about: "Launches a rocket every 8 minutes for $75,000, and tourists come from everywhere to watch.",
+  },
+  {
+    id: "frostbridge",
+    name: "Northern Strait Bridge",
+    level: 6,
+    price: 150000,
+    link: ["frost", "whitepeak"],
+    needs: { bulk: 45, cargo: 30 },
+    sight: 0.3,
+    about: "Joins Westmark and the Frostlands by road and rail.",
+  },
+  {
+    id: "jadebridge",
+    name: "Jade Causeway",
+    level: 8,
+    price: 350000,
+    link: ["oakhollow", "jadeharbor"],
+    needs: { bulk: 75, cargo: 40, fuel: 25 },
+    sight: 0.4,
+    about: "Joins the Heartland and the Jade Isles by road and rail.",
+  },
+  {
+    id: "sunbridge",
+    name: "Sunreach Bridge",
+    level: 9,
+    price: 600000,
+    link: ["hollowell", "cactusflats"],
+    needs: { bulk: 100, cargo: 50, fuel: 30 },
+    supers: ["Bridge beam", "Bridge beam"],
+    sight: 0.4,
+    about: "Joins the Heartland and Sunreach by road and rail.",
+  },
+  {
+    id: "polarspan",
+    name: "Polar Span",
+    level: 10,
+    price: 900000,
+    link: ["frostfen", "ashford"],
+    needs: { bulk: 120, cargo: 60, wide: 8 },
+    supers: ["Bridge beam", "Bridge beam"],
+    sight: 0.5,
+    about: "Joins the Frostlands and the Heartland by road and rail.",
+  },
+  {
+    id: "eastgate",
+    name: "Eastern Gate Bridge",
+    level: 11,
+    price: 1200000,
+    link: ["juniper", "ochresprings"],
+    needs: { bulk: 140, cargo: 70, fuel: 50 },
+    supers: ["Bridge beam", "Bridge beam", "Bridge beam"],
+    sight: 0.6,
+    about: "Joins Eastmark and Sunreach by road and rail.",
+  },
+];
 // what each kind of escort is called, one and many
 export const ESCORT_LABEL = {
   pilot: "pilot car",
@@ -524,6 +659,7 @@ export const CONTRACTS = {
     bulk: [6, 12],
     wide: [2, 3],
     secure: [2, 4],
+    tour: [8, 16],
   },
   waitSlack: 2,
   trips: 2,
@@ -547,6 +683,7 @@ export const JOB_TYPES = [
   "mail",
   "wide",
   "secure",
+  "tour",
 ];
 export const RATES = {
   pax: 0.9,
@@ -556,6 +693,7 @@ export const RATES = {
   mail: 1.6,
   wide: 2.6,
   secure: 3,
+  tour: 5,
 };
 export const TYPE_LABEL = {
   pax: "Passengers",
@@ -565,6 +703,7 @@ export const TYPE_LABEL = {
   mail: "Mail",
   wide: "Wide load",
   secure: "Valuables",
+  tour: "Tourists",
 };
 // maglev express lines: each is a list of towns, joined in order by an elevated guideway.
 // Maglev trains only run on these and only stop at their towns.

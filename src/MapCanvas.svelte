@@ -1,8 +1,8 @@
 <script>
   import { onMount } from 'svelte';
-  import { game, ui, cityById, leg, planLegs, toggleStop, selectCity, posAt, tripProgress, gameNow, isOpen, fx, darkness, loopStops, isCarrier, carrierAt, townSize, escortsOf, consistOf, paintOf } from './game.svelte.js';
-  import { CITIES, ENGINES, PLANES, CARS, TRUCKS, BOATS, W, H } from './data.js';
-  import { buildTerrain, makeWaterPattern, R } from './terrain.js';
+  import { game, ui, cityById, leg, planLegs, toggleStop, selectCity, posAt, tripProgress, gameNow, isOpen, fx, darkness, loopStops, isCarrier, carrierAt, townSize, escortsOf, consistOf, paintOf, landmarkAt, projectProgress } from './game.svelte.js';
+  import { CITIES, ENGINES, PLANES, CARS, TRUCKS, BOATS, W, H, PROJECTS, ROAD_OFF, roadSide } from './data.js';
+  import { buildTerrain, makeWaterPattern, R, bresenham } from './terrain.js';
   import { drawArt, trainUnits, paintOrder, artSize, loadArt } from './sprites.js';
   import { dockOf } from './sea.js';
   import { reduced } from './motion.js';
@@ -176,8 +176,119 @@
       });
     }
 
+    // ---------- megaprojects ----------
+
+    // each landmark's size in sub pixels, and how to draw it built, from its bottom left corner
+    const LANDMARKS = {
+      stadium: { w: 14, h: 9, draw(ox, oy) {
+        rect('#1d2433', ox - 1, oy - 10, 16, 11);
+        rect('#8a949e', ox, oy - 9, 14, 9); rect('#a7b0ba', ox, oy - 9, 14, 1);
+        rect('#d6453a', ox, oy - 2, 14, 1); rect('#2a6fd6', ox, oy - 8, 14, 1);
+        rect('#3f9a46', ox + 3, oy - 7, 8, 4); rect('#4cb874', ox + 3, oy - 7, 8, 1);
+        rect('#f4f6f8', ox + 7, oy - 7, 1, 4);
+        for (const px of [ox - 2, ox + 15]) { rect('#5b6470', px, oy - 12, 1, 4); rect('#ffd23f', px - 1, oy - 13, 3, 1); }
+      } },
+      hub: { w: 14, h: 16, draw(ox, oy, now) {
+        rect('#1d2433', ox - 1, oy - 6, 12, 7);
+        rect('#dfe4ea', ox, oy - 5, 10, 5); rect('#5ab4e6', ox + 1, oy - 4, 8, 2);
+        rect('#1d2433', ox + 9, oy - 17, 6, 18);
+        rect('#c9ced4', ox + 11, oy - 13, 2, 13);
+        rect('#23344f', ox + 10, oy - 16, 4, 3); rect('#5ab4e6', ox + 10, oy - 15, 4, 1);
+        if (Math.floor(now / 600) % 2) rect('#ff3c32', ox + 11, oy - 17, 2, 1);
+      } },
+      harbor: { w: 14, h: 12, draw(ox, oy) {
+        const stacks = [[0, 4, '#d6453a'], [3, 5, '#2a6fd6'], [6, 3, '#f2c14e']];
+        for (const [dx, n, col] of stacks) { rect('#1d2433', ox + dx - 1, oy - n - 1, 5, n + 2); for (let k = 0; k < n; k++) rect(k % 2 ? col : '#4f6d7a', ox + dx, oy - k - 1, 3, 1); }
+        rect('#1d2433', ox + 9, oy - 13, 6, 14);
+        rect('#e08a2c', ox + 10, oy - 12, 1, 12); rect('#e08a2c', ox + 13, oy - 12, 1, 12);
+        rect('#e08a2c', ox + 4, oy - 12, 11, 1); rect('#5b6470', ox + 6, oy - 11, 1, 3);
+      } },
+      tower: { w: 12, h: 30, draw(ox, oy, now) {
+        rect('#1d2433', ox + 4, oy - 31, 4, 32); rect('#1d2433', ox + 2, oy - 22, 8, 5); rect('#1d2433', ox + 3, oy - 4, 6, 5);
+        rect('#8a949e', ox + 4, oy - 3, 4, 3);
+        rect('#5d8cc6', ox + 5, oy - 25, 2, 22); rect('#9fd0ff', ox + 5, oy - 25, 1, 22);
+        rect('#dfe4ea', ox + 3, oy - 21, 6, 3); rect('#5ab4e6', ox + 3, oy - 20, 6, 1);
+        rect('#c9ced4', ox + 5, oy - 30, 1, 5);
+        if (Math.floor(now / 700) % 2) rect('#ff3c32', ox + 5, oy - 31, 1, 1);
+      } },
+      spaceport: { w: 14, h: 18, draw(ox, oy, now, s) {
+        rect('#1d2433', ox - 1, oy - 3, 16, 4); rect('#8a949e', ox, oy - 2, 14, 2);
+        rect('#1d2433', ox, oy - 19, 4, 17);
+        for (let k = 0; k < 16; k++) rect(k % 2 ? '#d6453a' : '#8e2f22', ox + 1, oy - 18 + k, 2, 1);
+        // after a launch the pad stands empty a while, until the next rocket is stacked
+        const t = s.lastLaunch == null ? Infinity : (gameNow() - s.lastLaunch) / 1000;
+        if (t < 90 && t >= 8) return;
+        const up = t < 8 ? Math.round(t * t * 3) : 0, rx = ox + 6, ry = oy - 17 - up;
+        if (t < 8) {
+          const flick = Math.floor(now / 80) % 2;
+          rect('#ffd23f', rx, ry + 15, 3, 2 + flick); rect('#f08a3c', rx + 1, ry + 17 + flick, 1, 2);
+          b.fillStyle = 'rgba(235,240,245,0.7)';
+          for (let k = 0; k < 6; k++) b.fillRect(ox + 1 + ((k * 5 + Math.floor(t * 4)) % 14), oy - 3 - (k % 3), 2, 2);
+        }
+        rect('#1d2433', rx - 1, ry - 1, 5, 16);
+        rect('#f4f6f8', rx, ry + 1, 3, 13); rect('#c9ced4', rx + 2, ry + 1, 1, 13);
+        rect('#d6453a', rx + 1, ry, 1, 1); rect('#23283a', rx, ry + 6, 3, 1);
+      } },
+    };
+    // a landmark going up: scaffolding as high as the work done, and a crane over it
+    function scaffold(ox, oy, w, h, f) {
+      const top = Math.max(2, Math.round(h * f));
+      rect('#1d2433', ox - 1, oy - top - 1, w + 2, top + 2);
+      rect('#9aa3ac', ox, oy - top, w, top);
+      for (let k = 0; k < top; k += 3) rect('#c08a3a', ox, oy - k - 1, w, 1);
+      for (let k = 0; k < w; k += 4) rect('#c08a3a', ox + k, oy - top, 1, top);
+      const mx = ox + w + 1, my = oy - h - 4;
+      rect('#1d2433', mx - 1, my - 1, 3, h + 5);
+      rect('#f2c14e', mx, my, 1, h + 4); rect('#f2c14e', ox - 2, my, w + 4, 1);
+      rect('#5b6470', ox + 2, my + 1, 1, 3);
+    }
+    function landmark(c, x, y, now) {
+      const p = landmarkAt(c.id);
+      if (!p) return;
+      const L = LANDMARKS[p.id], s = game.projects[p.id], ox = c.island ? x + 11 : x - 30, oy = y + 4;
+      if (s.built) L.draw(ox, oy, now, s); else scaffold(ox, oy, L.w, L.h, projectProgress(p));
+    }
+
+    // bridges: a deck on piers from one town to the other, with rails down the middle and a road
+    // beside them where the road between them would run. While it's going up, the piers stand all
+    // the way across and the deck reaches out from both ends as the work gets done.
+    const bridgeGeo = new Map();
+    function geo(p) {
+      if (bridgeGeo.has(p.id)) return bridgeGeo.get(p.id);
+      const [A, B] = p.link.map((id) => cityById[id]), [sx, sy] = roadSide(A.x, A.y, B.x, B.y);
+      const ox = Math.round(sx * ROAD_OFF * R), oy = Math.round(sy * ROAD_OFF * R);
+      const trim = (l, dx, dy) => ({ ...l, pts: l.pts.filter(([x, y]) => Math.hypot(x - A.x * R - dx, y - A.y * R - dy) > 9 && Math.hypot(x - B.x * R - dx, y - B.y * R - dy) > 9) });
+      const g = {
+        rail: trim(bresenham(Math.round(A.x * R), Math.round(A.y * R), Math.round(B.x * R), Math.round(B.y * R)), 0, 0),
+        road: trim(bresenham(Math.round(A.x * R) + ox, Math.round(A.y * R) + oy, Math.round(B.x * R) + ox, Math.round(B.y * R) + oy), ox, oy),
+        ox, oy,
+      };
+      bridgeGeo.set(p.id, g);
+      return g;
+    }
+    function bridge(p) {
+      const s = game.projects[p.id], g = geo(p), { pts, horiz } = g.rail, n = pts.length;
+      const half = s.built ? n : (n * projectProgress(p)) / 2, done = (k) => k < half || k >= n - half;
+      // the deck spans from 3 past the rails to 3 past the road, across the line
+      const off = horiz ? g.oy : g.ox, lo = Math.min(0, off) - 3, hi = Math.max(0, off) + 3;
+      const across = (x, y, a, z, col) => (horiz ? rect(col, x, y + a, 1, z - a + 1) : rect(col, x + a, y, z - a + 1, 1));
+      pts.forEach(([x, y], k) => {
+        if (k % 10 === 5) { across(x + 1, y + 1, lo + 1, hi + 1, 'rgba(10,20,40,0.3)'); across(x, y, lo + 1, hi - 1, '#6f7682'); }
+      });
+      pts.forEach(([x, y], k) => { if (done(k)) across(x, y, lo, hi, '#4a4f57'); });
+      pts.forEach(([x, y], k) => { if (done(k)) across(x, y, lo + 1, hi - 1, '#b8bec6'); });
+      if (!s.built) return;
+      for (const [w, col] of [[2, '#4a4f57'], [1, '#7d838c']]) for (const [x, y] of g.road.pts) {
+        if (g.road.horiz) rect(col, x, y - w, 1, w * 2 + 1); else rect(col, x - w, y, w * 2 + 1, 1);
+      }
+      g.road.pts.forEach(([x, y], k) => { if (k % 4 < 2) rect('#f2e6b0', x, y, 1, 1); });
+      pts.forEach(([x, y], k) => { if (!(k % 3)) across(x, y, -2, 2, '#8a6948'); });
+      for (const [x, y] of pts) { if (horiz) { rect('#4d535d', x, y - 1, 1, 1); rect('#4d535d', x, y + 1, 1, 1); } else { rect('#4d535d', x - 1, y, 1, 1); rect('#4d535d', x + 1, y, 1, 1); } }
+    }
+
     function drawCity(c, now) {
       const x = c.x * R, y = c.y * R;
+      if (isOpen(c.id)) landmark(c, x, y, now);
       if (game.depots[c.id]) depot(c.island ? x - 13 : x + 5, c.island ? y - 2 : y + 4);
       if (game.hq === c.id) hqFlag(c.island ? x - 9 : x - 11, c.island ? y - 12 : y - 13, now);
       if (c.air) {
@@ -448,6 +559,7 @@
         b.restore();
       }
       const inView = (wx, wy) => wx * R > cx - 60 && wx * R < cx + bw + 60 && wy * R > cy - 50 && wy * R < cy + bh + 50;
+      for (const p of PROJECTS) if (p.link && game.projects[p.id]) bridge(p);
       for (const c of CITIES) {
         if (!inView(c.x, c.y)) continue;
         // locked towns are drawn faded until they're bought

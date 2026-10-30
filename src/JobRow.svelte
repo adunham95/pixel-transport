@@ -1,10 +1,10 @@
 <script>
   import Icon from './Icon.svelte';
-  import { cityById, fmt, clock, jobTtl, fetcher, contractFor, escortText } from './game.svelte.js';
+  import { cityById, fmt, clock, jobTtl, fetcher, contractFor, escortText, projectById } from './game.svelte.js';
   import { TYPE_LABEL } from './data.js';
   let { job, at = null, note = '', onclick = null, disabled = false, loaded = false, action = '' } = $props();
-  const leaving = $derived(at === job.from && job.contract == null && job.at && clock.now - job.at > jobTtl(job) - 60000 && !fetcher(job));
-  const sub = $derived([at && job.from !== at ? `Dropped off here, from ${cityById[job.from].name}` : job.escort ? `Superload: ${job.name}, needs ${escortText(job.escort)}` : job.celeb ? `${job.celeb}. Rides in a gold limo or gold jet` : TYPE_LABEL[job.type], leaving && 'Leaving soon', !job.escort && contractFor(job) && 'For a contract', note].filter(Boolean).join('. '));
+  const leaving = $derived(at === job.from && job.contract == null && job.project == null && job.at && clock.now - job.at > jobTtl(job) - 60000 && !fetcher(job));
+  const sub = $derived([at && job.from !== at ? `Dropped off here, from ${cityById[job.from].name}` : job.escort ? `Superload: ${job.name}, needs ${escortText(job.escort)}` : job.celeb ? `${job.celeb}. Rides in a gold limo or gold jet` : job.type === 'tour' ? 'Tourists. Only ride in show-off vehicles' : TYPE_LABEL[job.type], leaving && 'Leaving soon', !job.escort && contractFor(job) && 'For a contract', job.project != null && `For the ${projectById[job.project].name}`, note].filter(Boolean).join('. '));
 </script>
 
 {#snippet inner()}

@@ -5,6 +5,9 @@
 // size the vehicle is drawn at. For engines and cars, the viewBox width is also how
 // much track the unit takes up, so cars couple up nose to tail. An engine with
 // steam puffs smoke from its chimney, `steam` sub pixels ahead of its center.
+//
+// Show-off vehicles are the only ones with room for tourists (tour in cap, or in hold for planes):
+// one of each kind, priced to spend a fortune on.
 
 // freightOnly: true means it won’t pull passenger cars. pulls: [car, ...] limits it to those CARS.
 // maglev: true means it only runs on the MAGLEV_LINES guideways in data.js and only stops at their towns.
@@ -252,6 +255,42 @@ export const ENGINES = {
       <rect x="2.2" y="-1.1" width="0.7" height="0.45" fill="rgba(170,215,255,0.85)"/>
     </svg>`,
   },
+};
+
+// a show-off train: its coaches are part of the engine, so it pulls nothing else
+ENGINES.royal = {
+  name: "Royal Express",
+  level: 12,
+  price: 800000,
+  cap: { tour: 48 },
+  maxCars: 0,
+  speed: 8,
+  run: 0.6,
+  pips: 3,
+  color: "#7a1f2b",
+  trim: "#d9a92c",
+  steam: 14.4,
+  art: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-16.4 -2.6 32.8 5.2">
+    <g fill="#2d2a2e"><rect x="-6.9" y="-0.5" width="0.6" height="1"/><rect x="2.7" y="-0.5" width="0.6" height="1"/><rect x="6.7" y="-0.5" width="0.6" height="1"/></g>
+    <g stroke="rgba(18,24,38,0.9)" stroke-width="0.6">
+      <rect x="-16" y="-2" width="9.2" height="4" rx="0.7" fill="#7a1f2b"/>
+      <rect x="-6.4" y="-2" width="9.2" height="4" rx="0.7" fill="#7a1f2b"/>
+      <rect x="3.2" y="-2" width="3.6" height="4" rx="0.5" fill="#2b282d"/>
+      <rect x="7.2" y="-2.1" width="8.6" height="4.2" rx="1" fill="#2b282d"/>
+    </g>
+    <g fill="#8e2a37"><rect x="-15.4" y="-1.3" width="8" height="2.6"/><rect x="-5.8" y="-1.3" width="8" height="2.6"/></g>
+    <g fill="#d9a92c"><rect x="-15.6" y="-1.65" width="8.4" height="0.3"/><rect x="-15.6" y="1.35" width="8.4" height="0.3"/><rect x="-6" y="-1.65" width="8.4" height="0.3"/><rect x="-6" y="1.35" width="8.4" height="0.3"/></g>
+    <g fill="#5c1620">${[-14.2, -12, -9.8, -4.6, -2.4, -0.2].map((x) => `<rect x="${x}" y="-0.35" width="1" height="0.7" rx="0.2"/>`).join("")}</g>
+    <rect x="3.6" y="-1.4" width="2.8" height="2.8" fill="#3a3a3a"/>
+    <g fill="#55525a">${[[4.1, -0.8], [5.3, -0.3], [4.4, 0.6], [5.8, 0.8]].map(([x, y]) => `<rect x="${x}" y="${y}" width="0.5" height="0.5"/>`).join("")}</g>
+    <rect x="7.2" y="-2.1" width="2.6" height="4.2" fill="#7a1f2b"/>
+    <rect x="7.2" y="-2.1" width="2.6" height="0.6" fill="#5c1620"/>
+    <rect x="9.8" y="-1.3" width="5.8" height="2.6" fill="#3a363d"/>
+    <g fill="#d9a92c"><rect x="11" y="-2.1" width="0.45" height="4.2"/><rect x="13.3" y="-2.1" width="0.45" height="4.2"/></g>
+    <path d="M11.5 0a0.7 0.7 0 1 0 1.4 0a0.7 0.7 0 1 0 -1.4 0Z" fill="#d9a92c"/>
+    <path d="M13.55 0a0.85 0.85 0 1 0 1.7 0a0.85 0.85 0 1 0 -1.7 0Z" fill="#111"/>
+    <rect x="15.8" y="-1.6" width="0.6" height="3.2" fill="#d6453a"/>
+  </svg>`,
 };
 
 export const CARS = {
@@ -942,10 +981,10 @@ export const PLANES = {
   machdart: {
     name: "Mach Dart",
     level: 12,
-    price: 60000,
-    pax: 8,
-    cargo: 2,
-    hold: { mail: 6 },
+    price: 1500000,
+    pax: 0,
+    cargo: 0,
+    hold: { tour: 24 },
     range: 800,
     speed: 32,
     fuel: 2.2,
@@ -1372,6 +1411,37 @@ export const BOATS = {
       <rect x="10.6" y="-1.4" width="2.6" height="2.8" rx="0.6" fill="#f4f6f8" stroke="rgba(18,24,38,0.4)" stroke-width="0.3"/>
     </svg>`,
   },
+};
+
+// a show-off ship: a floating resort town, with a park running down the middle and waterslides
+BOATS.megaship = {
+  name: "Wonder of the Waves",
+  short: "Megaship",
+  level: 12,
+  price: 3000000,
+  cap: { tour: 160 },
+  speed: 5,
+  run: 1.4,
+  pips: 2,
+  art: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-26.5 -7 53 14">
+    <path d="M-24.5 -6.2L14 -6.2Q25.6 -6 25.8 0Q25.6 6 14 6.2L-24.5 6.2Q-25.4 6.2 -25.4 5.3L-25.4 -5.3Q-25.4 -6.2 -24.5 -6.2Z" fill="#1f3f7a" stroke="rgba(18,24,38,0.9)" stroke-width="0.7" stroke-linejoin="round"/>
+    <path d="M-24.2 -5.5L14 -5.5Q24.4 -5.3 24.6 0Q24.4 5.3 14 5.5L-24.2 5.5Z" fill="#f4f6f8"/>
+    <g fill="#f08a3c">${[-18, -15.4, -12.8, -10.2, -7.6, -5, -2.4, 0.2, 2.8, 5.4, 8].map((x) => `<rect x="${x}" y="-5.45" width="1.6" height="0.55" rx="0.2"/><rect x="${x}" y="4.9" width="1.6" height="0.55" rx="0.2"/>`).join("")}</g>
+    <g fill="#dfe4ea" stroke="rgba(18,24,38,0.45)" stroke-width="0.3"><rect x="-21.5" y="-4.6" width="36" height="3.1" rx="0.6"/><rect x="-21.5" y="1.5" width="36" height="3.1" rx="0.6"/></g>
+    <g fill="#5d8cc6">${[-20, -16, -12, -8, -4, 0, 4, 8, 12].map((x) => `<rect x="${x}" y="-3.3" width="2.6" height="0.35"/><rect x="${x}" y="2.95" width="2.6" height="0.35"/>`).join("")}</g>
+    <rect x="-14" y="-1.5" width="22" height="3" fill="#2f9a5a"/>
+    <g fill="#3fb36b">${[[-12.6, -0.5], [-10.4, 0.6], [-8, -0.4], [-5.6, 0.5], [-3.2, -0.5], [-0.8, 0.5], [1.6, -0.4], [4, 0.5], [6.4, -0.3]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r="0.75"/>`).join("")}</g>
+    <rect x="-23.6" y="-1.5" width="6.4" height="3" rx="1.2" fill="#5ab4e6" stroke="#f4f6f8" stroke-width="0.4"/>
+    <g fill="#5ab4e6" stroke="#f4f6f8" stroke-width="0.35"><rect x="9.4" y="-1.4" width="2.4" height="2.8" rx="0.6"/><rect x="12.4" y="-1.1" width="1.8" height="2.2" rx="0.5"/></g>
+    <path d="M9.6 -4.4C12 -5 12.6 -2.4 10.8 -2.2C9.4 -2 9.8 -0.6 11.6 -1" fill="none" stroke="#f2c14e" stroke-width="0.4" stroke-linecap="round"/>
+    <path d="M10.2 4.4C12.8 5 13.2 2.4 11.4 2.2C10 2 10.4 0.6 12.2 1" fill="none" stroke="#d6453a" stroke-width="0.4" stroke-linecap="round"/>
+    <g fill="#f4f6f8" stroke="rgba(18,24,38,0.9)" stroke-width="0.3"><rect x="-4.6" y="-4.3" width="2.2" height="1.5" rx="0.5"/><rect x="-4.6" y="2.8" width="2.2" height="1.5" rx="0.5"/></g>
+    <g fill="#1f3f7a"><rect x="-4.3" y="-4" width="1.6" height="0.9" rx="0.3"/><rect x="-4.3" y="3.1" width="1.6" height="0.9" rx="0.3"/></g>
+    <rect x="15.4" y="-5.4" width="1.3" height="10.8" fill="#23344f"/>
+    <rect x="15.7" y="-4.8" width="0.7" height="9.6" fill="#5ab4e6"/>
+    <circle cx="20.6" cy="0" r="1.7" fill="#c9ced4" stroke="rgba(18,24,38,0.5)" stroke-width="0.25"/>
+    <path d="M20 -0.8V0.8M21.2 -0.8V0.8M20 0H21.2" stroke="#f4f6f8" stroke-width="0.3"/>
+  </svg>`,
 };
 
 // barges for the tugboat in BOATS; same fields as CARS
@@ -2057,6 +2127,29 @@ export const TRUCKS = {
       <g fill="#c9ced4"><circle cx="-0.2" cy="-1.8" r="0.3"/><circle cx="-0.2" cy="1.8" r="0.3"/></g>
     </svg>`,
   },
+};
+
+// a show-off car: an open-top grand tourer for a few tourists who pay double to ride in it
+TRUCKS.tourer = {
+  name: "Grand Tourer",
+  level: 12,
+  price: 150000,
+  cap: { tour: 4 },
+  pays: { tour: 2 },
+  maxCars: 0,
+  speed: 9,
+  run: 0.05,
+  deck: 1,
+  pips: 5,
+  art: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-3.9 -1.7 7.8 3.4">
+    <path d="M-3 -1.3H2.4Q3.6 -1.2 3.7 0Q3.6 1.2 2.4 1.3H-3A0.4 0.4 0 0 1 -3.4 0.9V-0.9A0.4 0.4 0 0 1 -3 -1.3Z" fill="#1e5b3a" stroke="rgba(18,24,38,0.9)" stroke-width="0.5" stroke-linejoin="round"/>
+    <rect x="-2.5" y="-0.95" width="3.1" height="1.9" rx="0.4" fill="#e8d9b5"/>
+    <g fill="#b5763a"><rect x="-2.3" y="-0.8" width="0.9" height="0.7" rx="0.2"/><rect x="-2.3" y="0.1" width="0.9" height="0.7" rx="0.2"/><rect x="-1" y="-0.8" width="0.9" height="0.7" rx="0.2"/><rect x="-1" y="0.1" width="0.9" height="0.7" rx="0.2"/></g>
+    <rect x="0.65" y="-1" width="0.35" height="2" fill="#9fd0ff"/>
+    <rect x="1.2" y="-0.15" width="2.3" height="0.3" fill="#f2c14e"/>
+    <rect x="-3.35" y="-0.6" width="0.2" height="1.2" fill="#c9ced4"/>
+    <g fill="#fff3a8"><rect x="3.2" y="-0.95" width="0.35" height="0.4"/><rect x="3.2" y="0.55" width="0.35" height="0.4"/></g>
+  </svg>`,
 };
 
 // trailers for tractors in TRUCKS; same fields as CARS, plus the ferry deck space each takes

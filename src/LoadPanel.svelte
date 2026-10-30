@@ -65,6 +65,7 @@
     if (j.celeb && !spec(v).celebrity) return { block: true, text: `${j.celeb} only rides in a gold limo or gold jet` };
     if (!cap[j.type]) {
       const what = TYPE_LABEL[j.type].toLowerCase();
+      if (j.type === 'tour') return { block: true, text: 'Tourists only ride in show-off vehicles' };
       if (j.type === 'wide' && v.kind !== 'truck' && v.kind !== 'train') return { block: true, text: 'Wide loads only go overland, on a lowboy trailer or flatcar' };
       if (j.type === 'mail' && v.kind === 'truck') return { block: true, text: 'Mail needs a mail van' };
       if (j.type === 'secure' && v.kind === 'truck') return { block: true, text: 'Valuables need an armored car' };

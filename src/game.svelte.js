@@ -1,4 +1,4 @@
-import { CITIES, RAILS, ROADS, ROAD_OFF, LANE, roadSide, ENGINES, CARS, PLANES, BOATS, BARGES, TRUCKS, TRAILERS, LEVELS, RATES, SPEED, CITY_PRICE, START_CITIES, JOB_TYPES, MAGLEV_LINES, HQ, WEAR, MAIL, WIDE, SECURE, GROWTH, SIZE_NAME, DEPOT, TYPE_LABEL, CONTRACTS, SUPERLOAD, ESCORT_LABEL, BREAKDOWN, CELEB } from './data.js';
+import { CITIES, RAILS, ROADS, ROAD_OFF, LANE, roadSide, ENGINES, CARS, PLANES, BOATS, BARGES, TRUCKS, TRAILERS, LEVELS, RATES, SPEED, CITY_PRICE, START_CITIES, JOB_TYPES, MAGLEV_LINES, HQ, WEAR, MAIL, WIDE, SECURE, GROWTH, SIZE_NAME, DEPOT, TYPE_LABEL, CONTRACTS, SUPERLOAD, ESCORT_LABEL, BREAKDOWN, CELEB, TOURISTS, PROJECTS, CONTINENTS } from './data.js';
 import { seaLane } from './sea.js';
 
 const KEY = 'pixel-transport-save-v1';
@@ -7,7 +7,7 @@ const LOOP_WAIT = 30 * 1000;
 const JOB_CAP = 6;
 // a job left waiting at its town this long (game time) goes elsewhere, so towns can't clog up
 export const JOB_TTL = 15 * 60 * 1000;
-export const jobTtl = (j) => (j.celeb ? CELEB.ttl : j.type === 'mail' ? MAIL.ttl : j.type === 'secure' ? SECURE.ttl : JOB_TTL);
+export const jobTtl = (j) => (j.celeb ? CELEB.ttl : j.type === 'mail' ? MAIL.ttl : j.type === 'secure' ? SECURE.ttl : j.type === 'tour' ? TOURISTS.ttl : JOB_TTL);
 
 export const cityById = Object.fromEntries(CITIES.map((c) => [c.id, c]));
 
@@ -37,6 +37,32 @@ for (const [a, b] of ROADS) {
   const d = dist(a, b);
   roadAdj[a].push([b, d]);
   roadAdj[b].push([a, d]);
+}
+
+// built bridges (PROJECTS with a link) join their two towns by rail and by road. Their edges are
+// marked so they can all be taken out again and put back for what's built now.
+function relink() {
+  for (const a of [adj, roadAdj]) for (const id in a) a[id] = a[id].filter((e) => !e[2]);
+  for (const p of PROJECTS) if (p.link && game.projects?.[p.id]?.built) {
+    const [x, y] = p.link, d = dist(x, y);
+    for (const a of [adj, roadAdj]) { a[x].push([y, d, true]); a[y].push([x, d, true]); }
+  }
+  railCache.clear();
+  reachCache.clear();
+  lands = null;
+}
+// which landmass each continent is part of, with bridges joining some of them up
+let lands = null;
+export function sameLand(A, B) {
+  if (A.cont < 0 || B.cont < 0) return false;
+  if (!lands) {
+    lands = CONTINENTS.map((_, i) => i);
+    for (const p of PROJECTS) if (p.link && game.projects?.[p.id]?.built) {
+      const [from, to] = p.link.map((id) => lands[cityById[id].cont]);
+      lands = lands.map((l) => (l === from ? to : l));
+    }
+  }
+  return lands[A.cont] === lands[B.cont];
 }
 
 const railCache = new Map();
@@ -250,8 +276,8 @@ function pickWeighted(items) {
 }
 
 // the level each job type starts turning up at, and how often it does after that
-const TYPE_LEVEL = { pax: 1, cargo: 1, bulk: 4, fuel: 6, mail: MAIL.level, wide: WIDE.level, secure: SECURE.level };
-const TYPE_WEIGHT = { pax: 5, cargo: 4, fuel: 2, bulk: 2, mail: 3, wide: 1, secure: 2 };
+export const TYPE_LEVEL = { pax: 1, cargo: 1, bulk: 4, fuel: 6, mail: MAIL.level, wide: WIDE.level, secure: SECURE.level, tour: TOURISTS.level };
+const TYPE_WEIGHT = { pax: 5, cargo: 4, fuel: 2, bulk: 2, mail: 3, wide: 1, secure: 2, tour: 2 };
 
 // the job types town A turns up, as [type, weight] pairs, leaning the way the town's mix does
 function jobTypes(g, A) {
@@ -262,7 +288,10 @@ function jobTypes(g, A) {
   if (g.level >= MAIL.level) types.push('mail');
   if (g.level >= SECURE.level) types.push('secure');
   if (A.road && g.level >= WIDE.level && jobDests(g, A, 'wide').length) types.push('wide');
-  return types.map((t) => [t, TYPE_WEIGHT[t] * (A.mix[t] ?? 1)]).filter(([, w]) => w > 0);
+  // only show-off vehicles carry tourists, so none turn up until there's one in the fleet
+  if (g.level >= TOURISTS.level && g.vehicles.some((v) => capacity(v).tour)) types.push('tour');
+  const mix = mixOf(A.id, g);
+  return types.map((t) => [t, TYPE_WEIGHT[t] * (mix[t] ?? 1)]).filter(([, w]) => w > 0);
 }
 
 // where a job of this type leaving town A could be headed, as [id, weight] pairs. lean is a
@@ -270,11 +299,11 @@ function jobTypes(g, A) {
 function jobDests(g, A, type, lean = null) {
   const heavy = type === 'fuel' || type === 'bulk';
   // wide loads only go overland (by road or rail), so they stay on their own landmass
-  const cands = CITIES.filter((c) => c.id !== A.id && g.unlocked[c.id] && (!heavy || c.rail || c.port) && (type !== 'wide' || (c.road && c.cont === A.cont)));
-  // heavy loads leaving a port lean toward other ports, so ships have work too, and jobs lean
-  // toward towns a contract wants them in
-  const wanted = (c) => c.id === lean || (g.contracts?.active ?? []).some((k) => k.type === type && k.to === c.id);
-  const weight = (c) => (1 / (1 + (dist(A.id, c.id) / 70) ** 2)) * (heavy && A.port && c.port ? 3 : 1) * (wanted(c) ? 3 : 1);
+  const cands = CITIES.filter((c) => c.id !== A.id && g.unlocked[c.id] && (!heavy || c.rail || c.port) && (type !== 'wide' || (c.road && sameLand(c, A))));
+  // heavy loads leaving a port lean toward other ports, so ships have work too, jobs lean toward
+  // towns a contract or a megaproject wants them in, and tourists toward the sights
+  const wanted = (c) => c.id === lean || (g.contracts?.active ?? []).some((k) => k.type === type && k.to === c.id) || projectWants(type, c.id, g);
+  const weight = (c) => (1 / (1 + (dist(A.id, c.id) / 70) ** 2)) * (heavy && A.port && c.port ? 3 : 1) * (wanted(c) ? 3 : 1) * (type === 'tour' ? 1 + 2 * sightOf(c.id, g) : 1);
   return cands.map((c) => [c.id, weight(c)]);
 }
 
@@ -287,8 +316,8 @@ function makeJob(g, from, forceTo, forceType) {
   const dests = jobDests(g, A, type);
   if (!forceTo && !dests.length) return null;
   const to = forceTo ?? pickWeighted(dests);
-  // bigger towns pay more for what leaves them
-  const pay = Math.round((10 + dist(from, to) * RATES[type]) * (1 + 0.1 * (townSize(from, g) - 1)));
+  // bigger towns and some landmarks pay more for what leaves them, and tourists pay more to see the sights
+  const pay = Math.round((10 + dist(from, to) * RATES[type]) * (1 + 0.1 * (townSize(from, g) - 1) + boostAt(from, 'pay', g)) * (type === 'tour' ? 1 + sightOf(to, g) : 1));
   return { id: g.nextId++, type, from, to, pay };
 }
 
@@ -302,7 +331,7 @@ function newVehicle(g, kind, model, city, cars) {
 
 function fresh() {
   const now = Date.now();
-  const g = { v: 1, coins: 600, xp: 0, level: 1, nextId: 1, selected: 'frost', vehicles: [], jobs: {}, spawnAt: {}, growth: {}, depots: {}, hqContracts: 0, hqSuperloads: 0, contracts: { offers: [], active: [], nextAt: 0 }, saved: now };
+  const g = { v: 1, coins: 600, xp: 0, level: 1, nextId: 1, selected: 'frost', vehicles: [], jobs: {}, spawnAt: {}, growth: {}, depots: {}, hqContracts: 0, hqSuperloads: 0, contracts: { offers: [], active: [], nextAt: 0 }, projects: {}, saved: now };
   g.unlocked = Object.fromEntries(START_CITIES.map((id) => [id, true]));
   g.vehicles.push(newVehicle(g, 'train', 'puffer', 'frost', ['pax', 'box']));
   g.vehicles.push(newVehicle(g, 'plane', 'sparrow', 'frost'));
@@ -334,6 +363,7 @@ function load() {
     g.hqContracts ??= 0;
     g.hqSuperloads ??= 0;
     g.contracts ??= { offers: [], active: [], nextAt: 0 };
+    g.projects ??= {};
     if (!g.unlocked) {
       // older saves predate unlocking: keep the starting towns plus anywhere the fleet is, is headed or has cargo for
       const keep = new Set(['bay', 'mill', 'gull']); // the starting towns back then
@@ -352,6 +382,7 @@ function load() {
 
 const loaded = load();
 export const game = $state(loaded ?? fresh());
+relink();
 export const ui = $state({
   tab: 'city', sheetOpen: true, activeVehicle: null, picking: false, plan: [], repeat: false, escort: false, sendJob: null,
   focusVehicle: null, toasts: [], focus: null, follow: null, track: null, shopTab: 'plane', shopType: null, shopMore: false, queue: null, fleetFind: '', fleetKind: null, fleetStatus: null,
@@ -423,6 +454,7 @@ export function tripInfo(v, now = clock.now) {
 function unlocksAt(level) {
   const out = level === HQ.level ? ['Headquarters'] : [];
   if (level === CONTRACTS.level) out.push('Contracts');
+  for (const p of PROJECTS) if (p.level === level) out.push(p.name);
   for (const s of [...Object.values(PLANES), ...Object.values(ENGINES), ...Object.values(CARS), ...Object.values(BOATS), ...Object.values(BARGES), ...Object.values(TRUCKS), ...Object.values(TRAILERS)]) if (s.level === level) out.push(s.short ?? s.name);
   return out;
 }
@@ -449,11 +481,12 @@ function dropOff(v, to, at = gameNow()) {
   let total = 0, n = 0;
   const pay = (j) => Math.round(j.pay * payBoost(v, j));
   v.cargo = v.cargo.filter((j) => {
-    if (j.to === to) { total += pay(j); n++; grow(j.to); grow(j.from); countToward(j, at); return false; }
+    if (j.to === to) { total += pay(j); n++; grow(j.to); grow(j.from); countToward(j, at); countProject(j); return false; }
     return true;
   });
   if (n) { earn(total); books(v).earned += total; }
   finishContracts();
+  finishProjects();
   if (n && !quiet) fx.push({ x: cityById[to].x, y: cityById[to].y, text: `+$${fmt(total)}`, t: Date.now() });
   return { n, total };
 }
@@ -663,9 +696,9 @@ function grow(id) {
   game.growth[id] = (game.growth[id] ?? 0) + 1;
   if (townSize(id) > before && !quiet) toast(`${cityById[id].name} grew into a ${sizeName(id).toLowerCase()}. More jobs, better pay.`, 'level');
 }
-const jobCap = (id) => JOB_CAP + 2 * (townSize(id) - 1);
-// game time until a town's next job; bigger towns turn them up faster. Without random, the average.
-const spawnGap = (id, random = 0.5) => (7000 + random * 8000) / (1 + 0.25 * (townSize(id) - 1));
+const jobCap = (id) => JOB_CAP + 2 * (townSize(id) - 1) + boostAt(id, 'cap');
+// game time until a town's next job; bigger towns and some landmarks turn them up faster. Without random, the average.
+const spawnGap = (id, random = 0.5) => (7000 + random * 8000) / (1 + 0.25 * (townSize(id) - 1) + boostAt(id, 'spawn'));
 
 // your HQ: built once, in any town. Older saves that bought repeating routes before the HQ
 // came along build theirs for free.
@@ -727,11 +760,12 @@ export function buyDepot(id) {
 
 function ownJobs(id) { return game.jobs[id].filter((j) => j.from === id).length; }
 function addJob(id) {
-  const j = (game.level >= CELEB.level && Math.random() < CELEB.chance * (cityById[id].mix.celeb ?? 1) && makeCeleb(id)) || makeJob(game, id);
+  const j = (game.level >= CELEB.level && Math.random() < CELEB.chance * (mixOf(id).celeb ?? 1) && makeCeleb(id)) || makeJob(game, id);
   if (!j) return;
   game.jobs[id].push(j);
-  // bulk comes in batches of three loads headed the same way
-  if (j.type === 'bulk') for (let i = 0; i < 2; i++) game.jobs[id].push({ ...j, id: game.nextId++ });
+  // bulk comes in batches of three loads headed the same way, and tourists in groups
+  const more = j.type === 'bulk' ? 2 : j.type === 'tour' ? TOURISTS.group - 1 : 0;
+  for (let i = 0; i < more; i++) game.jobs[id].push({ ...j, id: game.nextId++ });
 }
 
 // a celebrity wanting a ride to a town a limo can drive to or a gold jet can fly to, or null
@@ -753,7 +787,7 @@ function canSend(type, to) {
   const heavy = type === 'fuel' || type === 'bulk';
   if (heavy && !T.rail && !T.port) return false;
   if (type === 'wide' && !T.road) return false;
-  return CITIES.some((c) => c.id !== to && isOpen(c.id) && !c.anchor && (!heavy || c.rail || c.port) && (type !== 'wide' || (c.road && c.cont === T.cont)));
+  return CITIES.some((c) => c.id !== to && isOpen(c.id) && !c.anchor && (!heavy || c.rail || c.port) && (type !== 'wide' || (c.road && sameLand(c, T))));
 }
 
 // how many jobs of this type would turn up a game minute headed for this town, with a contract
@@ -768,8 +802,8 @@ function supply(type, to) {
     const dests = jobDests(game, A, type, to), here = dests.find(([id]) => id === to)?.[1];
     if (!here) continue;
     const odds = (w / types.reduce((s, [, x]) => s + x, 0)) * (here / dests.reduce((s, [, x]) => s + x, 0));
-    // bulk turns up in batches of three
-    const r = (60000 / spawnGap(A.id)) * odds * (type === 'bulk' ? 3 : 1);
+    // bulk turns up in batches of three, and tourists in groups
+    const r = (60000 / spawnGap(A.id)) * odds * (type === 'bulk' ? 3 : type === 'tour' ? TOURISTS.group : 1);
     rate += r;
     d += r * dist(A.id, to);
   }
@@ -806,18 +840,27 @@ export function superloadCarrier(by = 'road') {
 }
 
 // a superload offer: one named load between two towns it can go between (by road, rail or sea),
-// or null if there's no such pair open yet. from fixes where it starts; any picks from every
+// or null if there's no such pair open yet. from fixes where it starts and to where it's headed
+// (from somewhere far off if it can, or anywhere it can come from if not); any picks from every
 // load, whatever the level; load picks that one; skip leaves out those ways (road, rail, sea).
-function makeSuperload(now, { from = null, any = false, load: only = null, skip = [] } = {}) {
+function makeSuperload(now, { from = null, to = null, any = false, load: only = null, skip = [] } = {}) {
   const loads = only ? [only] : SUPERLOAD.loads.filter((l) => (any || game.level >= l.level) && !skip.includes(l.by ?? 'road'));
+  const pick = (list) => list[Math.floor(Math.random() * list.length)];
   for (let tries = 0; loads.length && tries < 24; tries++) {
-    const load = loads[Math.floor(Math.random() * loads.length)], by = load.by ?? 'road';
+    const load = pick(loads), by = load.by ?? 'road';
     const towns = CITIES.filter((c) => SUPER_TOWN[by](c) && isOpen(c.id));
-    const A = from ? cityById[from] : towns[Math.floor(Math.random() * towns.length)];
-    if (!A || !towns.includes(A)) continue;
-    const far = towns.filter((c) => c !== A && dist(A.id, c.id) >= SUPERLOAD.minDist && SUPER_ROUTE[by](A.id, c.id));
-    if (!far.length) continue;
-    const B = far[Math.floor(Math.random() * far.length)];
+    let A, B;
+    if (to) {
+      B = cityById[to];
+      if (!towns.includes(B)) continue;
+      const can = towns.filter((c) => c !== B && SUPER_ROUTE[by](c.id, B.id)), far = can.filter((c) => dist(c.id, B.id) >= SUPERLOAD.minDist);
+      A = pick(far.length ? far : can);
+    } else {
+      A = from ? cityById[from] : pick(towns);
+      if (!A || !towns.includes(A)) continue;
+      B = pick(towns.filter((c) => c !== A && dist(A.id, c.id) >= SUPERLOAD.minDist && SUPER_ROUTE[by](A.id, c.id)));
+    }
+    if (!A || !B) continue;
     const reward = Math.round(((SUPERLOAD.base + SUPERLOAD.perUnit * dist(A.id, B.id)) * load.mult) / 10) * 10;
     return { id: game.nextId++, super: true, by, name: load.name, trailer: load.trailer, needs: { ...load.needs }, type: 'wide', from: A.id, to: B.id, n: 1, done: 0, reward, until: now + CONTRACTS.offerTtl };
   }
@@ -853,7 +896,7 @@ function tickContracts(now) {
 
 // a superload counts toward its own contract; other jobs toward one wanting their type in their town
 function counts(c, j, at) {
-  return j.contract != null ? c.id === j.contract : !c.super && c.type === j.type && c.to === j.to && at <= c.until;
+  return j.contract != null ? c.id === j.contract : j.project == null && !c.super && c.type === j.type && c.to === j.to && at <= c.until;
 }
 
 function countToward(j, at) {
@@ -873,7 +916,7 @@ function finishContracts() {
 
 // the active contract a job would count toward when it's delivered, if any
 export function contractFor(j) {
-  return game.contracts.active.find((c) => (j.contract != null ? c.id === j.contract : !c.super && c.type === j.type && c.to === j.to)) ?? null;
+  return game.contracts.active.find((c) => (j.contract != null ? c.id === j.contract : j.project == null && !c.super && c.type === j.type && c.to === j.to)) ?? null;
 }
 
 // superloads don't take up one of the usual contract slots, but only so many of each kind (road,
@@ -999,6 +1042,135 @@ function leaning(f) {
   };
 }
 
+// ---------- megaprojects ----------
+
+export const projectById = Object.fromEntries(PROJECTS.map((p) => [p.id, p]));
+// where a project's deliveries go: a bridge's two ends, or the town a landmark is going up in
+export function projectTowns(p, g = game) {
+  const at = g.projects?.[p.id]?.at;
+  return p.link ?? (at ? [at] : []);
+}
+function isBuilt(p, g = game) { return !!g.projects?.[p.id]?.built; }
+// the landmarks built at a town (bridges don't change what a town turns up)
+function landmarksAt(id, g = game) {
+  return PROJECTS.filter((p) => !p.link && isBuilt(p, g) && g.projects[p.id].at === id);
+}
+// a town's job mix, with its landmarks leaning it further
+export function mixOf(id, g = game) {
+  const m = { ...cityById[id].mix };
+  for (const p of landmarksAt(id, g)) for (const [t, x] of Object.entries(p.mix ?? {})) m[t] = (m[t] ?? 1) * x;
+  return m;
+}
+// what a town's landmarks add up to for one effect: cap, spawn or pay
+function boostAt(id, k, g = game) {
+  return landmarksAt(id, g).reduce((s, p) => s + (p[k] ?? 0), 0);
+}
+// how much tourists want to go here: every landmark built here, and every bridge ending here
+export function sightOf(id, g = game) {
+  return PROJECTS.filter((p) => isBuilt(p, g) && projectTowns(p, g).includes(id)).reduce((s, p) => s + (p.sight ?? 0), 0);
+}
+// is a project being built here that still needs this type of job?
+function projectWants(type, id, g = game) {
+  return PROJECTS.some((p) => { const s = g.projects?.[p.id]; return s && !s.built && (p.needs[type] ?? 0) > (s.got[type] ?? 0) && projectTowns(p, g).includes(id); });
+}
+// how far along a project is, from 0 to 1
+export function projectProgress(p) {
+  const s = game.projects[p.id];
+  if (!s) return 0;
+  if (s.built) return 1;
+  const need = Object.values(p.needs).reduce((a, n) => a + n, 0) + (p.supers?.length ?? 0);
+  const got = Object.entries(p.needs).reduce((a, [t, n]) => a + Math.min(n, s.got[t] ?? 0), 0) + s.supers;
+  return got / need;
+}
+// the landmark built or being built at a town, if any
+export const landmarkAt = (id) => PROJECTS.find((p) => !p.link && game.projects[p.id]?.at === id) ?? null;
+// why a landmark can't go up in this town, or '' if it can
+export function cantHost(p, c) {
+  if (c.anchor || !isOpen(c.id)) return 'Unlock it first';
+  if (landmarkAt(c.id)) return `${landmarkAt(c.id).name} is here`;
+  if (p.where === 'road' && !c.road) return 'Needs roads';
+  if (p.where === 'air' && !c.air) return 'Needs an airport';
+  if (p.where === 'port' && !c.port) return 'Needs a port';
+  if ((p.needs.bulk || p.needs.fuel) && !c.rail && !c.port) return 'Needs a station or port for bulk and fuel';
+  if (p.needs.wide && !c.road) return 'Needs roads for wide loads';
+  return '';
+}
+// the superloads a project is waiting on: where each one is, or done
+export function projectLoads(p) {
+  const found = [];
+  for (const v of game.vehicles) for (const j of v.cargo) if (j.project === p.id) found.push({ name: j.name, by: j.by, v });
+  for (const t in game.jobs) for (const j of game.jobs[t]) if (j.project === p.id) found.push({ name: j.name, by: j.by, town: t });
+  return found;
+}
+
+// pay for a project and get it going. at is the town, for a landmark.
+export function startProject(id, at = null) {
+  const p = projectById[id], now = gameNow();
+  if (game.projects[id]) return;
+  const towns = p.link ?? [at];
+  if (!p.link && cantHost(p, cityById[at])) { toast(`${p.name}: ${cantHost(p, cityById[at])}`, 'bad'); return; }
+  const shut = towns.find((t) => !isOpen(t));
+  if (shut) { toast(`Unlock ${cityById[shut].name} first`, 'bad'); return; }
+  // every superload it needs has to have somewhere to come from, before any money's spent
+  const loads = [];
+  for (const [i, name] of (p.supers ?? []).entries()) {
+    const o = makeSuperload(now, { load: SUPERLOAD.loads.find((l) => l.name === name), to: towns[i % towns.length] });
+    if (!o) { toast(`Nowhere open can send a ${name.toLowerCase()} to ${cityById[towns[i % towns.length]].name} yet. Unlock more towns.`, 'bad'); return; }
+    loads.push(o);
+  }
+  if (!spend(p.price, p.level, p.name)) return;
+  game.projects[id] = { at: p.link ? null : at, got: {}, supers: 0, since: now };
+  for (const o of loads) game.jobs[o.from].push({ id: game.nextId++, type: 'wide', from: o.from, to: o.to, pay: Math.round(10 + dist(o.from, o.to) * RATES.wide), name: o.name, trailer: o.trailer, by: o.by, escort: { ...o.needs }, project: id });
+  toast(`${p.name} is under way. Deliver ${projectNeedsText(p)}${towns.length > 1 ? ' to either end' : ` to ${cityById[at].name}`}.`, 'good');
+}
+// "45 bulk, 30 cargo and 2 bridge beams"
+export function projectNeedsText(p) {
+  const parts = Object.entries(p.needs).map(([t, n]) => `${n} ${TYPE_LABEL[t].toLowerCase()}`);
+  if (p.supers?.length) parts.push(`${p.supers.length} superload${p.supers.length > 1 ? 's' : ''}`);
+  return parts.length > 1 ? `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]}` : parts.join('');
+}
+
+// a delivered job counts toward the first project being built where it was headed that still needs it
+function countProject(j) {
+  if (j.project != null) { const s = game.projects[j.project]; if (s && !s.built) s.supers++; return; }
+  for (const p of PROJECTS) {
+    const s = game.projects[p.id];
+    if (!s || s.built || (s.got[j.type] ?? 0) >= (p.needs[j.type] ?? 0) || !projectTowns(p).includes(j.to)) continue;
+    s.got[j.type] = (s.got[j.type] ?? 0) + 1;
+    return;
+  }
+}
+
+function finishProjects() {
+  for (const p of PROJECTS) {
+    const s = game.projects[p.id];
+    if (!s || s.built || projectProgress(p) < 1) continue;
+    s.built = true;
+    if (p.link) relink();
+    const [x, y] = projectTowns(p).map((id) => cityById[id]).reduce((a, c, _, all) => [a[0] + c.x / all.length, a[1] + c.y / all.length], [0, 0]);
+    if (!quiet) fx.push({ x, y: y - 8, text: `${p.name} built!`, t: Date.now() });
+    const was = quiet; quiet = false;
+    toast(`${p.name} is built! ${p.about}`, 'level');
+    quiet = was;
+  }
+}
+
+// a spaceport sends a rocket up every so often, and gets paid for it
+function tickLaunches(now) {
+  for (const p of PROJECTS) {
+    const s = game.projects[p.id];
+    if (!p.launch || !s?.built) continue;
+    s.launchAt ??= now + p.launch.every;
+    while (now >= s.launchAt) {
+      s.lastLaunch = s.launchAt;
+      s.launchAt += p.launch.every;
+      earn(p.launch.pay);
+      const c = cityById[s.at];
+      if (!quiet) fx.push({ x: c.x, y: c.y - 10, text: `Launch! +$${fmt(p.launch.pay)}`, t: Date.now() });
+      toast(`Liftoff at ${c.name}! +$${fmt(p.launch.pay)}`, 'good');
+    }
+  }
+}
 
 // ---------- unlocking towns ----------
 
@@ -1039,11 +1211,12 @@ function step() {
   tickAuto(now);
   for (const v of game.vehicles) books(v);
   tickContracts(now);
+  tickLaunches(now);
   for (const v of game.vehicles) if (v.loop && v.city && !v.trip && now >= (v.loop.wait ?? 0)) runLoop(v, now);
   for (const c of CITIES) {
     // jobs are stamped the first time they're seen waiting; ones dropped off for a transfer, or with
     // a vehicle on its way to fetch them, never expire
-    const list = game.jobs[c.id], stale = (j) => j.from === c.id && j.contract == null && !taken.has(j.id) && now - j.at > jobTtl(j);
+    const list = game.jobs[c.id], stale = (j) => j.from === c.id && j.contract == null && j.project == null && !taken.has(j.id) && now - j.at > jobTtl(j);
     for (const j of list) j.at ??= now;
     if (list.some(stale)) game.jobs[c.id] = list.filter((j) => !stale(j));
     if (now >= game.spawnAt[c.id]) {
@@ -1434,8 +1607,9 @@ export function upgradeEngine(v, model) {
   if (!spend(upgradeCost(v, model), e.level, e.name)) return;
   v.model = model;
   v.miles = 0;
+  // a name you gave it stays
   const n = game.vehicles.filter((x) => x.model === model && x.id !== v.id).length + 1;
-  v.name = `${e.name} ${n}`;
+  if (!v.named) v.name = `${e.name} ${n}`;
   toast(`Swapped in a ${e.name}`, 'good');
 }
 
@@ -1446,6 +1620,15 @@ export function finances(v, now = clock.now) {
   const b = v.books ?? { earned: 0, fuel: 0, since: now }, profit = b.earned - b.fuel, age = now - b.since;
   const cost = spec(v).price + (v.cars ?? []).reduce((s, c) => s + tailSpecs(v)[c].price, 0);
   return { ...b, profit, perHour: age > 3 * 60 * 1000 ? profit / (age / 3.6e6) : null, paidBack: profit / cost };
+}
+
+// give a vehicle a name of your own; blank goes back to its model's name
+export function renameVehicle(v, name) {
+  name = name.trim().slice(0, 24);
+  if (name) { v.name = name; v.named = true; return; }
+  const n = game.vehicles.filter((x) => x.model === v.model && x.id <= v.id).length;
+  v.name = `${spec(v).name} ${n}`;
+  delete v.named;
 }
 
 export function serviceCost(v) {
@@ -1523,7 +1706,7 @@ export function resetGame() {
   const g = fresh();
   for (const k of Object.keys(game)) delete game[k];
   Object.assign(game, g);
-  reachCache.clear();
+  relink();
   skew = 0;
   dev.speed = 1;
   Object.assign(ui, { tab: 'city', sheetOpen: true, activeVehicle: null, picking: false, plan: [], repeat: false, sendJob: null, focusVehicle: null, follow: null, track: null, focus: { x: cityById[g.selected].x, y: cityById[g.selected].y, t: Date.now() } });
@@ -1591,6 +1774,24 @@ export function devCeleb() {
   if (!j) { toast('No celebrity can go anywhere from here', 'bad'); return; }
   game.jobs[game.selected].push(j);
   toast(`${j.celeb} is waiting at ${cityById[game.selected].name}`, 'good');
+}
+
+// every megaproject under way gets all it needs and is built
+export function devFinishProjects() {
+  const now = gameNow();
+  let n = 0;
+  for (const p of PROJECTS) {
+    const s = game.projects[p.id];
+    if (!s || s.built) continue;
+    s.got = { ...p.needs };
+    s.supers = p.supers?.length ?? 0;
+    for (const t in game.jobs) game.jobs[t] = game.jobs[t].filter((j) => j.project !== p.id);
+    for (const v of game.vehicles) v.cargo = v.cargo.filter((j) => j.project !== p.id);
+    if (p.launch) s.launchAt = now + 5000;
+    n++;
+  }
+  finishProjects();
+  if (!n) toast('No megaprojects under way. Start one from a town page or the Upgrades tab.', 'bad');
 }
 
 export function devFillJobs() {
