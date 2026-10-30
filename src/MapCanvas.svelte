@@ -10,6 +10,10 @@
   let { sheetPx = 0 } = $props();
   const V = 1.6; // vehicles are drawn a bit larger than the map grid so their detail reads
   const CONVOY_GAP = 1.5; // sub pixels between a superload's truck and its escorts
+  // the map is drawn in sub pixels into a buffer that's stretched to fill the screen. Zoomed in, a
+  // sub pixel would cover a big block, so the buffer gets finer, to about PIX screen pixels a
+  // buffer pixel: terrain and towns keep their pixel look, while vehicles and effects stay sharp.
+  const PIX = 3;
   const TRAY_ORDER = { train: 0, truck: 1, boat: 2, plane: 3 };
   let canvas;
 
@@ -40,7 +44,7 @@
     loadArt();
     const water = b.createPattern(makeWaterPattern(), 'repeat');
     const WS = W * R, HS = H * R;
-    let dpr = 1, scale = 2, bw = 0, bh = 0;
+    let dpr = 1, scale = 2, fine = 1, bw = 0, bh = 0;
     let levels = [1], at = 0, baseAt = 0, zoomFx = null;
     let zoomStep = (() => { try { return Number(localStorage.getItem(ZOOM_KEY)) || 0; } catch { return 0; } })();
     const snap = document.createElement('canvas');
@@ -64,7 +68,8 @@
       scale = levels[at];
       bw = Math.ceil(canvas.width / scale);
       bh = Math.ceil(canvas.height / scale);
-      buf.width = bw; buf.height = bh;
+      fine = Math.max(1, Math.round(scale / PIX));
+      buf.width = bw * fine; buf.height = bh * fine;
       canIn = at < levels.length - 1;
       canOut = at > 0;
     }
@@ -548,6 +553,9 @@
     function frame() {
       raf = requestAnimationFrame(frame);
       if (!bw) return;
+      // everything below draws in sub pixels; the buffer may hold several real pixels to each
+      b.setTransform(fine, 0, 0, fine, 0, 0);
+      b.imageSmoothingEnabled = false;
       const now = Date.now(), gnow = gameNow(); // now drives animation, gnow drives where vehicles are
       const dk = darkness(gnow);
       const lights = []; // drawn over the night sky once everything else is down
