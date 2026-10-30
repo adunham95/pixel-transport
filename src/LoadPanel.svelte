@@ -1,5 +1,5 @@
 <script>
-  import { game, ui, cityById, capacity, used, loadJob, unloadJob, autoLoad, destinations, dispatch, route, canReach, planLegs, autoPlan, toggleStop, fmt, fmtTime, loopStops, aboard, canBoard, fitsAboard, deckFor, deckSize, deckUsed, deckRoom, driveOn, driveOff, wear, fetcher, convoyNeeds, pickEscorts, escortText, consistOf, optionalEscort, paintOf, spec } from './game.svelte.js';
+  import { game, ui, cityById, capacity, used, loadJob, unloadJob, autoLoad, destinations, dispatch, route, canReach, planLegs, autoPlan, toggleStop, fmt, fmtTime, loopStops, aboard, canBoard, fitsAboard, deckFor, deckSize, deckUsed, deckRoom, driveOn, driveOff, wear, fetcher, convoyNeeds, pickEscorts, escortText, consistOf, optionalEscort, paintOf, spec, nextInQueue, queueLeft } from './game.svelte.js';
   import Icon from './Icon.svelte';
   import Sprite from './Sprite.svelte';
   import JobRow from './JobRow.svelte';
@@ -25,7 +25,7 @@
   const optKind = $derived(v.kind === 'truck' ? TRUCKS[v.model].escortedBy ?? null : null);
   const sidekick = $derived(optKind ? optionalEscort(v) : null);
   const riding = $derived(ui.escort && sidekick ? [sidekick] : []);
-  const boost = (j) => (j.type === 'pax' ? spec(v).vip ?? 1 : j.type === 'secure' && riding.length ? 1 + SECURE.escortBonus : 1);
+  const boost = (j) => (spec(v).pays?.[j.type] ?? 1) * (j.type === 'secure' && riding.length ? 1 + SECURE.escortBonus : 1);
   const escFuel = $derived([...convoy.picked, ...riding].reduce((s, x) => s + planLegs(x, stops).reduce((a, l) => a + (l?.cost ?? 0), 0), 0));
   const total = $derived(legs.reduce((s, l) => ({ cost: s.cost + (l?.cost ?? 0), time: s.time + (l?.time ?? 0) }), { cost: escFuel, time: 0 }));
   const broken = $derived(legs.some((l) => !l));
@@ -90,11 +90,22 @@
   const WORDS = { truck: { on: 'Drive on', off: 'Drive off', big: 'Too long to carry', none: 'trucks', aboard: 'drive it aboard' }, plane: { on: 'Take aboard', off: 'Launch', big: 'Too big for a carrier', none: 'planes', aboard: 'take it aboard' } };
   const w = $derived(WORDS[rides ?? 'truck']);
   function plan() { ui.plan = autoPlan(v); ui.picking = true; }
-  function go() { if (dispatch(v, ui.plan, { repeat: looping, escort: riding.length > 0 })) { ui.picking = false; ui.activeVehicle = null; ui.plan = []; } }
+  function go() {
+    if (!dispatch(v, ui.plan, { repeat: looping, escort: riding.length > 0 })) return;
+    ui.picking = false; ui.activeVehicle = null; ui.plan = [];
+    nextInQueue();
+  }
 </script>
 
+{#if ui.queue}
+  <div class="queue">
+    <span class="grow"><b>Sending idle vehicles</b><small>{queueLeft() ? `${queueLeft()} more after this one` : 'Last one'}</small></span>
+    <button class="btn small" onclick={() => nextInQueue(v.id)}>Skip</button>
+    <button class="btn small ghost" onclick={() => (ui.queue = null)}>Stop</button>
+  </div>
+{/if}
 <div class="loadhead">
-  <button class="btn small" onclick={() => { ui.activeVehicle = null; ui.picking = false; ui.plan = []; }}>Back</button>
+  <button class="btn small" onclick={() => { ui.activeVehicle = null; ui.picking = false; ui.plan = []; ui.queue = null; }}>Back</button>
   <div class="grow"><b>{v.name}</b><small>at {city.name}</small></div>
   <Sprite kind={v.kind} model={v.model} cars={consistOf(v)} scale={3} paint={paintOf(v)} />
 </div>
@@ -230,6 +241,8 @@
 
 <style>
   .repeat { margin-top: 10px; cursor: pointer; }
+  .queue { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; padding: 8px 10px 8px 12px; background: var(--accent-soft); border-radius: var(--r); }
+  .queue small { display: block; color: var(--ink-soft); font-size: 12px; }
   .profit { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin: 12px 0 4px; padding: 8px 10px; background: var(--panel-3); border-radius: var(--r); }
   .profit div { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
   .profit small { color: var(--ink-soft); font-size: 12px; }

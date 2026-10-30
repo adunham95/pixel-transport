@@ -160,12 +160,15 @@ export function leg(v, from, to) {
   }
   if (v.kind === 'truck') {
     const t = TRUCKS[v.model], p = roadPath(from, to);
-    if (!p) return null;
-    return {
+    if (p) return {
       from, to, len: p.len, pts: roadPts(p.ids),
       cost: fuel(v, p.len * (t.run + 0.03 * v.cars.length)),
       time: p.len / (t.speed * SPEED),
     };
+    // an amphibious truck with no road there swims, port to port
+    const lane = t.amphibious && cityById[from].port && cityById[to].port && seaLane(from, to);
+    if (!lane) return null;
+    return { from, to, len: lane.len, pts: lane.pts, sea: true, cost: fuel(v, lane.len * t.run), time: lane.len / (t.swim * SPEED) };
   }
   if (v.kind === 'boat') {
     const b = BOATS[v.model];
@@ -214,7 +217,7 @@ export function canReach(v, to) {
   if (!v.city || v.city === to || !isOpen(to)) return false;
   // every port is on the same ocean, so boats never need a stop on the way
   if (v.kind === 'train') return !!railPath(v.city, to, !!ENGINES[v.model].maglev);
-  if (v.kind === 'truck') return !!roadPath(v.city, to);
+  if (v.kind === 'truck' && !TRUCKS[v.model].amphibious) return !!roadPath(v.city, to);
   if (v.kind === 'boat') return !!leg(v, v.city, to);
   const key = `${v.model}@${v.city}`;
   if (!reachCache.has(key)) reachCache.set(key, new Set(Object.keys(hops(v, v.city).D)));
@@ -345,7 +348,7 @@ const loaded = load();
 export const game = $state(loaded ?? fresh());
 export const ui = $state({
   tab: 'city', sheetOpen: true, activeVehicle: null, picking: false, plan: [], repeat: false, escort: false, sendJob: null,
-  focusVehicle: null, toasts: [], focus: null, follow: null, track: null,
+  focusVehicle: null, toasts: [], focus: null, follow: null, track: null, shopTab: 'plane', shopType: null, shopMore: false, queue: null, fleetFind: '', fleetKind: null, fleetStatus: null,
 });
 // Game time runs ahead of the wall clock when dev mode speeds it up. The extra is kept
 // in skew, which is saved so trips stay in place across reloads.
@@ -751,10 +754,10 @@ export function escortText(needs) {
 export function escortsOf(v) { return game.vehicles.filter((x) => x.escorting === v.id); }
 export function escortee(x) { return x.escorting != null ? game.vehicles.find((v) => v.id === x.escorting) : null; }
 
-// valuables pay more with a police car riding along, and passengers more in a VIP ride
+// some models pay more for some jobs (pays in their spec), and valuables pay more with a police car riding along
 export function payBoost(v, j) {
-  if (j.type === 'pax') return spec(v).vip ?? 1;
-  return j.type === 'secure' && escortsOf(v).some((x) => escortKind(x) === 'police') ? 1 + SECURE.escortBonus : 1;
+  const police = j.type === 'secure' && escortsOf(v).some((x) => escortKind(x) === 'police');
+  return (spec(v).pays?.[j.type] ?? 1) * (police ? 1 + SECURE.escortBonus : 1);
 }
 
 // a free escort here that this vehicle can take along if it likes (an armored car's police car), or null
@@ -773,7 +776,7 @@ export function canBase(kind, model, c) {
   if (kind === 'train') return ENGINES[model].maglev ? onMaglev(c.id) : c.rail;
   // only aircraft carriers sail out to the anchorages
   if (kind === 'boat') return c.anchor ? isCarrier(model) : c.port && (!BOATS[model].harbor || c.rail);
-  if (kind === 'truck') return c.road;
+  if (kind === 'truck') return c.road || (!!TRUCKS[model].amphibious && c.port && !c.anchor);
   return landsWithout(model, c) || (!!PLANES[model].deckSpace && !!carrierAt(c.id));
 }
 
@@ -887,6 +890,47 @@ export function openLoad(v) {
   ui.activeVehicle = v.id;
 }
 
+// ---------- idle vehicles ----------
+
+// parked in town with nothing to do: not repeating, and not an escort, which only moves with a convoy
+export const isIdle = (v) => !!v.city && !v.trip && !v.loop && !escortKind(v);
+export const idleVehicles = () => game.vehicles.filter(isIdle);
+
+// load the best paying jobs it can deliver and set off on the nearest-first route, all in one go.
+// False if there was nothing to take, or it couldn't leave.
+export function quickSend(v) {
+  if (!isIdle(v)) return false;
+  const was = quiet;
+  quiet = true;
+  try {
+    if (!v.cargo.length) autoLoad(v);
+    const stops = v.cargo.length ? autoPlan(v) : [];
+    return stops.length > 0 && dispatch(v, stops);
+  } finally { quiet = was; }
+}
+export function quickSendAll() {
+  const idle = idleVehicles(), sent = idle.filter(quickSend).length, stuck = idle.length - sent;
+  toast(sent ? `Sent ${sent} vehicle${sent > 1 ? 's' : ''}${stuck ? `. ${stuck} had nothing to take` : ''}` : 'Nothing for the idle vehicles to take right now', sent ? 'good' : 'info');
+}
+
+// sending idle vehicles one at a time: each one's load panel opens in turn, skipping any passed over
+export function startQueue() {
+  ui.queue = { skipped: [] };
+  nextInQueue();
+}
+export function nextInQueue(skip = null) {
+  if (!ui.queue) return;
+  if (skip != null) ui.queue.skipped.push(skip);
+  ui.picking = false; ui.plan = [];
+  const v = idleVehicles().find((x) => !ui.queue.skipped.includes(x.id));
+  if (v) { openLoad(v); return; }
+  ui.queue = null;
+  ui.activeVehicle = null;
+  toast('That’s every idle vehicle', 'good');
+}
+// how many more are waiting after the one open now
+export const queueLeft = () => (ui.queue ? idleVehicles().filter((x) => x.id !== ui.activeVehicle && !ui.queue.skipped.includes(x.id)).length : 0);
+
 export function followVehicle(v) {
   ui.follow = v.id;
   ui.track = v.id;
@@ -977,7 +1021,7 @@ export function dispatch(v, stops, { repeat = false, lap = null, escort = false 
     x.city = null;
   }
   if (v.kind === 'boat' && isCarrier(v.model)) reachCache.clear();
-  const [first, ...rest] = legs.map((l) => ({ from: l.from, to: l.to, pts: l.pts, len: l.len, dur: l.time * 1000, cost: l.cost }));
+  const [first, ...rest] = legs.map((l) => ({ from: l.from, to: l.to, pts: l.pts, len: l.len, dur: l.time * 1000, cost: l.cost, sea: l.sea }));
   v.trip = { ...first, startAt: lap ?? gameNow() };
   v.next = rest;
   v.depart = { from: v.city, at: v.trip.startAt, len: legs.reduce((s, l) => s + l.len, 0) };

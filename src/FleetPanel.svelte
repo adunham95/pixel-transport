@@ -1,5 +1,5 @@
 <script>
-  import { game, ui, dev, setDev, cityById, capacity, endRoute, addCar, removeCar, canRemoveCar, upgradeEngine, upgradeCost, sellVehicle, sellValue, resetGame, openLoad, followVehicle, etaText, fmt, stopRepeating, spec, tailSpecs, tailName, aboard, carrierOf, deckUsed, deckRoom, deckFor, finances, clock, wear, service, serviceCost, escortee, consistOf, paintOf, paintFor } from './game.svelte.js';
+  import { game, ui, dev, setDev, cityById, capacity, endRoute, addCar, removeCar, canRemoveCar, upgradeEngine, upgradeCost, sellVehicle, sellValue, resetGame, openLoad, followVehicle, etaText, fmt, stopRepeating, spec, tailSpecs, tailName, aboard, carrierOf, deckUsed, deckRoom, deckFor, finances, clock, wear, service, serviceCost, escortee, consistOf, paintOf, paintFor, isIdle, idleVehicles, quickSend, quickSendAll, startQueue, toast } from './game.svelte.js';
   import { ENGINES, TRUCKS, BOATS, PLANES, MI, JOB_TYPES } from './data.js';
   import Sprite from './Sprite.svelte';
   import LoadBadges from './LoadBadges.svelte';
@@ -16,7 +16,28 @@
   const money = (n) => `${n < 0 ? '−' : ''}$${fmt(Math.abs(n))}`;
   // the whole fleet's takings, for the summary up top
   const books = $derived(game.vehicles.map((v) => finances(v, clock.now)));
+  const bookOf = $derived(Object.fromEntries(game.vehicles.map((v, i) => [v.id, books[i]])));
   const total = $derived(books.reduce((s, b) => ({ earned: s.earned + b.earned, fuel: s.fuel + b.fuel, perHour: s.perHour + (b.perHour ?? 0) }), { earned: 0, fuel: 0, perHour: 0 }));
+  // finding a vehicle: by kind, by what it's up to, and by name or town
+  const KINDS = [['plane', 'Planes'], ['train', 'Trains'], ['truck', 'Trucks'], ['boat', 'Boats']];
+  const STATUS = [
+    ['idle', 'Idle', isIdle],
+    ['moving', 'Moving', (v) => !!v.trip],
+    ['loop', 'Repeating', (v) => !!v.loop],
+    ['service', 'Needs service', (v) => wear(v) >= 0.3],
+  ];
+  const idle = $derived(idleVehicles());
+  const kinds = $derived(KINDS.map(([k, label]) => ({ k, label, n: game.vehicles.filter((v) => v.kind === k).length })).filter((x) => x.n));
+  const statuses = $derived(STATUS.map(([k, label, test]) => ({ k, label, test, n: game.vehicles.filter(test).length })).filter((x) => x.n || ui.fleetStatus === x.k));
+  const placeOf = (v) => cityById[v.city ?? v.trip?.to]?.name ?? '';
+  const shown = $derived.by(() => {
+    const q = ui.fleetFind.trim().toLowerCase(), test = STATUS.find(([k]) => k === ui.fleetStatus)?.[2];
+    return game.vehicles.filter((v) => (!ui.fleetKind || v.kind === ui.fleetKind) && (!test || test(v))
+      && (!q || [v.name, spec(v).name, placeOf(v)].some((x) => x.toLowerCase().includes(q))));
+  });
+  const filtered = $derived(!!(ui.fleetFind.trim() || ui.fleetKind || ui.fleetStatus));
+  function clear() { ui.fleetFind = ''; ui.fleetKind = null; ui.fleetStatus = null; }
+
   // where a vehicle is when it isn't moving: parked in town, riding a car ferry or cargo plane, or in a convoy
   function where(v) {
     if (v.city) return v.loop ? `Repeating, waiting for jobs at ${cityById[v.city].name}` : `Parked at ${cityById[v.city].name}`;
@@ -33,16 +54,34 @@
   <div><small>Profit</small><b class:loss={total.earned < total.fuel}>{money(total.earned - total.fuel)}</b></div>
   <div><small>Per hour</small><b class:loss={total.perHour < 0}>{money(total.perHour)}</b></div>
 </div>
-<p class="muted small">Tap a vehicle to swap cars, upgrade or sell it.</p>
-{#each game.vehicles as v, i (v.id)}
+{#if idle.length}
+  <div class="idle">
+    <span class="grow"><b>{idle.length} parked with nothing to do</b><small>Quick send loads each one with the best paying jobs it can deliver and sets off.</small></span>
+    <div class="idle-btns">
+      <button class="btn primary small" onclick={quickSendAll}>Quick send all</button>
+      <button class="btn small" onclick={startQueue}>One by one</button>
+    </div>
+  </div>
+{/if}
+
+<div class="find">
+  <input type="search" placeholder="Find by name or town" bind:value={ui.fleetFind} />
+  {#if filtered}<button class="btn small ghost" onclick={clear}>Clear</button>{/if}
+</div>
+<div class="chips">
+  {#if kinds.length > 1}{#each kinds as x}<button class:on={ui.fleetKind === x.k} onclick={() => (ui.fleetKind = ui.fleetKind === x.k ? null : x.k)}>{x.label} <em>{x.n}</em></button>{/each}<span class="sep"></span>{/if}
+  {#each statuses as x}<button class:on={ui.fleetStatus === x.k} class:hot={x.k === 'idle' || x.k === 'service'} onclick={() => (ui.fleetStatus = ui.fleetStatus === x.k ? null : x.k)}>{x.label} <em>{x.n}</em></button>{/each}
+</div>
+{#if !shown.length}<p class="muted">No vehicles match. <button class="link" onclick={clear}>Show all</button></p>{/if}
+{#each shown as v (v.id)}
   {@const open = ui.focusVehicle === v.id}
-  {@const f = books[i]}
+  {@const f = bookOf[v.id]}
   {@const wr = wear(v)}
   <div class="card" class:open use:reveal={open}>
     <button class="row vrow card-head" onclick={() => (ui.focusVehicle = open ? null : v.id)}>
       <span class="pv"><Sprite kind={v.kind} model={v.model} cars={consistOf(v)} scale={3} paint={paintOf(v)} /></span>
       <span class="grow">
-        <b>{v.name}{#if v.loop}<span class="tag hub mini">Repeating</span>{/if}{#if f.perHour != null}<span class="tag mini" class:loss={f.perHour < 0}>{money(f.perHour)}/h</span>{/if}{#if wr >= 0.3}<span class="tag mini loss">Needs service</span>{/if}</b>
+        <b>{v.name}{#if isIdle(v)}<span class="tag mini idle-tag">Idle</span>{/if}{#if v.loop}<span class="tag hub mini">Repeating</span>{/if}{#if f.perHour != null}<span class="tag mini" class:loss={f.perHour < 0}>{money(f.perHour)}/h</span>{/if}{#if wr >= 0.3}<span class="tag mini loss">Needs service</span>{/if}</b>
         <small>{v.trip ? `To ${cityById[v.trip.to].name}, ${etaText(v)} left${v.next?.length ? `, then ${v.next.length} more stop${v.next.length > 1 ? 's' : ''}` : ''}` : where(v)}</small>
         <LoadBadges {v} />
       </span>
@@ -137,7 +176,8 @@
         <div class="actions">
           {#if v.loop}<button class="btn ghost" onclick={() => stopRepeating(v)}>Stop repeating</button>{/if}
           {#if v.city}
-            <button class="btn primary" onclick={() => openLoad(v)}>Load at {cityById[v.city].name}</button>
+            {#if isIdle(v)}<button class="btn primary" onclick={() => quickSend(v) || toast(`Nothing at ${cityById[v.city].name} that ${v.name} can take`)}>Quick send</button>{/if}
+            <button class="btn" class:primary={!isIdle(v)} onclick={() => openLoad(v)}>Load at {cityById[v.city].name}</button>
             <button class="btn ghost" disabled={v.cargo.length > 0 || aboard(v).length > 0 || game.vehicles.length <= 1} onclick={() => sellVehicle(v)}>Sell for ${fmt(sellValue(v))}</button>
           {:else if escortee(v)}
             <button class="btn primary" onclick={() => followVehicle(escortee(v))}>Follow {escortee(v).name}</button>
@@ -160,6 +200,19 @@
 
 <style>
   .drop { margin-top: 10px; }
+  .idle { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 0 0 10px; padding: 10px 12px; background: var(--accent-soft); border-radius: var(--r); }
+  .idle small { display: block; color: var(--ink-soft); font-size: 12px; }
+  .idle-btns { display: flex; gap: 6px; }
+  .idle-tag { background: var(--accent-soft); color: var(--ink); }
+  .find { display: flex; gap: 6px; align-items: center; margin-bottom: 6px; }
+  .find input { flex: 1; min-width: 0; padding: 8px 12px; font: inherit; font-size: 14px; border: 1px solid var(--line); border-radius: 999px; background: var(--panel-2); color: var(--ink); }
+  .chips { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 10px; }
+  .chips button { padding: 4px 10px; font-size: 12px; font-weight: 500; border-radius: 999px; border: 1px solid var(--line); background: var(--panel-2); color: var(--ink-soft); cursor: pointer; }
+  .chips button em { font-style: normal; opacity: .7; }
+  .chips button.on { background: var(--ink); border-color: var(--ink); color: var(--panel); }
+  .chips button.hot:not(.on) { border-color: var(--accent); color: var(--ink); }
+  .chips .sep { width: 1px; background: var(--line); margin: 2px 2px; }
+  .link { border: 0; background: none; padding: 0; color: inherit; text-decoration: underline; cursor: pointer; font: inherit; }
   .age { margin: 8px 0; }
   .paint { margin: 8px 0; cursor: pointer; }
   .paint input { width: 20px; height: 20px; flex: none; accent-color: var(--accent); }

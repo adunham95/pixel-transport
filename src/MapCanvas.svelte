@@ -309,6 +309,8 @@
     // nav lights: red on the left wingtip, green on the right, a white strobe on the tail
     function planeLights(x, y, ang, model, now) {
       const s = artSize('plane', model), p = PLANES[model];
+      // a balloon just has its burner, flaring now and then
+      if (p.balloon) { const k = reduced || now % 2400 < 600 ? 0.6 : 0.3; glow(x, y, 7, '255,170,60', k); lamp([x, y], '255,200,120'); return; }
       lamp(onArt(x, y, ang, 0, -s.h * 0.44), '255,70,60');
       lamp(onArt(x, y, ang, 0, s.h * 0.44), '80,255,120');
       const t = now % 1300;
@@ -453,6 +455,8 @@
         // unit offsets are in sub pixels at sprite scale; convert to world units along the track
         const units = trainUnits(v.kind, v.model, consistOf(v)).map((u) => ({ ...u, off: (u.off * V) / R }));
         const placed = units.filter((u) => d - u.off > 0.2).map((u) => ({ ...u, p: posAt(t.pts, d - u.off) }));
+        // a duck boat swimming between ports leaves a wake
+        if (t.sea && placed[0]) wake(placed[0].p.x * R, placed[0].p.y * R, placed[0].p.ang, artSize(v.kind, v.model).w, now);
         for (const u of placed) big(u.p.x * R + 0.7 * V, u.p.y * R + V, () => drawArt(b, 0, 0, u.p.ang, u.kind, u.model, { shadow: true }));
         for (const u of paintOrder(v.kind, placed)) big(u.p.x * R, u.p.y * R, () => drawArt(b, 0, 0, u.p.ang, u.kind, u.model, { paint: u.kind === v.kind ? paintOf(v) : null }));
         const e = placed[0];

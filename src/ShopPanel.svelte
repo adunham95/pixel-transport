@@ -1,119 +1,166 @@
 <script>
-  import { game, cityById, buyPlane, buyEngine, buyBoat, buyTruck, isOpen, canBase, fmt, paintFor, selectCity } from './game.svelte.js';
+  import { game, ui, cityById, buyPlane, buyEngine, buyBoat, buyTruck, isOpen, canBase, fmt, paintFor, selectCity } from './game.svelte.js';
   import { ENGINES, CARS, PLANES, BOATS, BARGES, TRUCKS, TRAILERS, MI, TYPE_LABEL, JOB_TYPES, HQ, ESCORT_LABEL } from './data.js';
-  const UNIT = { pax: 'seats', cargo: 'cargo', fuel: 'fuel', bulk: 'bulk', mail: 'mail', wide: 'wide load', secure: 'valuables' };
-  const holds = (cap) => JOB_TYPES.filter((t) => cap[t]).map((t) => `${cap[t]} ${UNIT[t]}`).join(', ');
-  // demo consist for the shop picture: freight engines don't get a passenger car
-  const demo = (e) => (e.pulls ? Array(e.maxCars).fill(e.pulls[0]) : e.freightOnly ? ['box', 'hopper', 'tank'] : ['pax', 'box', 'tank']).slice(0, Math.min(3, e.maxCars));
-  // a superload tractor shows off a rocket stage, the trailer one of its loads brings along
-  const demoTrailers = (t) => (t.superload ? [{ kind: 'load', model: 'rocket' }] : (t.pulls ? Array(t.maxCars).fill(t.pulls[0]) : ['van', 'dump', 'tank']).slice(0, Math.min(3, t.maxCars)));
   import Sprite from './Sprite.svelte';
+  import Icon from './Icon.svelte';
+
+  // one tab per kind of vehicle, each with what it pulls (cars, trailers, barges) listed underneath
+  const KINDS = [
+    { id: 'plane', label: 'Planes', specs: PLANES, buy: buyPlane, needs: 'an airport', where: 'air' },
+    { id: 'train', label: 'Trains', specs: ENGINES, buy: buyEngine, needs: 'a station', where: 'rail', tails: CARS, tail: 'car' },
+    { id: 'truck', label: 'Trucks', specs: TRUCKS, buy: buyTruck, needs: 'roads', where: 'road', tails: TRAILERS, tail: 'trailer' },
+    { id: 'boat', label: 'Boats', specs: BOATS, buy: buyBoat, needs: 'a port', where: 'port', tails: BARGES, tail: 'barge' },
+  ];
   const c = $derived(cityById[game.selected]);
+  const tab = $derived(KINDS.find((k) => k.id === ui.shopTab));
+
+  // what each model carries itself, by job type
+  const capOf = (kind, s) => (kind === 'plane' ? { pax: s.pax, cargo: s.cargo, ...s.hold } : s.cap ?? {});
+  // the cars, trailers or barges it can pull
+  function tailsOf(kind, s) {
+    if (!s.maxCars || s.superload) return [];
+    const all = Object.entries(KINDS.find((k) => k.id === kind).tails);
+    return all.filter(([k, t]) => (!s.pulls || s.pulls.includes(k)) && !(s.freightOnly && t.holds === 'pax')).map(([, t]) => t);
+  }
+  // every job type it can take, on board or behind
+  function carries(kind, s) {
+    if (s.superload) return ['wide'];
+    return JOB_TYPES.filter((t) => capOf(kind, s)[t] || tailsOf(kind, s).some((x) => x.holds === t));
+  }
+  function notes(kind, s) {
+    const out = [];
+    const tails = tailsOf(kind, s), what = KINDS.find((k) => k.id === kind).tail;
+    if (s.superload) out.push('Carries one superload from a contract');
+    if (s.escort) out.push(`Escorts superloads as a ${ESCORT_LABEL[s.escort]}`);
+    if (tails.length) out.push(`Pulls up to ${s.maxCars} ${s.pulls ? s.pulls.map((k) => KINDS.find((x) => x.id === kind).tails[k].short.toLowerCase()).join(' or ') + ' ' : s.freightOnly ? 'freight ' : ''}${what}${s.maxCars > 1 ? 's' : ''}`);
+    for (const [t, n] of Object.entries(s.pays ?? {})) out.push(`${TYPE_LABEL[t]} pay ${n}×`);
+    // a truck's deck is the ferry space it takes up, not room it has
+    if (s.deck && kind !== 'truck') out.push(`${s.deck} ${s.deckFor ?? 'truck'} space${s.deck > 1 ? 's' : ''}`);
+    if (s.vtol) out.push('Lands anywhere');
+    else if (s.seaplane) out.push('Lands at ports too');
+    if (s.deckSpace) out.push('Lands on carriers');
+    if (s.deckFor === 'plane') out.push('Anchors at sea');
+    if (s.maglev) out.push('Maglev lines only');
+    if (s.harbor) out.push('Ports with a station only');
+    if (s.amphibious) out.push('Swims between ports');
+    if (s.noFerry) out.push('Too long for car ferries');
+    return out;
+  }
+
+  // the job types anything in this tab carries, for the filter
+  const types = $derived(JOB_TYPES.filter((t) => Object.values(tab.specs).some((s) => carries(tab.id, s).includes(t))));
+  const type = $derived(types.includes(ui.shopType) ? ui.shopType : null);
+  const models = $derived(Object.entries(tab.specs).filter(([, s]) => !type || carries(tab.id, s).includes(type)).sort(([, a], [, b]) => a.level - b.level || a.price - b.price));
+  const open = $derived(models.filter(([, s]) => game.level >= s.level));
+  const soon = $derived(models.filter(([, s]) => game.level < s.level));
+  const SOON = 3;
+  const tails = $derived(tab.tails ? Object.values(tab.tails).filter((t) => !type || t.holds === type).sort((a, b) => a.level - b.level) : []);
+
+  function pick(id) { ui.shopTab = id; ui.shopMore = false; }
 </script>
 
-{#if c.anchor}
-<p class="note"><b>{c.name}</b> is open sea. Select a town to buy vehicles there.</p>
+<nav class="cats">
+  {#each KINDS as k}<button class:on={ui.shopTab === k.id} onclick={() => pick(k.id)}>{k.label}</button>{/each}
+  <button class:on={ui.shopTab === 'more'} onclick={() => pick('more')}>Upgrades</button>
+</nav>
+
+{#if ui.shopTab === 'more'}
+  <div class="shop" class:locked={game.level < HQ.level}>
+    <span class="grow">
+      <b>Headquarters</b>
+      <small>{game.hq ? `At ${cityById[game.hq].name}. Set company colors and buy perks on its town page.` : 'Build one on any town’s page. Unlocks repeating routes for the whole fleet, company colors and HQ perks.'}</small>
+    </span>
+    {#if game.hq}<button class="btn" onclick={() => selectCity(game.hq)}>Visit</button>
+    {:else}<span class="pay">{game.level < HQ.level ? `Lv ${HQ.level}` : `$${fmt(HQ.price)}`}</span>{/if}
+  </div>
 {:else}
-<p class="note">New vehicles show up at <b>{c.name}</b>.
-  {#if !isOpen(c.id)} It’s locked, so unlock it or pick another city first.{/if}
-  {#if !c.air} It has no airport, so only helicopters{c.port ? ' and seaplanes' : ''} can be bought here.{/if}
-  {#if !c.rail} It has no station, so select a station city to buy engines.{/if}
-  {#if !c.port} It has no port, so select a port city to buy boats.{/if}
-  {#if !c.road} It has no roads, so select a mainland town to buy trucks.{/if}
-</p>
+  {#if c.anchor}
+    <p class="note"><b>{c.name}</b> is open sea. Select a town to buy vehicles there.</p>
+  {:else if !isOpen(c.id)}
+    <p class="note"><b>{c.name}</b> is locked. Unlock it, or pick another town, to buy vehicles there.</p>
+  {:else}
+    <p class="note">New vehicles show up at <b>{c.name}</b>.{#if !c[tab.where]} It has no {tab.needs.replace(/^an? /, '')}, so only some {tab.label.toLowerCase()} can be bought here.{/if}</p>
+  {/if}
+
+  {#if types.length > 1}
+    <div class="types">
+      <button class:on={!type} onclick={() => (ui.shopType = null)}>All</button>
+      {#each types as t}<button class="t-{t}" class:on={type === t} onclick={() => (ui.shopType = type === t ? null : t)}><Icon name={t} size={13} />{TYPE_LABEL[t]}</button>{/each}
+    </div>
+  {/if}
+
+  {#snippet row(k, s)}
+    {@const locked = game.level < s.level}
+    {@const here = !c.anchor && isOpen(c.id) && canBase(tab.id, k, c)}
+    {@const cap = capOf(tab.id, s)}
+    {@const pulled = tailsOf(tab.id, s)}
+    <div class="shop" class:locked>
+      <span class="pv wide"><Sprite kind={tab.id} model={k} cars={demo(tab.id, s)} scale={4} paint={paintFor(tab.id, k)} /></span>
+      <span class="grow">
+        <b>{s.name}</b>
+        <span class="holds">
+          {#each JOB_TYPES as t}{#if cap[t]}<span class="meter t-{t}"><Icon name={t} size={12} />{cap[t]}</span>{/if}{/each}
+          {#each JOB_TYPES.filter((t) => !cap[t] && pulled.some((x) => x.holds === t)) as t}<span class="meter pull t-{t}" title="In its {tab.tail}s"><Icon name={t} size={12} /></span>{/each}
+          {#if s.superload}<span class="meter t-wide"><Icon name="wide" size={12} />1</span>{/if}
+        </span>
+        {#if notes(tab.id, s).length}<small>{notes(tab.id, s).join('. ')}</small>{/if}
+        <small>{s.range ? `Range ${Math.round(s.range * MI)} mi. ` : ''}Speed <span class="pips">{#each [1, 2, 3, 4, 5] as n}<i class:on={n <= s.pips}></i>{/each}</span></small>
+      </span>
+      <button class="btn primary" disabled={locked || !here || game.coins < s.price} onclick={() => tab.buy(k)}>{locked ? `Lv ${s.level}` : !here ? 'Not here' : `$${fmt(s.price)}`}</button>
+    </div>
+  {/snippet}
+
+  {#each open as [k, s] (k)}{@render row(k, s)}{:else}<p class="muted">Nothing yet. Level up to unlock some.</p>{/each}
+
+  {#if soon.length}
+    <h3>Coming up</h3>
+    {#each ui.shopMore ? soon : soon.slice(0, SOON) as [k, s] (k)}{@render row(k, s)}{/each}
+    {#if soon.length > SOON}
+      <button class="btn ghost more" onclick={() => (ui.shopMore = !ui.shopMore)}>{ui.shopMore ? 'Show fewer' : `Show ${soon.length - SOON} more`}</button>
+    {/if}
+  {/if}
+
+  {#if tails.length}
+    <h3>{tab.tail[0].toUpperCase() + tab.tail.slice(1)}s</h3>
+    <p class="muted small">Hook them up from the Fleet tab.</p>
+    <div class="tails">
+      {#each tails as t}
+        <div class="tail" class:locked={game.level < t.level}>
+          <span class="swatch" style:--c={t.color}></span>
+          <span class="grow"><b>{t.short ?? t.name}</b><small><Icon name={t.holds} size={11} /> {t.cap} · {game.level < t.level ? `Lv ${t.level}` : `$${fmt(t.price)}`}</small></span>
+        </div>
+      {/each}
+    </div>
+  {/if}
 {/if}
 
-<h3>Upgrades</h3>
-<div class="shop" class:locked={game.level < HQ.level}>
-  <span class="grow">
-    <b>Headquarters</b>
-    <small>{game.hq ? `At ${cityById[game.hq].name}. Set company colors and buy perks on its town page.` : 'Build one on any town’s page. Unlocks repeating routes for the whole fleet, company colors and HQ perks.'}</small>
-  </span>
-  {#if game.hq}<button class="btn" onclick={() => selectCity(game.hq)}>Visit</button>
-  {:else}<span class="pay">{game.level < HQ.level ? `Lv ${HQ.level}` : `$${fmt(HQ.price)}`}</span>{/if}
-</div>
+<script module>
+  // demo consist for the shop picture: what it pulls, or a superload tractor's rocket stage
+  function demo(kind, s) {
+    if (!s.maxCars && !s.superload) return [];
+    if (kind === 'truck') return s.superload ? [{ kind: 'load', model: 'rocket' }] : (s.pulls ? Array(s.maxCars).fill(s.pulls[0]) : ['van', 'dump', 'tank']).slice(0, Math.min(3, s.maxCars));
+    if (kind === 'boat') return ['deck', 'hopper', 'tank'].slice(0, s.maxCars);
+    return (s.pulls ? Array(s.maxCars).fill(s.pulls[0]) : s.freightOnly ? ['box', 'hopper', 'tank'] : ['pax', 'box', 'tank']).slice(0, Math.min(3, s.maxCars));
+  }
+</script>
 
-<h3>Planes</h3>
-{#each Object.entries(PLANES) as [k, p]}
-  {@const locked = game.level < p.level}
-  <div class="shop" class:locked>
-    <span class="pv wide"><Sprite kind="plane" model={k} scale={4} paint={paintFor('plane', k)} /></span>
-    <span class="grow">
-      <b>{p.name}</b>
-      <small>{holds({ pax: p.pax, cargo: p.cargo, ...p.hold })}{p.deck ? `, ${p.deck} truck spaces` : ''}{p.vtol ? '. Lands anywhere' : p.seaplane ? '. Lands at ports too' : ''}{p.deckSpace ? '. Lands on carriers' : ''}</small>
-      <small>Range {Math.round(p.range * MI)} mi. Speed <span class="pips">{#each [1, 2, 3, 4, 5] as n}<i class:on={n <= p.pips}></i>{/each}</span></small>
-    </span>
-    <button class="btn primary" disabled={locked || !isOpen(c.id) || c.anchor || !canBase('plane', k, c) || game.coins < p.price} onclick={() => buyPlane(k)}>{locked ? `Lv ${p.level}` : `$${fmt(p.price)}`}</button>
-  </div>
-{/each}
-
-<h3>Train engines</h3>
-<p class="muted small">Engines come with no cars. Add cars from the Fleet tab.</p>
-{#each Object.entries(ENGINES) as [k, e]}
-  {@const locked = game.level < e.level}
-  <div class="shop" class:locked>
-    <span class="pv wide"><Sprite kind="train" model={k} cars={demo(e)} scale={4} paint={paintFor('train', k)} /></span>
-    <span class="grow">
-      <b>{e.name}</b>
-      <small>Pulls up to {e.maxCars} {e.pulls ? e.pulls.map((k) => CARS[k].short.toLowerCase()).join(' or ') + ' ' : e.freightOnly ? 'freight ' : ''}cars{e.maglev ? '. Maglev lines only' : ''}</small>
-      <small>Speed <span class="pips">{#each [1, 2, 3, 4, 5] as n}<i class:on={n <= e.pips}></i>{/each}</span></small>
-    </span>
-    <button class="btn primary" disabled={locked || !isOpen(c.id) || c.anchor || !canBase('train', k, c) || game.coins < e.price} onclick={() => buyEngine(k)}>{locked ? `Lv ${e.level}` : `$${fmt(e.price)}`}</button>
-  </div>
-{/each}
-
-<h3>Train cars</h3>
-{#each Object.values(CARS) as car}
-  <div class="shop" class:locked={game.level < car.level}>
-    <span class="swatch" style:--c={car.color}></span>
-    <span class="grow"><b>{car.name}</b><small>Holds {car.cap} {TYPE_LABEL[car.holds].toLowerCase()}. ${car.price} each.</small></span>
-    <span class="pay">{game.level < car.level ? `Lv ${car.level}` : 'In Fleet'}</span>
-  </div>
-{/each}
-
-<h3>Trucks and buses</h3>
-<p class="muted small">Trucks and buses drive the roads between mainland towns. A car ferry can take them to other shores.</p>
-{#each Object.entries(TRUCKS) as [k, t]}
-  {@const locked = game.level < t.level}
-  <div class="shop" class:locked>
-    <span class="pv wide"><Sprite kind="truck" model={k} cars={demoTrailers(t)} scale={4} paint={paintFor('truck', k)} /></span>
-    <span class="grow">
-      <b>{t.name}</b>
-      <small>{t.superload ? 'Carries one superload from a contract. The load brings its own trailer' : t.escort ? `Escorts superload convoys as a ${ESCORT_LABEL[t.escort]}. Carries nothing` : t.maxCars ? `Pulls ${t.maxCars > 1 ? `up to ${t.maxCars}` : 'a'} ${t.pulls ? t.pulls.map((k) => TRAILERS[k].short.toLowerCase()).join(' or ') + ' ' : ''}trailer${t.maxCars > 1 ? 's' : ''}` : holds(t.cap)}{t.vip ? `. Passengers pay ${t.vip}×` : ''}{t.noFerry ? '. Too long for car ferries' : ''}</small>
-      <small>Speed <span class="pips">{#each [1, 2, 3, 4, 5] as n}<i class:on={n <= t.pips}></i>{/each}</span></small>
-    </span>
-    <button class="btn primary" disabled={locked || !isOpen(c.id) || c.anchor || !canBase('truck', k, c) || game.coins < t.price} onclick={() => buyTruck(k)}>{locked ? `Lv ${t.level}` : `$${fmt(t.price)}`}</button>
-  </div>
-{/each}
-
-<h3>Trailers</h3>
-{#each Object.values(TRAILERS) as tr}
-  <div class="shop" class:locked={game.level < tr.level}>
-    <span class="swatch" style:--c={tr.color}></span>
-    <span class="grow"><b>{tr.name}</b><small>Holds {tr.cap} {TYPE_LABEL[tr.holds].toLowerCase()}. ${tr.price} each.</small></span>
-    <span class="pay">{game.level < tr.level ? `Lv ${tr.level}` : 'In Fleet'}</span>
-  </div>
-{/each}
-
-<h3>Boats</h3>
-{#each Object.entries(BOATS) as [k, bt]}
-  {@const locked = game.level < bt.level}
-  <div class="shop" class:locked>
-    <span class="pv wide"><Sprite kind="boat" model={k} cars={bt.maxCars ? ['deck', 'hopper', 'tank'].slice(0, bt.maxCars) : []} scale={4} paint={paintFor('boat', k)} /></span>
-    <span class="grow">
-      <b>{bt.name}</b>
-      <small>{bt.maxCars ? `Tows up to ${bt.maxCars} barges` : ''}{holds(bt.cap)}{bt.deck ? `${holds(bt.cap) ? ', ' : ''}${bt.deck} ${bt.deckFor ?? 'truck'} spaces` : ''}{bt.deckFor === 'plane' ? '. Anchors at sea' : ''}{bt.harbor ? '. Ports with a station only' : ''}</small>
-      <small>Speed <span class="pips">{#each [1, 2, 3, 4, 5] as n}<i class:on={n <= bt.pips}></i>{/each}</span></small>
-    </span>
-    <button class="btn primary" disabled={locked || !isOpen(c.id) || c.anchor || !canBase('boat', k, c) || game.coins < bt.price} onclick={() => buyBoat(k)}>{locked ? `Lv ${bt.level}` : `$${fmt(bt.price)}`}</button>
-  </div>
-{/each}
-
-<h3>Barges</h3>
-{#each Object.values(BARGES) as bg}
-  <div class="shop" class:locked={game.level < bg.level}>
-    <span class="swatch" style:--c={bg.color}></span>
-    <span class="grow"><b>{bg.name}</b><small>Holds {bg.cap} {TYPE_LABEL[bg.holds].toLowerCase()}. ${bg.price} each.</small></span>
-    <span class="pay">{game.level < bg.level ? `Lv ${bg.level}` : 'In Fleet'}</span>
-  </div>
-{/each}
+<style>
+  .cats { position: sticky; top: 0; z-index: 2; box-shadow: 0 -12px 0 6px var(--panel); display: grid; grid-template-columns: repeat(5, 1fr); gap: 3px; padding: 3px; margin-bottom: 8px; background: var(--panel-3); border-radius: 11px; }
+  .cats button { border: 0; background: transparent; padding: 7px 2px; border-radius: 8px; font-weight: 500; font-size: 13px; color: var(--ink-soft); cursor: pointer; white-space: nowrap; }
+  .cats button.on { background: var(--panel-2); color: var(--ink); font-weight: 600; box-shadow: var(--shadow); }
+  .types { display: flex; flex-wrap: wrap; gap: 5px; margin: 8px 0 10px; }
+  .types button { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; font-size: 12px; font-weight: 500; border-radius: 999px; border: 1px solid var(--line); background: var(--panel-2); cursor: pointer; }
+  .types button:not(.on) { color: var(--ink-soft); }
+  .types button.on { background: color-mix(in srgb, currentColor 14%, var(--panel-2)); border-color: currentColor; }
+  .types button.on:first-child { color: var(--ink); }
+  .grow > b { display: block; }
+  .holds { display: flex; flex-wrap: wrap; gap: 4px; margin: 3px 0 2px; }
+  .holds .meter { padding: 1px 7px; font-size: 12px; gap: 3px; }
+  .holds .pull { opacity: .75; background: transparent; border: 1px dashed currentColor; padding: 0 6px; }
+  .more { width: 100%; margin-bottom: 8px; }
+  .tails { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 6px; }
+  .tail { display: flex; align-items: center; gap: 8px; padding: 7px 8px; background: var(--panel-2); border: 1px solid var(--line); border-radius: var(--r); }
+  .tail.locked { opacity: .55; }
+  .tail .swatch { width: 22px; height: 22px; border-radius: 7px; }
+  .tail small { display: inline-flex; align-items: center; gap: 3px; }
+</style>

@@ -10,7 +10,7 @@
   import ContractsPanel from './ContractsPanel.svelte';
   import VehicleCard from './VehicleCard.svelte';
   import Icon from './Icon.svelte';
-  import { game, ui, dev, start, fmt, cityById } from './game.svelte.js';
+  import { game, ui, dev, start, fmt, cityById, isIdle } from './game.svelte.js';
   import { LEVELS, CONTRACTS } from './data.js';
   import { fly, fade, flip, reduced } from './motion.js';
 
@@ -28,7 +28,7 @@
   const open = $derived(wide || ui.sheetOpen);
   const maxed = $derived(game.level >= LEVELS.length);
   const pct = $derived(maxed ? 100 : Math.min(100, ((game.xp - LEVELS[game.level - 1]) / (LEVELS[game.level] - LEVELS[game.level - 1])) * 100));
-  const moving = $derived(game.vehicles.filter((v) => v.trip).length);
+  const idle = $derived(game.vehicles.filter(isIdle).length);
   function setTab(t) {
     if (ui.tab === t && ui.sheetOpen && !wide) { ui.sheetOpen = false; return; }
     ui.tab = t;
@@ -140,7 +140,7 @@
         <nav class="tabs" class:dev={dev.on}>
           {#if pill}<span class="pill" style:width="{pill.w}px" style:transform="translateX({pill.x}px)"></span>{/if}
           <button bind:this={tabEls.city} class:on={ui.tab === 'city'} onclick={() => setTab('city')}>{cityById[game.selected].name}</button>
-          <button bind:this={tabEls.fleet} class:on={ui.tab === 'fleet'} onclick={() => setTab('fleet')}>Fleet <em>{game.vehicles.length}{moving ? `, ${moving} out` : ''}</em></button>
+          <button bind:this={tabEls.fleet} class:on={ui.tab === 'fleet'} onclick={() => setTab('fleet')}>Fleet <em>{game.vehicles.length}</em>{#if idle}<em class="dot" title="{idle} idle"></em>{/if}</button>
           <button bind:this={tabEls.contracts} class:on={ui.tab === 'contracts'} onclick={() => setTab('contracts')}>Contracts{#if game.contracts.active.length}<em> {game.contracts.active.length}</em>{:else if game.level >= CONTRACTS.level && game.contracts.offers.length}<em class="dot"></em>{/if}</button>
           <button bind:this={tabEls.shop} class:on={ui.tab === 'shop'} onclick={() => setTab('shop')}>Shop</button>
           {#if dev.on}<button bind:this={tabEls.dev} class:on={ui.tab === 'dev'} onclick={() => setTab('dev')}>Dev{dev.speed > 1 ? ` ${dev.speed}×` : ''}</button>{/if}

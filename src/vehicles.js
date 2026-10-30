@@ -320,6 +320,7 @@ export const CARS = {
 // hold: { fuel, bulk } extra room for heavy loads, on top of pax and cargo.
 // deck: room for trucks to drive aboard, like a car ferry (see TRUCKS).
 // deckSpace: it's small enough to land on an aircraft carrier, taking that many spaces on its deck.
+// balloon: true means it's a hot air balloon: no wingtip lights at night, just its burner glowing.
 export const PLANES = {
   sparrow: {
     name: "Sparrow",
@@ -349,6 +350,28 @@ export const PLANES = {
       <path d="M3.9 -0.85H4.3A0.5 0.5 0 0 1 4.8 -0.35V0.35A0.5 0.5 0 0 1 4.3 0.85H3.9A0.5 0.5 0 0 1 3.4 0.35V-0.35A0.5 0.5 0 0 1 3.9 -0.85Z" fill="#23344f"/>
       <rect x="3.6" y="-0.75" width="0.5" height="0.5" fill="rgba(170,215,255,0.85)"/>
       <rect x="6.2" y="-1.2" width="0.6" height="2.4" fill="rgba(40,40,48,0.85)"/>
+    </svg>`,
+  },
+  balloon: {
+    name: "Hot Air Balloon",
+    short: "Balloon",
+    level: 2,
+    price: 700,
+    pax: 2,
+    cargo: 0,
+    range: 90,
+    speed: 3.5,
+    fuel: 0.05,
+    pips: 1,
+    vtol: true,
+    balloon: true,
+    color: "#f2c14e",
+    trim: "#d6453a",
+    art: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-6 -6 12 12">
+      <circle cx="0" cy="0" r="5.2" fill="#f2c14e" stroke="rgba(18,24,38,0.9)" stroke-width="0.8"/>
+      <g fill="#d6453a">${[0, 1, 2, 3, 4, 5].map((i) => { const a = (i * 60 * Math.PI) / 180, b = a + Math.PI / 6, f = (n) => n.toFixed(2); return `<path d="M0 0L${f(Math.cos(a) * 5.2)} ${f(Math.sin(a) * 5.2)}A5.2 5.2 0 0 1 ${f(Math.cos(b) * 5.2)} ${f(Math.sin(b) * 5.2)}Z"/>`; }).join("")}</g>
+      <circle cx="-1.4" cy="-1.6" r="1.6" fill="rgba(255,255,255,0.3)"/>
+      <circle cx="0" cy="0" r="1.1" fill="#f4f6f8" stroke="rgba(18,24,38,0.6)" stroke-width="0.3"/>
     </svg>`,
   },
   islander: {
@@ -846,6 +869,7 @@ export const PLANES = {
 };
 
 // boats are slow but cheap to run; cap is how many of each job type fit on board (missing types are 0).
+// pays: { type: n } means those jobs pay n times as much on board (see TRUCKS).
 // harbor: true means it only docks at ports that also have a rail station.
 // deck: room for trucks to drive aboard (see TRUCKS), on top of what cap holds.
 // maxCars: a tug that tows that many BARGES, like an engine pulls cars; run goes up 0.02 for each.
@@ -1068,6 +1092,33 @@ export const BOATS = {
       <rect x="-0.9" y="2.9" width="0.6" height="0.8" fill="#9fd0ff"/>
     </svg>`,
   },
+  pirate: {
+    name: "Pirate Ship",
+    short: "Pirate",
+    level: 7,
+    price: 5000,
+    cap: { cargo: 8 },
+    pays: { cargo: 1.5 },
+    factoryPaint: true,
+    speed: 4.5,
+    run: 0.06,
+    pips: 2,
+    art: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-8 -3.4 16 6.8">
+      <path d="M-6.6 -2.6L2.6 -2.6Q6.4 -2.4 7.6 0Q6.4 2.4 2.6 2.6L-6.6 2.6Q-7.2 2.6 -7.2 2L-7.2 -2Q-7.2 -2.6 -6.6 -2.6Z" fill="#6b4226" stroke="rgba(18,24,38,0.9)" stroke-width="0.7" stroke-linejoin="round"/>
+      <path d="M-6.4 -1.9L2.6 -1.9Q5.6 -1.8 6.4 0Q5.6 1.8 2.6 1.9L-6.4 1.9Z" fill="#a8743f"/>
+      <g fill="#8b5a33">${[-1.2, -0.4, 0.4, 1.2].map((y) => `<rect x="-6.4" y="${y - 0.04}" width="12" height="0.08"/>`).join("")}</g>
+      <rect x="-7" y="-1.9" width="1.8" height="3.8" fill="#7a4c2b"/>
+      <g fill="#23262b" stroke="rgba(18,24,38,0.9)" stroke-width="0.25">
+        <path d="M-4.6 -2.9Q-3.6 0 -4.6 2.9L-3.8 2.9Q-2.8 0 -3.8 -2.9Z"/>
+        <path d="M-0.8 -3.2Q0.3 0 -0.8 3.2L0 3.2Q1.1 0 0 -3.2Z"/>
+        <path d="M3 -2.4Q3.9 0 3 2.4L3.7 2.4Q4.6 0 3.7 -2.4Z"/>
+      </g>
+      <g fill="#5c3a1f"><circle cx="-4.2" cy="0" r="0.3"/><circle cx="-0.4" cy="0" r="0.3"/><circle cx="3.3" cy="0" r="0.3"/></g>
+      <path d="M7.4 0L8 0" stroke="#5c3a1f" stroke-width="0.3"/>
+      <rect x="-6.9" y="-0.9" width="1" height="0.7" fill="#1c1b1f"/>
+      <circle cx="-6.4" cy="-0.55" r="0.18" fill="#f4f6f8"/>
+    </svg>`,
+  },
   liner: {
     name: "Ocean Liner",
     level: 10,
@@ -1214,8 +1265,9 @@ export const BARGES = {
 // superload: true means it carries nothing but one superload at a time, which brings its own
 // trailer (see SUPERLOAD_TRAILERS below). escortedBy: an escort kind that can ride along if you like
 // (valuables pay more with one).
-// vip: passengers pay that many times as much. factoryPaint: true keeps its own colors when the
-// fleet is in company colors (escorts always do).
+// pays: { type: n } means those jobs pay n times as much on board. factoryPaint: true keeps its own
+// colors when the fleet is in company colors (escorts always do). amphibious: true means it can also
+// swim between ports at `swim` speed, and be based at island ports with no roads.
 export const TRUCKS = {
   pickup: {
     name: "Pickup",
@@ -1337,13 +1389,36 @@ export const TRUCKS = {
       <g fill="#23262b"><rect x="1" y="-1.75" width="0.4" height="0.28" rx="0.1"/><rect x="1" y="1.47" width="0.4" height="0.28" rx="0.1"/></g>
     </svg>`,
   },
+  duck: {
+    name: "Duck Boat",
+    short: "Duck",
+    level: 4,
+    price: 1800,
+    cap: { pax: 4, cargo: 2 },
+    amphibious: true,
+    maxCars: 0,
+    speed: 5.5,
+    swim: 3,
+    run: 0.05,
+    deck: 1,
+    pips: 2,
+    art: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-4.2 -2.1 8.4 4.2">
+      <g fill="#23262b">${[-2.4, -0.8, 1].map((x) => `<rect x="${x}" y="-1.95" width="0.9" height="0.45" rx="0.15"/><rect x="${x}" y="1.5" width="0.9" height="0.45" rx="0.15"/>`).join("")}</g>
+      <path d="M-3.5 -1.55H1.8L3.9 0L1.8 1.55H-3.5A0.4 0.4 0 0 1 -3.9 1.15V-1.15A0.4 0.4 0 0 1 -3.5 -1.55Z" fill="#f2c14e" stroke="rgba(18,24,38,0.9)" stroke-width="0.55" stroke-linejoin="round"/>
+      <rect x="-3.4" y="-1.15" width="4.4" height="2.3" rx="0.2" fill="#f4f6f8"/>
+      <g fill="#d6453a">${[-3.4, -1.9, -0.4].map((x) => `<rect x="${x}" y="-1.15" width="0.75" height="2.3"/>`).join("")}</g>
+      <rect x="1.1" y="-1.1" width="0.45" height="2.2" fill="#9fd0ff"/>
+      <circle cx="2.6" cy="0" r="0.42" fill="#e08a2c"/>
+      <g fill="#1c1b1f"><circle cx="2.2" cy="-0.5" r="0.14"/><circle cx="2.2" cy="0.5" r="0.14"/></g>
+    </svg>`,
+  },
   limo: {
     name: "Gold-Plated Limo",
     short: "Gold Limo",
     level: 12,
     price: 25000,
     cap: { pax: 2 },
-    vip: 3,
+    pays: { pax: 3 },
     factoryPaint: true,
     maxCars: 0,
     speed: 8,
