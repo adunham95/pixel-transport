@@ -1,6 +1,6 @@
 <script>
-  import { game, cityById, buyPlane, buyEngine, buyBoat, buyTruck, buyRepeatRoutes, isOpen, canBase, fmt } from './game.svelte.js';
-  import { ENGINES, CARS, PLANES, BOATS, BARGES, TRUCKS, TRAILERS, MI, TYPE_LABEL, JOB_TYPES, REPEAT_ROUTES, ESCORT_LABEL } from './data.js';
+  import { game, cityById, buyPlane, buyEngine, buyBoat, buyTruck, isOpen, canBase, fmt, paintFor, selectCity } from './game.svelte.js';
+  import { ENGINES, CARS, PLANES, BOATS, BARGES, TRUCKS, TRAILERS, MI, TYPE_LABEL, JOB_TYPES, HQ, ESCORT_LABEL } from './data.js';
   const UNIT = { pax: 'seats', cargo: 'cargo', fuel: 'fuel', bulk: 'bulk', mail: 'mail', wide: 'wide load', secure: 'valuables' };
   const holds = (cap) => JOB_TYPES.filter((t) => cap[t]).map((t) => `${cap[t]} ${UNIT[t]}`).join(', ');
   // demo consist for the shop picture: freight engines don't get a passenger car
@@ -24,20 +24,20 @@
 {/if}
 
 <h3>Upgrades</h3>
-<div class="shop" class:locked={game.level < REPEAT_ROUTES.level}>
+<div class="shop" class:locked={game.level < HQ.level}>
   <span class="grow">
-    <b>Repeating routes</b>
-    <small>For the whole fleet. Vehicles loop a planned route on their own, picking up jobs at every stop.</small>
+    <b>Headquarters</b>
+    <small>{game.hq ? `At ${cityById[game.hq].name}. Set company colors and buy perks on its town page.` : 'Build one on any town’s page. Unlocks repeating routes for the whole fleet, company colors and HQ perks.'}</small>
   </span>
-  {#if game.repeatRoutes}<span class="pay">Owned</span>
-  {:else}<button class="btn primary" disabled={game.level < REPEAT_ROUTES.level || game.coins < REPEAT_ROUTES.price} onclick={buyRepeatRoutes}>{game.level < REPEAT_ROUTES.level ? `Lv ${REPEAT_ROUTES.level}` : `$${fmt(REPEAT_ROUTES.price)}`}</button>{/if}
+  {#if game.hq}<button class="btn" onclick={() => selectCity(game.hq)}>Visit</button>
+  {:else}<span class="pay">{game.level < HQ.level ? `Lv ${HQ.level}` : `$${fmt(HQ.price)}`}</span>{/if}
 </div>
 
 <h3>Planes</h3>
 {#each Object.entries(PLANES) as [k, p]}
   {@const locked = game.level < p.level}
   <div class="shop" class:locked>
-    <span class="pv wide"><Sprite kind="plane" model={k} scale={4} /></span>
+    <span class="pv wide"><Sprite kind="plane" model={k} scale={4} paint={paintFor('plane', k)} /></span>
     <span class="grow">
       <b>{p.name}</b>
       <small>{holds({ pax: p.pax, cargo: p.cargo, ...p.hold })}{p.deck ? `, ${p.deck} truck spaces` : ''}{p.vtol ? '. Lands anywhere' : p.seaplane ? '. Lands at ports too' : ''}{p.deckSpace ? '. Lands on carriers' : ''}</small>
@@ -52,7 +52,7 @@
 {#each Object.entries(ENGINES) as [k, e]}
   {@const locked = game.level < e.level}
   <div class="shop" class:locked>
-    <span class="pv wide"><Sprite kind="train" model={k} cars={demo(e)} scale={4} /></span>
+    <span class="pv wide"><Sprite kind="train" model={k} cars={demo(e)} scale={4} paint={paintFor('train', k)} /></span>
     <span class="grow">
       <b>{e.name}</b>
       <small>Pulls up to {e.maxCars} {e.pulls ? e.pulls.map((k) => CARS[k].short.toLowerCase()).join(' or ') + ' ' : e.freightOnly ? 'freight ' : ''}cars{e.maglev ? '. Maglev lines only' : ''}</small>
@@ -76,10 +76,10 @@
 {#each Object.entries(TRUCKS) as [k, t]}
   {@const locked = game.level < t.level}
   <div class="shop" class:locked>
-    <span class="pv wide"><Sprite kind="truck" model={k} cars={demoTrailers(t)} scale={4} /></span>
+    <span class="pv wide"><Sprite kind="truck" model={k} cars={demoTrailers(t)} scale={4} paint={paintFor('truck', k)} /></span>
     <span class="grow">
       <b>{t.name}</b>
-      <small>{t.superload ? 'Carries one superload from a contract. The load brings its own trailer' : t.escort ? `Escorts superload convoys as a ${ESCORT_LABEL[t.escort]}. Carries nothing` : t.maxCars ? `Pulls ${t.maxCars > 1 ? `up to ${t.maxCars}` : 'a'} ${t.pulls ? t.pulls.map((k) => TRAILERS[k].short.toLowerCase()).join(' or ') + ' ' : ''}trailer${t.maxCars > 1 ? 's' : ''}` : holds(t.cap)}{t.noFerry ? '. Too long for car ferries' : ''}</small>
+      <small>{t.superload ? 'Carries one superload from a contract. The load brings its own trailer' : t.escort ? `Escorts superload convoys as a ${ESCORT_LABEL[t.escort]}. Carries nothing` : t.maxCars ? `Pulls ${t.maxCars > 1 ? `up to ${t.maxCars}` : 'a'} ${t.pulls ? t.pulls.map((k) => TRAILERS[k].short.toLowerCase()).join(' or ') + ' ' : ''}trailer${t.maxCars > 1 ? 's' : ''}` : holds(t.cap)}{t.vip ? `. Passengers pay ${t.vip}×` : ''}{t.noFerry ? '. Too long for car ferries' : ''}</small>
       <small>Speed <span class="pips">{#each [1, 2, 3, 4, 5] as n}<i class:on={n <= t.pips}></i>{/each}</span></small>
     </span>
     <button class="btn primary" disabled={locked || !isOpen(c.id) || c.anchor || !canBase('truck', k, c) || game.coins < t.price} onclick={() => buyTruck(k)}>{locked ? `Lv ${t.level}` : `$${fmt(t.price)}`}</button>
@@ -99,7 +99,7 @@
 {#each Object.entries(BOATS) as [k, bt]}
   {@const locked = game.level < bt.level}
   <div class="shop" class:locked>
-    <span class="pv wide"><Sprite kind="boat" model={k} cars={bt.maxCars ? ['deck', 'hopper', 'tank'].slice(0, bt.maxCars) : []} scale={4} /></span>
+    <span class="pv wide"><Sprite kind="boat" model={k} cars={bt.maxCars ? ['deck', 'hopper', 'tank'].slice(0, bt.maxCars) : []} scale={4} paint={paintFor('boat', k)} /></span>
     <span class="grow">
       <b>{bt.name}</b>
       <small>{bt.maxCars ? `Tows up to ${bt.maxCars} barges` : ''}{holds(bt.cap)}{bt.deck ? `${holds(bt.cap) ? ', ' : ''}${bt.deck} ${bt.deckFor ?? 'truck'} spaces` : ''}{bt.deckFor === 'plane' ? '. Anchors at sea' : ''}{bt.harbor ? '. Ports with a station only' : ''}</small>

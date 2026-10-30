@@ -1,10 +1,10 @@
 <script>
-  import { game, ui, cityById, capacity, used, loadJob, unloadJob, autoLoad, destinations, dispatch, route, canReach, planLegs, autoPlan, toggleStop, fmt, fmtTime, loopStops, buyRepeatRoutes, aboard, canBoard, fitsAboard, deckFor, deckSize, deckUsed, deckRoom, driveOn, driveOff, wear, fetcher, convoyNeeds, pickEscorts, escortText, consistOf, optionalEscort } from './game.svelte.js';
+  import { game, ui, cityById, capacity, used, loadJob, unloadJob, autoLoad, destinations, dispatch, route, canReach, planLegs, autoPlan, toggleStop, fmt, fmtTime, loopStops, aboard, canBoard, fitsAboard, deckFor, deckSize, deckUsed, deckRoom, driveOn, driveOff, wear, fetcher, convoyNeeds, pickEscorts, escortText, consistOf, optionalEscort, paintOf, spec } from './game.svelte.js';
   import Icon from './Icon.svelte';
   import Sprite from './Sprite.svelte';
   import JobRow from './JobRow.svelte';
   import { send, receive, flip, fly } from './motion.js';
-  import { TYPE_LABEL, JOB_TYPES, ENGINES, TRUCKS, REPEAT_ROUTES, ESCORT_LABEL, SECURE } from './data.js';
+  import { TYPE_LABEL, JOB_TYPES, ENGINES, TRUCKS, HQ, ESCORT_LABEL, SECURE } from './data.js';
   let { v } = $props();
   const cap = $derived(capacity(v));
   const u = $derived(used(v));
@@ -25,7 +25,7 @@
   const optKind = $derived(v.kind === 'truck' ? TRUCKS[v.model].escortedBy ?? null : null);
   const sidekick = $derived(optKind ? optionalEscort(v) : null);
   const riding = $derived(ui.escort && sidekick ? [sidekick] : []);
-  const boost = (j) => (j.type === 'secure' && riding.length ? 1 + SECURE.escortBonus : 1);
+  const boost = (j) => (j.type === 'pax' ? spec(v).vip ?? 1 : j.type === 'secure' && riding.length ? 1 + SECURE.escortBonus : 1);
   const escFuel = $derived([...convoy.picked, ...riding].reduce((s, x) => s + planLegs(x, stops).reduce((a, l) => a + (l?.cost ?? 0), 0), 0));
   const total = $derived(legs.reduce((s, l) => ({ cost: s.cost + (l?.cost ?? 0), time: s.time + (l?.time ?? 0) }), { cost: escFuel, time: 0 }));
   const broken = $derived(legs.some((l) => !l));
@@ -96,7 +96,7 @@
 <div class="loadhead">
   <button class="btn small" onclick={() => { ui.activeVehicle = null; ui.picking = false; ui.plan = []; }}>Back</button>
   <div class="grow"><b>{v.name}</b><small>at {city.name}</small></div>
-  <Sprite kind={v.kind} model={v.model} cars={consistOf(v)} scale={3} />
+  <Sprite kind={v.kind} model={v.model} cars={consistOf(v)} scale={3} paint={paintOf(v)} />
 </div>
 <div class="meters">
   {#each JOB_TYPES as t}
@@ -170,10 +170,8 @@
       <span class="grow"><b>Repeat this route</b><small>Picks up jobs for the loop at every stop, comes back to {city.name} and goes round again. Fuel is paid each lap.</small></span>
     </label>
   {:else}
-    {@const locked = game.level < REPEAT_ROUTES.level}
-    <div class="row repeat">
-      <span class="grow"><b>Repeating routes</b><small>{locked ? `Unlocks at level ${REPEAT_ROUTES.level}. Sends vehicles round the same loop on their own.` : 'Send vehicles round the same loop on their own, for the whole fleet.'}</small></span>
-      <button class="btn small" disabled={locked || game.coins < REPEAT_ROUTES.price} onclick={buyRepeatRoutes}>{locked ? `Lv ${REPEAT_ROUTES.level}` : `$${fmt(REPEAT_ROUTES.price)}`}</button>
+    <div class="row repeat off">
+      <span class="grow"><b>Repeating routes</b><small>{game.level < HQ.level ? `Build an HQ from level ${HQ.level} to send vehicles round the same loop on their own.` : 'Build an HQ in any town, from its town page, to send vehicles round the same loop on their own.'}</small></span>
     </div>
   {/if}
   {#if ui.plan.length && !broken}
@@ -201,7 +199,7 @@
     <h3>Vehicle deck ({deckUsed(v)} of {deck} spaces)</h3>
     {#each onDeck as t (t.id)}
       <button class="row vrow" onclick={() => driveOff(v, t)}>
-        <span class="pv"><Sprite kind={t.kind} model={t.model} cars={consistOf(t)} scale={3} /></span>
+        <span class="pv"><Sprite kind={t.kind} model={t.model} cars={consistOf(t)} scale={3} paint={paintOf(t)} /></span>
         <span class="grow"><b>{t.name}</b><small>{t.cargo.filter((j) => j.to === v.city).length ? `Drops off ${t.cargo.filter((j) => j.to === v.city).length} here` : t.cargo.length ? `${t.cargo.length} on board` : 'Empty'}</small></span>
         <span class="act">{w.off}</span>
       </button>
@@ -209,7 +207,7 @@
     {#each ashore as t (t.id)}
       {@const nope = !fitsAboard(v, t) ? w.big : !canBoard(v, t) ? `Needs ${deckSize(t)} spaces` : ''}
       <button class="row vrow" disabled={!!nope} onclick={() => driveOn(v, t)}>
-        <span class="pv"><Sprite kind={t.kind} model={t.model} cars={consistOf(t)} scale={3} /></span>
+        <span class="pv"><Sprite kind={t.kind} model={t.model} cars={consistOf(t)} scale={3} paint={paintOf(t)} /></span>
         <span class="grow"><b>{t.name}</b><small>{nope || `Parked here, takes ${deckSize(t)} space${deckSize(t) > 1 ? 's' : ''}`}</small></span>
         {#if !nope}<span class="act">{w.on}</span>{/if}
       </button>

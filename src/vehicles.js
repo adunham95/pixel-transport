@@ -1214,6 +1214,8 @@ export const BARGES = {
 // superload: true means it carries nothing but one superload at a time, which brings its own
 // trailer (see SUPERLOAD_TRAILERS below). escortedBy: an escort kind that can ride along if you like
 // (valuables pay more with one).
+// vip: passengers pay that many times as much. factoryPaint: true keeps its own colors when the
+// fleet is in company colors (escorts always do).
 export const TRUCKS = {
   pickup: {
     name: "Pickup",
@@ -1333,6 +1335,30 @@ export const TRUCKS = {
       <path d="M1.1 -1.3Q2.6 -1.25 2.75 0Q2.6 1.25 1.1 1.3L1.5 0.85Q2.15 0.75 2.2 0Q2.15 -0.75 1.5 -0.85Z" fill="#23344f"/>
       <path d="M3.05 -1Q3.35 0 3.05 1" fill="none" stroke="#fff3a8" stroke-width="0.22" stroke-linecap="round"/>
       <g fill="#23262b"><rect x="1" y="-1.75" width="0.4" height="0.28" rx="0.1"/><rect x="1" y="1.47" width="0.4" height="0.28" rx="0.1"/></g>
+    </svg>`,
+  },
+  limo: {
+    name: "Gold-Plated Limo",
+    short: "Gold Limo",
+    level: 12,
+    price: 25000,
+    cap: { pax: 2 },
+    vip: 3,
+    factoryPaint: true,
+    maxCars: 0,
+    speed: 8,
+    run: 0.06,
+    deck: 1,
+    pips: 4,
+    art: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-4.4 -1.6 8.8 3.2">
+      <path d="M-3.5 -1.2H3.2A0.8 0.8 0 0 1 4 -0.4V0.4A0.8 0.8 0 0 1 3.2 1.2H-3.5A0.5 0.5 0 0 1 -4 0.7V-0.7A0.5 0.5 0 0 1 -3.5 -1.2Z" fill="#e8b830" stroke="rgba(18,24,38,0.9)" stroke-width="0.5" stroke-linejoin="round"/>
+      <rect x="-3" y="-0.9" width="4.6" height="1.8" rx="0.3" fill="#1c1b1f"/>
+      <g fill="#f2d675"><rect x="-2.8" y="-0.75" width="4.2" height="0.18"/><rect x="-0.6" y="-0.9" width="0.25" height="1.8"/></g>
+      <rect x="1.8" y="-0.95" width="0.55" height="1.9" fill="#3a3f47"/>
+      <rect x="2.5" y="-1.2" width="1.5" height="2.4" rx="0.4" fill="#f2c14e"/>
+      <rect x="3.85" y="-0.35" width="0.2" height="0.7" fill="#c9ced4"/>
+      <g fill="#fff3a8"><rect x="3.75" y="-1" width="0.3" height="0.35"/><rect x="3.75" y="0.65" width="0.3" height="0.35"/></g>
+      <g fill="#b8862a"><rect x="-1.6" y="-1.45" width="0.35" height="0.25" rx="0.1"/><rect x="-1.6" y="1.2" width="0.35" height="0.25" rx="0.1"/></g>
     </svg>`,
   },
   bigbox: {
@@ -1876,6 +1902,22 @@ export const SUPERLOAD_TRAILERS = {
       <g fill="#2a6fd6"><rect x="-4.6" y="-2.1" width="0.5" height="4.2"/><rect x="3" y="-2.1" width="0.5" height="4.2"/></g>
       <path d="M-0.6 -1.1L0.5 0L-0.6 1.1L-1.7 0Z" fill="#d6453a" stroke="#f4f6f8" stroke-width="0.15"/>
       <rect x="6" y="-0.5" width="0.6" height="1" rx="0.15" fill="#9aa3ad" stroke="rgba(18,24,38,0.9)" stroke-width="0.2"/>
+    </svg>`,
+  },
+  shuttle: {
+    name: "Space shuttle",
+    art: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-10 -3.6 20 7.2">
+      ${deck(20)}
+      <path d="M-7.4 -1.3L-1.2 -1.3L3.2 -1.1L-6 -3.3L-7.4 -3.3Z M-7.4 1.3L-1.2 1.3L3.2 1.1L-6 3.3L-7.4 3.3Z" fill="#f4f6f8" stroke="rgba(18,24,38,0.9)" stroke-width="0.35" stroke-linejoin="round"/>
+      <path d="M-1.2 -1.3L3.2 -1.1L-6 -3.3L-5.2 -3.3Z M-1.2 1.3L3.2 1.1L-6 3.3L-5.2 3.3Z" fill="#23262b"/>
+      <path d="M-8.4 -1.4H5.4Q8.8 -1.3 9.2 0Q8.8 1.3 5.4 1.4H-8.4Q-8.8 1.4 -8.8 1V-1Q-8.8 -1.4 -8.4 -1.4Z" fill="#f4f6f8" stroke="rgba(18,24,38,0.9)" stroke-width="0.4" stroke-linejoin="round"/>
+      <path d="M6.4 -1.3Q8.8 -1.2 9.2 0Q8.8 1.2 6.4 1.3Q7.2 0 6.4 -1.3Z" fill="#23262b"/>
+      <rect x="5.2" y="-0.8" width="0.6" height="1.6" rx="0.2" fill="#23344f"/>
+      <rect x="-5.4" y="-1.1" width="8.6" height="2.2" rx="0.2" fill="#dfe4ea"/>
+      <rect x="-5.4" y="-0.05" width="8.6" height="0.1" fill="#9aa3ad"/>
+      <rect x="-7.8" y="-0.25" width="3" height="0.5" rx="0.2" fill="#9aa3ad"/>
+      <g fill="#4a4f57" stroke="rgba(18,24,38,0.9)" stroke-width="0.2"><circle cx="-9" cy="-0.75" r="0.45"/><circle cx="-9" cy="0.75" r="0.45"/><circle cx="-9.2" cy="0" r="0.5"/></g>
+      <rect x="-3.4" y="-2.3" width="1.4" height="0.5" fill="#d6453a"/><rect x="-3.4" y="1.8" width="1.4" height="0.5" fill="#2a6fd6"/>
     </svg>`,
   },
   dumptruck: {

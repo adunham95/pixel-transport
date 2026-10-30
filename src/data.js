@@ -250,8 +250,10 @@ export function roadSide(ax, ay, bx, by) {
 
 export { ENGINES, CARS, PLANES, BOATS, BARGES, TRUCKS, TRAILERS, SUPERLOAD_TRAILERS } from "./vehicles.js";
 
-// repeating routes are bought once, for the whole fleet, from this level on
-export const REPEAT_ROUTES = { level: 3, price: 4000 };
+// your headquarters, built once in any town from this level on. It unlocks repeating routes for the
+// whole fleet and company colors, and sells perks: each `contracts` tier, bought in order, lets you
+// work on one more contract at a time and puts one more offer on the board.
+export const HQ = { level: 3, price: 4000, contracts: [{ level: 6, price: 15000 }, { level: 10, price: 60000 }] };
 // vehicles age as they travel: fuel costs step more for every `per` world units, up to max.
 // A service resets it, costing the vehicle's price times its wear times `service`.
 export const WEAR = { per: 2500, step: 0.1, max: 0.5, service: 0.5 };
@@ -297,6 +299,7 @@ export const SUPERLOAD = {
     { name: "Distillation tower", trailer: "tower", level: 11, needs: { pilot: 1, police: 1, bucket: 1 }, mult: 2.6 },
     { name: "LNG tank", trailer: "lng", level: 11, needs: { pilot: 1, police: 1, fire: 1 }, mult: 2.8 },
     { name: "Mining dump truck", trailer: "dumptruck", level: 12, needs: { pilot: 2, police: 1, pusher: 1 }, mult: 3.2 },
+    { name: "Space shuttle", trailer: "shuttle", level: 12, needs: { pilot: 2, police: 2, pusher: 1, bucket: 1, fire: 1 }, mult: 5 },
   ],
 };
 // what each kind of escort is called, one and many

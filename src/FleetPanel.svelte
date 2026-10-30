@@ -1,5 +1,5 @@
 <script>
-  import { game, ui, dev, setDev, cityById, capacity, endRoute, addCar, removeCar, canRemoveCar, upgradeEngine, upgradeCost, sellVehicle, sellValue, resetGame, openLoad, followVehicle, etaText, fmt, stopRepeating, spec, tailSpecs, tailName, aboard, carrierOf, deckUsed, deckRoom, deckFor, finances, clock, wear, service, serviceCost, escortee, consistOf } from './game.svelte.js';
+  import { game, ui, dev, setDev, cityById, capacity, endRoute, addCar, removeCar, canRemoveCar, upgradeEngine, upgradeCost, sellVehicle, sellValue, resetGame, openLoad, followVehicle, etaText, fmt, stopRepeating, spec, tailSpecs, tailName, aboard, carrierOf, deckUsed, deckRoom, deckFor, finances, clock, wear, service, serviceCost, escortee, consistOf, paintOf, paintFor } from './game.svelte.js';
   import { ENGINES, TRUCKS, BOATS, PLANES, MI, JOB_TYPES } from './data.js';
   import Sprite from './Sprite.svelte';
   import LoadBadges from './LoadBadges.svelte';
@@ -40,7 +40,7 @@
   {@const wr = wear(v)}
   <div class="card" class:open use:reveal={open}>
     <button class="row vrow card-head" onclick={() => (ui.focusVehicle = open ? null : v.id)}>
-      <span class="pv"><Sprite kind={v.kind} model={v.model} cars={consistOf(v)} scale={3} /></span>
+      <span class="pv"><Sprite kind={v.kind} model={v.model} cars={consistOf(v)} scale={3} paint={paintOf(v)} /></span>
       <span class="grow">
         <b>{v.name}{#if v.loop}<span class="tag hub mini">Repeating</span>{/if}{#if f.perHour != null}<span class="tag mini" class:loss={f.perHour < 0}>{money(f.perHour)}/h</span>{/if}{#if wr >= 0.3}<span class="tag mini loss">Needs service</span>{/if}</b>
         <small>{v.trip ? `To ${cityById[v.trip.to].name}, ${etaText(v)} left${v.next?.length ? `, then ${v.next.length} more stop${v.next.length > 1 ? 's' : ''}` : ''}` : where(v)}</small>
@@ -127,6 +127,13 @@
           <p class="muted small">Holds {JOB_TYPES.filter((t) => cap[t]).map((t) => `${cap[t]} ${t === 'pax' ? 'seats' : t}`).join(', ')}. Want more? Bigger planes are in the Shop.</p>
         {/if}
 
+        {#if paintFor(v.kind, v.model)}
+          <label class="row paint">
+            <input type="checkbox" checked={!v.factoryPaint} onchange={(e) => (v.factoryPaint = !e.currentTarget.checked)} />
+            <span class="grow"><b>Company colors</b><small>Untick to keep its factory paint.</small></span>
+          </label>
+        {/if}
+
         <div class="actions">
           {#if v.loop}<button class="btn ghost" onclick={() => stopRepeating(v)}>Stop repeating</button>{/if}
           {#if v.city}
@@ -154,6 +161,8 @@
 <style>
   .drop { margin-top: 10px; }
   .age { margin: 8px 0; }
+  .paint { margin: 8px 0; cursor: pointer; }
+  .paint input { width: 20px; height: 20px; flex: none; accent-color: var(--accent); }
   .books { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin: 6px 0 10px; padding: 10px 12px; background: var(--panel-2); border: 1px solid var(--line); border-radius: var(--r); }
   .books.small { margin: 0 0 6px; padding: 8px 10px; background: var(--panel-3); border: 0; }
   .books div { display: flex; flex-direction: column; gap: 1px; min-width: 0; }

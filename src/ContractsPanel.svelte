@@ -1,5 +1,5 @@
 <script>
-  import { game, clock, cityById, selectCity, acceptContract, dropContract, canAccept, superloadAt, escortText, followVehicle, fmt, fmtTime } from './game.svelte.js';
+  import { game, clock, cityById, selectCity, acceptContract, dropContract, canAccept, superloadAt, escortText, followVehicle, fmt, fmtTime, contractSlots } from './game.svelte.js';
   import { CONTRACTS, SUPERLOAD, TYPE_LABEL } from './data.js';
   import Icon from './Icon.svelte';
   import { slide, flip } from './motion.js';
@@ -23,7 +23,7 @@
   <p class="note">Deliver a batch of one kind of job to a town before time runs out for a bonus on top of what the jobs pay. Jobs headed there turn up more often while a contract is running.
     {#if game.level >= SUPERLOAD.level} Superloads are one huge load by road on a superload tractor, bringing its own trailer, with escorts driving along. They have no time limit and don’t use up a contract slot.{/if}</p>
 
-  <h3>Working on ({usual} of {CONTRACTS.active})</h3>
+  <h3>Working on ({usual} of {contractSlots()})</h3>
   {#each k.active as c (c.id)}
     <div class="row contract" class:super={c.super} animate:flip transition:slide={{ duration: 200 }}>
       <span class="ticon t-{c.type}"><Icon name={c.type} size={16} /></span>
@@ -77,7 +77,7 @@
   {:else}
     <p class="muted">No offers right now. New ones turn up every minute or so.</p>
   {/each}
-  {#if usual >= CONTRACTS.active && k.offers.some((c) => !c.super)}<p class="muted small">Finish or give up a contract to take another.</p>{/if}
+  {#if usual >= contractSlots() && k.offers.some((c) => !c.super)}<p class="muted small">Finish or give up a contract to take another.</p>{/if}
 {/if}
 
 <style>

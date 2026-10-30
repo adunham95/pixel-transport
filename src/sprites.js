@@ -15,15 +15,66 @@ function size(svg) {
 }
 
 // art is rasterized the first time a model is asked for, so edited or newly added
-// models show up without a reload
-function entry(spec) {
-  let e = cache.get(spec.art);
+// models show up without a reload. paint is company colors, { body, accent }, or null.
+function entry(spec, paint = null) {
+  const art = paint ? repaint(spec, paint) : spec.art;
+  let e = cache.get(art);
   if (!e) {
-    cache.set(spec.art, (e = { ...size(spec.art), img: null, shadow: null }));
+    cache.set(art, (e = { ...size(art), img: null, shadow: null }));
     e.loading = typeof document === 'undefined' ? Promise.resolve()
-      : rasterize(e, spec.art).catch((err) => console.error('Bad vehicle art for', spec.name, err));
+      : rasterize(e, art).catch((err) => console.error('Bad vehicle art for', spec.name, err));
   }
   return e;
+}
+
+// ---------- company colors ----------
+
+// glass, lamps and tyres keep their colors whatever the paint
+const KEEP = new Set(['#9fd0ff', '#fff3a8', '#ffe7a3', '#5ab4e6', '#7fa8c8', '#23344f', '#23262b', '#1c1b1f']);
+const COLOR = /#[0-9a-fA-F]{6}\b|rgb\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*\)/g;
+
+function rgbOf(c) {
+  return c[0] === '#' ? [1, 3, 5].map((i) => parseInt(c.slice(i, i + 2), 16)) : c.match(/\d+/g).map(Number);
+}
+function hsl(c) {
+  const [r, g, b] = rgbOf(c).map((x) => x / 255), max = Math.max(r, g, b), min = Math.min(r, g, b), l = (max + min) / 2, d = max - min;
+  if (!d) return [0, 0, l];
+  const h = max === r ? ((g - b) / d + 6) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
+  return [h * 60, d / (1 - Math.abs(2 * l - 1)), l];
+}
+function hex([h, s, l]) {
+  const k = (n) => (n + h / 30) % 12, a = s * Math.min(l, 1 - l);
+  const f = (n) => Math.round(255 * (l - a * Math.max(-1, Math.min(k(n) - 3, 9 - k(n), 1))));
+  return '#' + [f(0), f(8), f(4)].map((x) => x.toString(16).padStart(2, '0')).join('');
+}
+const same = (a, b) => rgbOf(a).join() === rgbOf(b).join();
+const hueGap = (a, b) => Math.min(Math.abs(a - b), 360 - Math.abs(a - b));
+
+// the colors a model's paint job swaps: its body (paint.body in the spec, or the fill of its first
+// outlined shape that isn't a dark chassis) and its trim (paint.accent, or its trim, or the first
+// other bright color in it)
+function paintable(spec) {
+  const outlined = [...spec.art.matchAll(/fill="([^"]+)"[^>]*stroke="rgba\(18,24,38,0\.9\)"/g)].map((m) => m[1]);
+  const body = spec.paint?.body ?? outlined.find((c) => c.match(COLOR) && !(hsl(c)[1] < 0.15 && hsl(c)[2] < 0.35));
+  const bright = (c) => !KEEP.has(c.toLowerCase()) && hsl(c)[1] > 0.4 && hsl(c)[2] > 0.25 && hsl(c)[2] < 0.75;
+  const accent = spec.paint?.accent ?? spec.trim ?? spec.art.match(COLOR)?.find((c) => bright(c) && !(body && (same(c, body) || (hsl(body)[1] > 0.25 && hueGap(hsl(c)[0], hsl(body)[0]) < 20))));
+  return { body, accent };
+}
+
+// a model's art in company colors: its body and trim colors become paint.body and paint.accent,
+// and the darker and lighter shades of them in its art follow along
+export function repaint(spec, paint) {
+  const { body, accent } = paintable(spec);
+  const swaps = [[body, paint.body], [accent, paint.accent]].filter(([from]) => from?.match(COLOR)).map(([from, to]) => ({ from, f: hsl(from), t: hsl(to), to }));
+  return spec.art.replace(COLOR, (c) => {
+    if (KEEP.has(c.toLowerCase())) return c;
+    const x = hsl(c);
+    for (const w of swaps) {
+      if (same(c, w.from)) return w.to;
+      if (w.f[1] > 0.25 && x[1] > 0.2 && hueGap(x[0], w.f[0]) < 15 && Math.abs(x[2] - w.f[2]) < 0.3) return hex([w.t[0], w.t[1], Math.max(0.05, Math.min(0.95, w.t[2] + x[2] - w.f[2]))]);
+    }
+    return c;
+  });
 }
 
 function rasterize(e, svg) {
@@ -51,6 +102,9 @@ export function loadArt() {
   return Promise.all(Object.values(SPECS).flatMap((group) => Object.values(group).map((spec) => entry(spec).loading)));
 }
 
+// resolves once this model can be drawn in this paint
+export function artReady(kind, model, paint = null) { return entry(specOf(kind, model), paint).loading; }
+
 export function specOf(kind, model) { return SPECS[kind][model]; }
 export function artSize(kind, model) { const { w, h } = entry(specOf(kind, model)); return { w, h }; }
 
@@ -75,9 +129,9 @@ function drawRotors(ctx, rotors, spin, shadow) {
 }
 
 // draw one model centered at x, y, facing ang. Nothing is drawn until loadArt() finishes.
-// spin is the rotor angle for models with rotors.
-export function drawArt(ctx, x, y, ang, kind, model, { shadow = false, spin = 0 } = {}) {
-  const spec = specOf(kind, model), e = entry(spec);
+// spin is the rotor angle for models with rotors, and paint is company colors, or null.
+export function drawArt(ctx, x, y, ang, kind, model, { shadow = false, spin = 0, paint = null } = {}) {
+  const spec = specOf(kind, model), e = entry(spec, shadow ? null : paint);
   const src = shadow ? e.shadow : e.img;
   if (!src) return;
   ctx.save();
@@ -122,9 +176,10 @@ export function consistBox(kind, model, cars) {
   return { w: artSize(kind, model).w / 2 + last.off + artSize(last.kind, last.model).w / 2, h };
 }
 
-// straight consist: lead unit centered at ex facing +x, the rest trailing toward -x
-export function drawConsistRow(ctx, ex, y, kind, model, cars) {
+// straight consist: lead unit centered at ex facing +x, the rest trailing toward -x. Only the
+// lead unit takes paint.
+export function drawConsistRow(ctx, ex, y, kind, model, cars, paint = null) {
   const units = trainUnits(kind, model, cars);
   for (const u of units) drawArt(ctx, ex - u.off + 0.7, y + 1, 0, u.kind, u.model, { shadow: true });
-  for (const u of paintOrder(kind, units)) drawArt(ctx, ex - u.off, y, 0, u.kind, u.model);
+  for (const u of paintOrder(kind, units)) drawArt(ctx, ex - u.off, y, 0, u.kind, u.model, { paint: u === units[0] ? paint : null });
 }

@@ -1,6 +1,6 @@
 <script>
   import { onMount } from 'svelte';
-  import { game, ui, cityById, leg, planLegs, toggleStop, selectCity, posAt, tripProgress, gameNow, isOpen, fx, darkness, loopStops, isCarrier, carrierAt, townSize, escortsOf, consistOf } from './game.svelte.js';
+  import { game, ui, cityById, leg, planLegs, toggleStop, selectCity, posAt, tripProgress, gameNow, isOpen, fx, darkness, loopStops, isCarrier, carrierAt, townSize, escortsOf, consistOf, paintOf } from './game.svelte.js';
   import { CITIES, ENGINES, PLANES, CARS, TRUCKS, W, H } from './data.js';
   import { buildTerrain, makeWaterPattern, R } from './terrain.js';
   import { drawArt, trainUnits, paintOrder, artSize, loadArt } from './sprites.js';
@@ -147,9 +147,20 @@
       for (let k = 0; k < 3; k++) rect('#5b6470', x + 1, y + 1 + k, 4, 1 - (k % 2) * 0.5);
     }
 
-    function drawCity(c) {
+    // a flag in company colors flying over the HQ's town
+    function hqFlag(x, y, now) {
+      const paint = game.livery ?? { body: '#d6453a', accent: '#f4f6f8' }, wave = Math.floor(now / 400) % 2;
+      rect('#1d2433', x - 1, y - 1, 7, 5);
+      rect('#1d2433', x - 1, y - 1, 2, 13);
+      rect('#c9ced4', x, y, 1, 12);
+      rect(paint.body, x + 1, y + wave * 0.5, 4, 3);
+      rect(paint.accent, x + 1, y + 1 + wave * 0.5, 4, 1);
+    }
+
+    function drawCity(c, now) {
       const x = c.x * R, y = c.y * R;
       if (game.depots[c.id]) depot(c.island ? x - 13 : x + 5, c.island ? y - 2 : y + 4);
+      if (game.hq === c.id) hqFlag(c.island ? x - 9 : x - 11, c.island ? y - 12 : y - 13, now);
       if (c.air) {
         rect('#2c3038', x - 14, y + 7, 28, 8);
         rect('#535965', x - 13, y + 8, 26, 6);
@@ -411,7 +422,7 @@
         // locked towns are drawn faded until they're bought
         b.globalAlpha = isOpen(c.id) ? 1 : 0.45;
         if (c.port) pier(c);
-        if (c.anchor) buoy(c, now); else drawCity(c);
+        if (c.anchor) buoy(c, now); else drawCity(c, now);
         b.globalAlpha = 1;
         if (dk && isOpen(c.id) && !c.anchor) lights.push(() => townLights(c, now));
         if (pv && leg(pv, lastStop, c.id)) ring(c, now);
@@ -431,7 +442,7 @@
         // bow pointing out to sea; out at an anchorage there's no pier, so it just faces east
         const ang = c.anchor ? 0 : Math.atan2(d[1] - c.y, d[0] - c.x), x = d[0] * R, y = d[1] * R;
         big(x + 0.7 * V, y + V, () => drawArt(b, 0, 0, ang, 'boat', v.model, { shadow: true }));
-        big(x, y, () => drawArt(b, 0, 0, ang, 'boat', v.model));
+        big(x, y, () => drawArt(b, 0, 0, ang, 'boat', v.model, { paint: paintOf(v) }));
         if (dk) lights.push(() => boatLights(x, y, ang, v.model));
       }
 
@@ -443,7 +454,7 @@
         const units = trainUnits(v.kind, v.model, consistOf(v)).map((u) => ({ ...u, off: (u.off * V) / R }));
         const placed = units.filter((u) => d - u.off > 0.2).map((u) => ({ ...u, p: posAt(t.pts, d - u.off) }));
         for (const u of placed) big(u.p.x * R + 0.7 * V, u.p.y * R + V, () => drawArt(b, 0, 0, u.p.ang, u.kind, u.model, { shadow: true }));
-        for (const u of paintOrder(v.kind, placed)) big(u.p.x * R, u.p.y * R, () => drawArt(b, 0, 0, u.p.ang, u.kind, u.model));
+        for (const u of paintOrder(v.kind, placed)) big(u.p.x * R, u.p.y * R, () => drawArt(b, 0, 0, u.p.ang, u.kind, u.model, { paint: u.kind === v.kind ? paintOf(v) : null }));
         const e = placed[0];
         if (e && v.kind === 'train' && ENGINES[v.model].steam != null) steam(e.p.x * R, e.p.y * R, e.p.ang, ENGINES[v.model].steam, now);
         const later = dk ? (f) => lights.push(f) : null;
@@ -477,7 +488,7 @@
         for (const u of tow) big(u.p.x * R + 0.7 * V, u.p.y * R + V, () => drawArt(b, 0, 0, u.p.ang, 'barge', u.model, { shadow: true }));
         for (const u of tow) big(u.p.x * R, u.p.y * R, () => drawArt(b, 0, 0, u.p.ang, 'barge', u.model));
         big(x + 0.7 * V, y + V, () => drawArt(b, 0, 0, p.ang, 'boat', v.model, { shadow: true }));
-        big(x, y, () => drawArt(b, 0, 0, p.ang, 'boat', v.model));
+        big(x, y, () => drawArt(b, 0, 0, p.ang, 'boat', v.model, { paint: paintOf(v) }));
         if (dk) lights.push(() => {
           boatLights(x, y, p.ang, v.model);
           const last = tow[tow.length - 1];
@@ -495,7 +506,7 @@
         const lift = Math.sin(pr * Math.PI) * 14;
         const x = p.x * R, y = p.y * R;
         big(x + 2 + lift * 0.4, y + 3 + lift * 0.8, () => drawArt(b, 0, 0, p.ang, 'plane', v.model, { shadow: true }));
-        big(x, y - lift, () => drawArt(b, 0, 0, p.ang, 'plane', v.model, { spin: now / 45 }));
+        big(x, y - lift, () => drawArt(b, 0, 0, p.ang, 'plane', v.model, { spin: now / 45, paint: paintOf(v) }));
         if (dk) lights.push(() => planeLights(x, y - lift, p.ang, v.model, now));
         hits.push({ id: v.id, x, y: y - lift });
         if (marked(v)) marker(x, y - lift - 18);
@@ -594,7 +605,7 @@
           ctx.save();
           ctx.translate(x0 + pad + i * (iw + gap) + iw / 2, y0 + h / 2);
           ctx.scale(k, k);
-          drawArt(ctx, 0, 0, 0, v.kind, v.model);
+          drawArt(ctx, 0, 0, 0, v.kind, v.model, { paint: paintOf(v) });
           ctx.restore();
         });
         if (more) { ctx.fillStyle = '#ffffff'; ctx.fillText(more, x0 + w - pad - mw + gap, y0 + h / 2 + dpr * 0.5); }

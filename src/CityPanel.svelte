@@ -1,6 +1,6 @@
 <script>
-  import { game, ui, cityById, etaText, fmtTime, clock, followVehicle, isOpen, connections, unlockPrice, unlockCity, carrierAt, fmt, townSize, sizeName, growthOf, buyDepot, fetcher, consistOf } from './game.svelte.js';
-  import { CITY_PRICE, DEPOT } from './data.js';
+  import { game, ui, cityById, etaText, fmtTime, clock, followVehicle, isOpen, connections, unlockPrice, unlockCity, carrierAt, fmt, townSize, sizeName, growthOf, buyDepot, fetcher, consistOf, paintOf, buildHQ, hqPrice, setLivery, nextContractsPerk, buyContractsPerk, contractSlots } from './game.svelte.js';
+  import { CITY_PRICE, DEPOT, HQ } from './data.js';
   import Sprite from './Sprite.svelte';
   import JobRow from './JobRow.svelte';
   import LoadPanel from './LoadPanel.svelte';
@@ -40,6 +40,7 @@
       {#if c.island}<span class="tag">Island</span>{/if}
       {#if c.anchor}<span class="tag">Anchorage</span>{/if}
       {#if !c.anchor && isOpen(c.id)}<span class="tag hub">{sizeName(c.id)}</span>{/if}
+      {#if game.hq === c.id}<span class="tag hub">HQ</span>{/if}
       {#if game.depots[c.id]}<span class="tag">Depot</span>{/if}
       {#if carrierAt(c.id)}<span class="tag hub">{c.anchor || !c.air ? 'Carrier landing strip' : 'Carrier in port'}</span>{/if}
     </div>
@@ -72,12 +73,36 @@
           <button class="btn small" disabled={game.level < DEPOT.level || game.coins < DEPOT.price} onclick={() => buyDepot(c.id)}>{game.level < DEPOT.level ? `Lv ${DEPOT.level}` : `$${fmt(DEPOT.price)}`}</button>
         {/if}
       </div>
+      {#if !game.hq}
+        <div class="gline depot">
+          <small>Build your HQ here: unlocks repeating routes and company colors, and sells perks. You only get one.</small>
+          <button class="btn small" disabled={game.level < HQ.level || game.coins < hqPrice()} onclick={() => buildHQ(c.id)}>{game.level < HQ.level ? `Lv ${HQ.level}` : hqPrice() ? `$${fmt(hqPrice())}` : 'Free'}</button>
+        </div>
+      {/if}
+    </div>
+  {/if}
+  {#if game.hq === c.id}
+    {@const lv = game.livery ?? { body: '#2a6fd6', accent: '#f2c14e', on: false }}
+    {@const perk = nextContractsPerk()}
+    <h3>Headquarters</h3>
+    <label class="row hq">
+      <input type="checkbox" checked={lv.on} onchange={(e) => setLivery({ on: e.currentTarget.checked })} />
+      <span class="grow"><b>Company colors</b><small>Paint the fleet in your colors. Escorts and special vehicles keep theirs, and any vehicle can opt out in the Fleet tab.</small></span>
+    </label>
+    <div class="row hq">
+      <span class="grow"><b>Body and trim</b><small>{lv.on ? 'Repaints every vehicle' : 'Turn on company colors to use them'}</small></span>
+      <input type="color" value={lv.body} onchange={(e) => setLivery({ body: e.currentTarget.value })} aria-label="Body color" />
+      <input type="color" value={lv.accent} onchange={(e) => setLivery({ accent: e.currentTarget.value })} aria-label="Trim color" />
+    </div>
+    <div class="row hq">
+      <span class="grow"><b>Contracts office{game.hqContracts ? ` ${game.hqContracts + 1}` : ''}</b><small>{perk ? `Work on ${contractSlots() + 1} contracts at a time instead of ${contractSlots()}, with one more offer on the board.` : `Fully staffed. You can work on ${contractSlots()} contracts at a time.`}</small></span>
+      {#if perk}<button class="btn small" disabled={game.level < perk.level || game.coins < perk.price} onclick={buyContractsPerk}>{game.level < perk.level ? `Lv ${perk.level}` : `$${fmt(perk.price)}`}</button>{/if}
     </div>
   {/if}
   <h3>Parked here</h3>
   {#each here as v (v.id)}
     <button class="row vrow" animate:flip transition:slide={{ duration: 200 }} onclick={() => { ui.activeVehicle = v.id; ui.picking = false; }}>
-      <span class="pv"><Sprite kind={v.kind} model={v.model} cars={consistOf(v)} scale={3} /></span>
+      <span class="pv"><Sprite kind={v.kind} model={v.model} cars={consistOf(v)} scale={3} paint={paintOf(v)} /></span>
       <span class="grow"><b>{v.name}</b><small>{v.loop ? 'Repeating, waiting for jobs' : v.cargo.length ? `${v.cargo.length} on board` : 'Empty'}</small></span>
       <span class="act">Load</span>
     </button>
@@ -89,7 +114,7 @@
     <h3>On the way</h3>
     {#each incoming as { v, at, later, pick } (v.id)}
       <button class="row vrow" animate:flip transition:slide={{ duration: 200 }} onclick={() => followVehicle(v)}>
-        <span class="pv"><Sprite kind={v.kind} model={v.model} cars={consistOf(v)} scale={3} /></span>
+        <span class="pv"><Sprite kind={v.kind} model={v.model} cars={consistOf(v)} scale={3} paint={paintOf(v)} /></span>
         <span class="grow"><b>{v.name}</b><small>{pick ? 'Coming to pick up. ' : ''}{later ? `Stops here in ${fmtTime((at - clock.now) / 1000)}, after ${later} other stop${later > 1 ? 's' : ''}` : `Arrives in ${etaText(v)}`}</small></span>
         <span class="act">Watch</span>
       </button>
@@ -118,6 +143,10 @@
   .gline small { color: var(--ink-soft); font-size: 12px; }
   .gline b { font-weight: 600; }
   .depot { flex-wrap: nowrap; padding-top: 6px; border-top: 1px solid var(--line); }
+  .hq { align-items: center; gap: 10px; }
+  .hq input[type='checkbox'] { width: 20px; height: 20px; flex: none; accent-color: var(--accent); }
+  label.hq { cursor: pointer; }
+  .hq input[type='color'] { width: 34px; height: 28px; padding: 0; border: 1px solid var(--line); border-radius: 6px; background: none; flex: none; }
   .bar { height: 5px; background: var(--panel-2); border-radius: 3px; overflow: hidden; }
   .bar i { display: block; height: 100%; background: var(--accent); border-radius: 3px; }
 </style>

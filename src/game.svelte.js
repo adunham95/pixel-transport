@@ -1,4 +1,4 @@
-import { CITIES, RAILS, ROADS, ROAD_OFF, LANE, roadSide, ENGINES, CARS, PLANES, BOATS, BARGES, TRUCKS, TRAILERS, LEVELS, RATES, SPEED, CITY_PRICE, START_CITIES, JOB_TYPES, MAGLEV_LINES, REPEAT_ROUTES, WEAR, MAIL, WIDE, SECURE, GROWTH, SIZE_NAME, DEPOT, TYPE_LABEL, CONTRACTS, SUPERLOAD, ESCORT_LABEL } from './data.js';
+import { CITIES, RAILS, ROADS, ROAD_OFF, LANE, roadSide, ENGINES, CARS, PLANES, BOATS, BARGES, TRUCKS, TRAILERS, LEVELS, RATES, SPEED, CITY_PRICE, START_CITIES, JOB_TYPES, MAGLEV_LINES, HQ, WEAR, MAIL, WIDE, SECURE, GROWTH, SIZE_NAME, DEPOT, TYPE_LABEL, CONTRACTS, SUPERLOAD, ESCORT_LABEL } from './data.js';
 import { seaLane } from './sea.js';
 
 const KEY = 'pixel-transport-save-v1';
@@ -295,7 +295,7 @@ function newVehicle(g, kind, model, city, cars) {
 
 function fresh() {
   const now = Date.now();
-  const g = { v: 1, coins: 600, xp: 0, level: 1, nextId: 1, selected: 'frost', vehicles: [], jobs: {}, spawnAt: {}, growth: {}, depots: {}, contracts: { offers: [], active: [], nextAt: 0 }, saved: now };
+  const g = { v: 1, coins: 600, xp: 0, level: 1, nextId: 1, selected: 'frost', vehicles: [], jobs: {}, spawnAt: {}, growth: {}, depots: {}, hqContracts: 0, contracts: { offers: [], active: [], nextAt: 0 }, saved: now };
   g.unlocked = Object.fromEntries(START_CITIES.map((id) => [id, true]));
   g.vehicles.push(newVehicle(g, 'train', 'puffer', 'frost', ['pax', 'box']));
   g.vehicles.push(newVehicle(g, 'plane', 'sparrow', 'frost'));
@@ -323,6 +323,7 @@ function load() {
     for (const c of CITIES) { g.jobs[c.id] ??= []; g.spawnAt[c.id] ??= Date.now() + (g.skew ?? 0) + Math.random() * 8000; }
     g.growth ??= {};
     g.depots ??= {};
+    g.hqContracts ??= 0;
     g.contracts ??= { offers: [], active: [], nextAt: 0 };
     if (!g.unlocked) {
       // older saves predate unlocking: keep the starting towns plus anywhere the fleet is, is headed or has cargo for
@@ -411,7 +412,7 @@ export function tripInfo(v, now = clock.now) {
 }
 
 function unlocksAt(level) {
-  const out = level === REPEAT_ROUTES.level ? ['Repeating routes'] : [];
+  const out = level === HQ.level ? ['Headquarters'] : [];
   if (level === CONTRACTS.level) out.push('Contracts');
   for (const s of [...Object.values(PLANES), ...Object.values(ENGINES), ...Object.values(CARS), ...Object.values(BOATS), ...Object.values(BARGES), ...Object.values(TRUCKS), ...Object.values(TRAILERS)]) if (s.level === level) out.push(s.short ?? s.name);
   return out;
@@ -505,6 +506,40 @@ function grow(id) {
 const jobCap = (id) => JOB_CAP + 2 * (townSize(id) - 1);
 // game time until a town's next job; bigger towns turn them up faster. Without random, the average.
 const spawnGap = (id, random = 0.5) => (7000 + random * 8000) / (1 + 0.25 * (townSize(id) - 1));
+
+// your HQ: built once, in any town. Older saves that bought repeating routes before the HQ
+// came along build theirs for free.
+export const hqPrice = () => (game.repeatRoutes ? 0 : HQ.price);
+export function buildHQ(id) {
+  if (game.hq || cityById[id].anchor) return;
+  if (!spend(hqPrice(), HQ.level, 'Headquarters')) return;
+  game.hq = id;
+  game.repeatRoutes = true;
+  toast(`HQ built at ${cityById[id].name}. Repeating routes and company colors are unlocked.`, 'good');
+}
+// the next contracts perk to buy at the HQ, or null once you have them all
+export const nextContractsPerk = () => HQ.contracts[game.hqContracts] ?? null;
+export function buyContractsPerk() {
+  const p = nextContractsPerk();
+  if (!game.hq || !p) return;
+  if (!spend(p.price, p.level, 'Contracts office')) return;
+  game.hqContracts++;
+  toast(`You can work on ${contractSlots()} contracts at a time now`, 'good');
+}
+export const contractSlots = () => CONTRACTS.active + game.hqContracts;
+const contractOffers = () => CONTRACTS.offers + game.hqContracts;
+
+// company colors, { body, accent }, for a vehicle, or null for its factory paint. Only the lead
+// unit is painted: cars, trailers and barges keep the colors that show what they carry.
+export function paintFor(kind, model) {
+  const s = SPECS[kind][model];
+  return game.livery?.on && !s.escort && !s.factoryPaint ? game.livery : null;
+}
+export const paintOf = (v) => (v.factoryPaint ? null : paintFor(v.kind, v.model));
+export function setLivery(changes) {
+  if (!game.hq) return;
+  game.livery = { body: '#2a6fd6', accent: '#f2c14e', on: false, ...game.livery, ...changes };
+}
 
 export function buyDepot(id) {
   if (game.depots[id] || cityById[id].anchor) return;
@@ -607,7 +642,7 @@ function tickContracts(now) {
   if (game.level < CONTRACTS.level) return;
   // an empty board fills right up; after that a new offer turns up every so often
   const fill = !k.offers.length;
-  while (k.offers.length < CONTRACTS.offers && (fill || now >= k.nextAt)) {
+  while (k.offers.length < contractOffers() && (fill || now >= k.nextAt)) {
     // at most one superload on the board at a time
     const sup = game.level >= SUPERLOAD.level && !k.offers.some(isSuper) && Math.random() < SUPERLOAD.chance;
     const o = (sup && makeSuperload(now)) || makeContract(now);
@@ -645,13 +680,13 @@ export function contractFor(j) {
 // superloads don't take up one of the usual contract slots, but only one can be under way at a time
 export function canAccept(c) {
   const a = game.contracts.active;
-  return c.super ? !a.some(isSuper) : a.filter((x) => !x.super).length < CONTRACTS.active;
+  return c.super ? !a.some(isSuper) : a.filter((x) => !x.super).length < contractSlots();
 }
 
 export function acceptContract(id) {
   const k = game.contracts, i = k.offers.findIndex((o) => o.id === id);
   if (i < 0) return;
-  if (!canAccept(k.offers[i])) { toast(k.offers[i].super ? 'Finish the superload you have first' : `You can work on ${CONTRACTS.active} contracts at a time`, 'bad'); return; }
+  if (!canAccept(k.offers[i])) { toast(k.offers[i].super ? 'Finish the superload you have first' : `You can work on ${contractSlots()} contracts at a time`, 'bad'); return; }
   const [c] = k.offers.splice(i, 1);
   if (c.super) {
     // no time limit: the load waits at its town until a convoy comes for it
@@ -716,8 +751,9 @@ export function escortText(needs) {
 export function escortsOf(v) { return game.vehicles.filter((x) => x.escorting === v.id); }
 export function escortee(x) { return x.escorting != null ? game.vehicles.find((v) => v.id === x.escorting) : null; }
 
-// valuables pay more with a police car riding along
+// valuables pay more with a police car riding along, and passengers more in a VIP ride
 export function payBoost(v, j) {
+  if (j.type === 'pax') return spec(v).vip ?? 1;
   return j.type === 'secure' && escortsOf(v).some((x) => escortKind(x) === 'police') ? 1 + SECURE.escortBonus : 1;
 }
 
@@ -902,7 +938,7 @@ export function loopStops(v, stops) {
 // escort: take along the optional escort parked here (see optionalEscort); on later laps it just
 // comes if it's still free
 export function dispatch(v, stops, { repeat = false, lap = null, escort = false } = {}) {
-  if (repeat && !game.repeatRoutes) { toast('Repeating routes aren’t unlocked yet', 'bad'); return false; }
+  if (repeat && !game.repeatRoutes) { toast('Build an HQ to unlock repeating routes', 'bad'); return false; }
   if (repeat) stops = loopStops(v, stops);
   // a carrier takes the planes that need it along, and waits for any still flying in to land
   let stow = [];
@@ -1034,13 +1070,6 @@ function runLoop(v, at) {
   pickUp(v, v.city);
   if (!v.cargo.length && !loopHasWork(v)) { v.loop.wait = at + LOOP_WAIT; return; }
   if (!dispatch(v, v.loop.stops, { repeat: true, lap: at, escort: !!v.loop.escort })) delete v.loop;
-}
-
-export function buyRepeatRoutes() {
-  if (game.repeatRoutes) return;
-  if (!spend(REPEAT_ROUTES.price, REPEAT_ROUTES.level, 'Repeating routes')) return;
-  game.repeatRoutes = true;
-  toast('Repeating routes unlocked. Turn on Repeat when you plan a route.', 'good');
 }
 
 // finish the lap it's on and then stop
