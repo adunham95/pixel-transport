@@ -4,7 +4,7 @@
   const UNIT = { pax: 'seats', cargo: 'cargo', fuel: 'fuel', bulk: 'bulk', mail: 'mail', wide: 'wide load', secure: 'valuables' };
   const holds = (cap) => JOB_TYPES.filter((t) => cap[t]).map((t) => `${cap[t]} ${UNIT[t]}`).join(', ');
   // demo consist for the shop picture: freight engines don't get a passenger car
-  const demo = (e) => (e.freightOnly ? ['box', 'hopper', 'tank'] : ['pax', 'box', 'tank']).slice(0, Math.min(3, e.maxCars));
+  const demo = (e) => (e.pulls ? Array(e.maxCars).fill(e.pulls[0]) : e.freightOnly ? ['box', 'hopper', 'tank'] : ['pax', 'box', 'tank']).slice(0, Math.min(3, e.maxCars));
   // a superload tractor shows off a rocket stage, the trailer one of its loads brings along
   const demoTrailers = (t) => (t.superload ? [{ kind: 'load', model: 'rocket' }] : (t.pulls ? Array(t.maxCars).fill(t.pulls[0]) : ['van', 'dump', 'tank']).slice(0, Math.min(3, t.maxCars)));
   import Sprite from './Sprite.svelte';
@@ -55,7 +55,7 @@
     <span class="pv wide"><Sprite kind="train" model={k} cars={demo(e)} scale={4} /></span>
     <span class="grow">
       <b>{e.name}</b>
-      <small>Pulls up to {e.maxCars} {e.freightOnly ? 'freight ' : ''}cars{e.maglev ? '. Maglev lines only' : ''}</small>
+      <small>Pulls up to {e.maxCars} {e.pulls ? e.pulls.map((k) => CARS[k].short.toLowerCase()).join(' or ') + ' ' : e.freightOnly ? 'freight ' : ''}cars{e.maglev ? '. Maglev lines only' : ''}</small>
       <small>Speed <span class="pips">{#each [1, 2, 3, 4, 5] as n}<i class:on={n <= e.pips}></i>{/each}</span></small>
     </span>
     <button class="btn primary" disabled={locked || !isOpen(c.id) || c.anchor || !canBase('train', k, c) || game.coins < e.price} onclick={() => buyEngine(k)}>{locked ? `Lv ${e.level}` : `$${fmt(e.price)}`}</button>

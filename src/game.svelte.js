@@ -1150,7 +1150,7 @@ export function upgradeEngine(v, model) {
   if (!v.city) return;
   if (e.maglev && !onMaglev(v.city)) { toast(`${cityById[v.city].name} isn’t on a maglev line`, 'bad'); return; }
   if (e.freightOnly && v.cars.some((c) => tailSpecs(v)[c].holds === 'pax')) { toast(`${e.name} only pulls freight cars. Sell the passenger cars first.`, 'bad'); return; }
-  if (e.pulls && v.cars.some((c) => !e.pulls.includes(c))) { toast(`${e.name} only pulls ${e.pulls.map((k) => TRAILERS[k].name.toLowerCase()).join(' and ')}s. Sell the other trailers first.`, 'bad'); return; }
+  if (e.pulls && v.cars.some((c) => !e.pulls.includes(c))) { toast(`${e.name} only pulls ${e.pulls.map((k) => tailSpecs(v)[k].name.toLowerCase()).join(' and ')}s. Sell the other ${tailName(v)}s first.`, 'bad'); return; }
   if (!spend(upgradeCost(v, model), e.level, e.name)) return;
   v.model = model;
   v.miles = 0;
@@ -1275,7 +1275,7 @@ export function devSpawn(kind, model) {
   if (!shopHere(c)) return;
   if (!canBase(kind, model, c)) { toast(`${SPECS[kind][model].name} can’t be based at ${c.name}`, 'bad'); return; }
   const s = SPECS[kind][model];
-  const mix = kind === 'truck' ? s.pulls ?? ['van', 'dump', 'tank'] : kind === 'boat' ? ['deck', 'hopper', 'tank'] : s.freightOnly ? ['box', 'tank', 'hopper'] : ['pax', 'box', 'tank', 'hopper'];
+  const mix = kind === 'truck' ? s.pulls ?? ['van', 'dump', 'tank'] : kind === 'boat' ? ['deck', 'hopper', 'tank'] : s.pulls ?? (s.freightOnly ? ['box', 'tank', 'hopper'] : ['pax', 'box', 'tank', 'hopper']);
   const v = newVehicle(game, kind, model, c.id, s.maxCars ? Array(s.maxCars).fill(0).map((_, i) => mix[i % mix.length]) : undefined);
   game.vehicles.push(v);
   toast(`${v.name} added at ${c.name}`, 'good');

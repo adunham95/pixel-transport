@@ -295,11 +295,12 @@ export const SUPERLOAD = {
     { name: "Rocket stage", trailer: "rocket", level: 10, needs: { pilot: 1, police: 1 }, mult: 2 },
     { name: "Transformer", trailer: "transformer", level: 10, needs: { pilot: 1, pusher: 1 }, mult: 2 },
     { name: "Distillation tower", trailer: "tower", level: 11, needs: { pilot: 1, police: 1, bucket: 1 }, mult: 2.6 },
+    { name: "LNG tank", trailer: "lng", level: 11, needs: { pilot: 1, police: 1, fire: 1 }, mult: 2.8 },
     { name: "Mining dump truck", trailer: "dumptruck", level: 12, needs: { pilot: 2, police: 1, pusher: 1 }, mult: 3.2 },
   ],
 };
 // what each kind of escort is called, one and many
-export const ESCORT_LABEL = { pilot: "pilot car", police: "police car", pusher: "push truck", bucket: "bucket truck" };
+export const ESCORT_LABEL = { pilot: "pilot car", police: "police car", pusher: "push truck", bucket: "bucket truck", fire: "fire truck" };
 export const CONTRACTS = {
   level: 3, offers: 3, active: 2, every: 45 * 1000, offerTtl: 10 * 60 * 1000,
   size: { pax: [5, 9], cargo: [4, 8], mail: [4, 7], fuel: [3, 6], bulk: [6, 12], wide: [2, 3], secure: [2, 4] },

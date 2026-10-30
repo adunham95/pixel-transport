@@ -6,8 +6,8 @@
 // much track the unit takes up, so cars couple up nose to tail. An engine with
 // steam puffs smoke from its chimney, `steam` sub pixels ahead of its center.
 
-// freightOnly: true means it won’t pull passenger cars. maglev: true means it only runs on
-// the MAGLEV_LINES guideways in data.js and only stops at their towns.
+// freightOnly: true means it won’t pull passenger cars. pulls: [car, ...] limits it to those CARS.
+// maglev: true means it only runs on the MAGLEV_LINES guideways in data.js and only stops at their towns.
 export const ENGINES = {
   puffer: {
     name: "Puffer",
@@ -69,6 +69,28 @@ export const ENGINES = {
       <rect x="1.8" y="-1.6" width="2.4" height="3.2" rx="0.4" fill="#a8382a"/>
       <rect x="3.5" y="-1.3" width="0.5" height="2.6" fill="#23344f"/>
       <rect x="4.1" y="-0.4" width="0.4" height="0.8" fill="#fff3a8"/>
+    </svg>`,
+  },
+  etram: {
+    name: "Electric Tram",
+    short: "E-Tram",
+    level: 5,
+    price: 2600,
+    maxCars: 4,
+    speed: 7,
+    run: 0.05,
+    pips: 3,
+    color: "#2fb8a8",
+    trim: "#f4f6f8",
+    pulls: ["pax"],
+    art: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-5 -2.6 10 5.2">
+      <path d="M-4.2 -2.1H1.8Q4.6 -2.1 4.6 0Q4.6 2.1 1.8 2.1H-4.2Q-4.6 2.1 -4.6 1.7V-1.7Q-4.6 -2.1 -4.2 -2.1Z" fill="#f4f6f8" stroke="rgba(18,24,38,0.9)" stroke-width="0.8" stroke-linejoin="round"/>
+      <rect x="-4.6" y="-0.5" width="7.4" height="1" fill="#2fb8a8"/>
+      <g fill="#9fd0ff">${[-3.6, -2.2, -0.8, 0.6].map((x) => `<rect x="${x}" y="-1.9" width="0.9" height="0.4"/><rect x="${x}" y="1.5" width="0.9" height="0.4"/>`).join("")}</g>
+      <path d="M2.2 -1.7Q4 -1.5 4.1 0Q4 1.5 2.2 1.7Z" fill="#23344f"/>
+      <path d="M-2.6 -1.2L-1.4 0L-2.6 1.2L-3.8 0Z" fill="none" stroke="#3a3f47" stroke-width="0.25" stroke-linejoin="round"/>
+      <rect x="-2.75" y="-1.35" width="0.3" height="2.7" fill="#3a3f47"/>
+      <circle cx="4.3" cy="0" r="0.35" fill="#fff3a8"/>
     </svg>`,
   },
   diesel: {
@@ -1186,7 +1208,7 @@ export const BARGES = {
 // on a car ferry, plus each trailer's; noFerry: true means it's too long to board one.
 // pulls: [trailer, ...] limits a tractor to those TRAILERS. beacons: [[x, y], ...] amber lights,
 // in the art's sub pixel units, that flash on the map while it drives (beaconColors: ["r,g,b", ...]
-// colors them instead). escort: "pilot", "police", "pusher" or "bucket" means it carries nothing,
+// colors them instead). escort: "pilot", "police", "pusher", "bucket" or "fire" means it carries nothing,
 // but rides along in a superload's convoy (see SUPERLOAD in data.js). hitch is where, in the art's
 // sub pixel units, the front of the first trailer sits: over the fifth wheel, just behind the cab.
 // superload: true means it carries nothing but one superload at a time, which brings its own
@@ -1253,6 +1275,27 @@ export const TRUCKS = {
       <g fill="#fff3a8"><rect x="2.9" y="-1.1" width="0.3" height="0.45"/><rect x="2.9" y="0.65" width="0.3" height="0.45"/></g>
     </svg>`,
   },
+  doubledecker: {
+    name: "Double-Decker Bus",
+    short: "Double-Decker",
+    level: 3,
+    price: 1500,
+    cap: { pax: 7 },
+    maxCars: 0,
+    speed: 5.5,
+    run: 0.06,
+    deck: 2,
+    pips: 2,
+    art: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-4.2 -2 8.4 4">
+      <rect x="-3.8" y="-1.6" width="7.6" height="3.2" rx="0.6" fill="#d6453a" stroke="rgba(18,24,38,0.9)" stroke-width="0.6"/>
+      <rect x="-3.4" y="-1.2" width="6.4" height="2.4" rx="0.4" fill="#e2735c"/>
+      <g fill="#9fd0ff"><rect x="-3.2" y="-1.6" width="6" height="0.35"/><rect x="-3.2" y="1.25" width="6" height="0.35"/></g>
+      <rect x="2.9" y="-1.2" width="0.7" height="2.4" rx="0.2" fill="#9fd0ff"/>
+      <rect x="-1.6" y="-0.5" width="1.2" height="1" rx="0.2" fill="#b8463b" stroke="#7e2c25" stroke-width="0.15"/>
+      <rect x="0.6" y="-0.1" width="2" height="0.2" fill="#f2c14e"/>
+      <g fill="#fff3a8"><rect x="3.6" y="-1.2" width="0.25" height="0.45"/><rect x="3.6" y="0.75" width="0.25" height="0.45"/></g>
+    </svg>`,
+  },
   mailvan: {
     name: "Mail Van",
     level: 2,
@@ -1269,6 +1312,27 @@ export const TRUCKS = {
       <rect x="-2.9" y="-0.4" width="4.2" height="0.8" fill="#2a6fd6"/>
       <rect x="-2.9" y="-0.12" width="4.2" height="0.24" fill="#d6453a"/>
       <g fill="#fff3a8"><rect x="2.7" y="-1" width="0.3" height="0.4"/><rect x="2.7" y="0.6" width="0.3" height="0.4"/></g>
+    </svg>`,
+  },
+  evan: {
+    name: "Electric Delivery Van",
+    short: "E-Van",
+    level: 4,
+    price: 1300,
+    cap: { cargo: 3, mail: 3 },
+    maxCars: 0,
+    speed: 7,
+    run: 0.02,
+    deck: 1,
+    pips: 3,
+    art: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-3.8 -1.9 7.6 3.8">
+      <path d="M-3 -1.5H1.9Q3.4 -1.5 3.4 0Q3.4 1.5 1.9 1.5H-3A0.4 0.4 0 0 1 -3.4 1.1V-1.1A0.4 0.4 0 0 1 -3 -1.5Z" fill="#eef1f4" stroke="rgba(18,24,38,0.9)" stroke-width="0.6" stroke-linejoin="round"/>
+      <rect x="-3.1" y="-1.2" width="4" height="2.4" rx="0.3" fill="#ffffff"/>
+      <g fill="#d3d9e0"><rect x="-2.1" y="-1.2" width="0.2" height="2.4"/><rect x="-0.9" y="-1.2" width="0.2" height="2.4"/></g>
+      <rect x="-3.1" y="-0.15" width="4" height="0.3" fill="#2fb8a8"/>
+      <path d="M1.1 -1.3Q2.6 -1.25 2.75 0Q2.6 1.25 1.1 1.3L1.5 0.85Q2.15 0.75 2.2 0Q2.15 -0.75 1.5 -0.85Z" fill="#23344f"/>
+      <path d="M3.05 -1Q3.35 0 3.05 1" fill="none" stroke="#fff3a8" stroke-width="0.22" stroke-linecap="round"/>
+      <g fill="#23262b"><rect x="1" y="-1.75" width="0.4" height="0.28" rx="0.1"/><rect x="1" y="1.47" width="0.4" height="0.28" rx="0.1"/></g>
     </svg>`,
   },
   bigbox: {
@@ -1450,6 +1514,30 @@ export const TRUCKS = {
       <rect x="-3.3" y="-0.65" width="1.1" height="1.3" rx="0.2" fill="#e08a2c" stroke="rgba(18,24,38,0.9)" stroke-width="0.3"/>
       <circle cx="0.6" cy="0" r="0.45" fill="#6f7682"/>
       <g fill="#fff3a8"><rect x="3.1" y="-0.9" width="0.4" height="0.4"/><rect x="3.1" y="0.5" width="0.4" height="0.4"/></g>
+    </svg>`,
+  },
+  fire: {
+    name: "Fire Truck",
+    short: "Fire",
+    level: 11,
+    price: 2600,
+    cap: {},
+    escort: "fire",
+    maxCars: 0,
+    beacons: [[1.7, -1.1], [1.7, 1.1]],
+    beaconColors: ["255,50,40", "255,240,220"],
+    speed: 7,
+    run: 0.06,
+    deck: 2,
+    pips: 3,
+    art: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-4 -1.9 8 3.8">
+      <rect x="-3.6" y="-1.5" width="7.2" height="3" rx="0.4" fill="#d6453a" stroke="rgba(18,24,38,0.9)" stroke-width="0.6"/>
+      <rect x="1.4" y="-1.2" width="1.4" height="2.4" rx="0.2" fill="#f4f6f8"/>
+      <rect x="2.6" y="-1.1" width="0.5" height="2.2" fill="#9fd0ff"/>
+      <g fill="#c9ced4"><rect x="-3.3" y="-0.75" width="4.4" height="0.22"/><rect x="-3.3" y="0.53" width="4.4" height="0.22"/></g>
+      <g fill="#c9ced4">${[-3, -2.2, -1.4, -0.6, 0.2].map((x) => `<rect x="${x}" y="-0.6" width="0.18" height="1.2"/>`).join("")}</g>
+      <circle cx="0.8" cy="0" r="0.4" fill="#f2c14e" stroke="rgba(18,24,38,0.9)" stroke-width="0.2"/>
+      <g fill="#fff3a8"><rect x="3.3" y="-1.1" width="0.3" height="0.4"/><rect x="3.3" y="0.7" width="0.3" height="0.4"/></g>
     </svg>`,
   },
   largebus: {
@@ -1777,6 +1865,17 @@ export const SUPERLOAD_TRAILERS = {
       <rect x="-7" y="-1.55" width="13.2" height="0.55" rx="0.25" fill="#eef1f4"/>
       <g fill="#9aa3ad">${[-6, -4, -2, 0, 2, 4].map((x) => `<rect x="${x}" y="-2.05" width="0.3" height="4.1"/>`).join("")}</g>
       <g fill="#6d7680">${[-5, -1, 3].map((x) => `<circle cx="${x}" cy="1.2" r="0.3"/>`).join("")}</g>
+    </svg>`,
+  },
+  lng: {
+    name: "LNG tank",
+    art: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-8 -2.4 16 4.8">
+      ${deck(16)}
+      <rect x="-7.4" y="-2.1" width="13.6" height="4.2" rx="2.1" fill="#f4f6f8" stroke="rgba(18,24,38,0.9)" stroke-width="0.45"/>
+      <rect x="-6.4" y="-1.55" width="11.6" height="0.5" rx="0.25" fill="#ffffff"/>
+      <g fill="#2a6fd6"><rect x="-4.6" y="-2.1" width="0.5" height="4.2"/><rect x="3" y="-2.1" width="0.5" height="4.2"/></g>
+      <path d="M-0.6 -1.1L0.5 0L-0.6 1.1L-1.7 0Z" fill="#d6453a" stroke="#f4f6f8" stroke-width="0.15"/>
+      <rect x="6" y="-0.5" width="0.6" height="1" rx="0.15" fill="#9aa3ad" stroke="rgba(18,24,38,0.9)" stroke-width="0.2"/>
     </svg>`,
   },
   dumptruck: {
