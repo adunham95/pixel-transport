@@ -1316,15 +1316,23 @@ export const BOATS = {
     speed: 2,
     run: 0.6, // a floating airfield burns through fuel
     pips: 2,
-    art: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-18 -5 36 10">
-      <path d="M-16.4 -3.4H8L16.8 -0.6Q17.4 0 16.8 0.6L8 3.4H-16.4Q-17 3.4 -17 2.8V-2.8Q-17 -3.4 -16.4 -3.4Z" fill="#6f7682" stroke="rgba(18,24,38,0.9)" stroke-width="0.7" stroke-linejoin="round"/>
-      <path d="M-16.4 -2.8H7.6L15.6 -0.4V0.4L7.6 2.8H-16.4Z" fill="#4a4f57"/>
-      <path d="M-16 1.6L6 -2.4" stroke="#f4f6f8" stroke-width="0.25" stroke-dasharray="1 0.8"/>
-      <path d="M-16 -0.1H14.8" stroke="#ffd23f" stroke-width="0.25" stroke-dasharray="1.2 0.8"/>
-      <g fill="none" stroke="#f4f6f8" stroke-width="0.25"><circle cx="10" cy="-0.1" r="1.1"/><circle cx="-11" cy="-1.5" r="1"/></g>
-      <rect x="-3" y="2.2" width="4.6" height="2.4" rx="0.4" fill="#8a949e" stroke="rgba(18,24,38,0.9)" stroke-width="0.4"/>
-      <rect x="-1.9" y="2.6" width="2.4" height="1.4" rx="0.3" fill="#5b6470"/>
-      <rect x="-0.9" y="2.9" width="0.6" height="0.8" fill="#9fd0ff"/>
+    // a supercarrier: flared flight deck over a pointed hull, the landing deck angled out to port,
+    // the island to starboard, catapults on the bow and waist, and deck-edge elevators
+    art: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-22 -6.4 44 12.8">
+      <path d="M-19.6 -2.8H12L21.6 0L12 2.8H-19.6Q-20.2 2.8 -20.2 2.2V-2.2Q-20.2 -2.8 -19.6 -2.8Z" fill="#6f7682" stroke="rgba(18,24,38,0.9)" stroke-width="0.7" stroke-linejoin="round"/>
+      <path d="M-20 -3.2L-12 -4.6L-2 -5.4L0 -3L14 -2.8L20.4 -0.8Q21 0 20.4 0.8L14 2.6L4 3.4L-12 3.6L-20 3.4Z" fill="#4a4f57" stroke="rgba(18,24,38,0.9)" stroke-width="0.6" stroke-linejoin="round"/>
+      <path d="M-19.6 -2.9L-12 -4.2L-2.2 -5" fill="none" stroke="rgba(255,255,255,0.18)" stroke-width="0.3"/>
+      <g fill="#5b6470" stroke="rgba(18,24,38,0.6)" stroke-width="0.2"><rect x="8.6" y="2.2" width="2.4" height="1.5"/><rect x="11.6" y="2.1" width="2.2" height="1.4"/><rect x="-3.8" y="2.4" width="2.4" height="1.5"/><rect x="-16" y="-4.1" width="2.4" height="1.4"/></g>
+      <g fill="none" stroke="#f4f6f8" stroke-width="0.22"><path d="M-19.1 2.1L-2.6 -2.6"/><path d="M-19.9 -0.4L-3.4 -5"/></g>
+      <path d="M-19.5 0.85L-3 -3.8" fill="none" stroke="#ffd23f" stroke-width="0.25" stroke-dasharray="1.1 0.7"/>
+      <g fill="none" stroke="#9aa3ac" stroke-width="0.25"><path d="M5 -1.5L18.6 -0.9"/><path d="M5 0.9L18.6 0.5"/><path d="M-9.2 -2.4L-1.4 -4.5"/><path d="M-7.4 -1.3L0.4 -3.4"/></g>
+      <g fill="#8a949e"><rect x="4.2" y="-2" width="0.5" height="1.1"/><rect x="4.2" y="0.4" width="0.5" height="1.1"/></g>
+      <g fill="#c9ced4" stroke="rgba(18,24,38,0.7)" stroke-width="0.15">${[[-17.6, 1.9], [-15.4, 2], [-13.2, 2.1], [15.2, -1.9]].map(([x, y]) => `<path d="M${x + 1} ${y}L${x - 0.6} ${y - 0.75}L${x - 0.3} ${y}L${x - 0.6} ${y + 0.75}Z"/>`).join("")}</g>
+      <rect x="1.4" y="1.9" width="5.6" height="1.9" rx="0.4" fill="#8a949e" stroke="rgba(18,24,38,0.9)" stroke-width="0.4"/>
+      <rect x="2" y="2.3" width="3.4" height="1.1" rx="0.3" fill="#6f7682"/>
+      <circle cx="3.4" cy="2.85" r="0.45" fill="#c9ced4" stroke="#5b6470" stroke-width="0.15"/>
+      <rect x="6.2" y="2.2" width="0.4" height="1.3" fill="#9fd0ff"/>
+      <g fill="#f4f6f8"><rect x="17.6" y="-0.35" width="0.35" height="0.7"/><rect x="18.2" y="-0.35" width="0.35" height="0.7"/></g>
     </svg>`,
   },
   pirate: {
