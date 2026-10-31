@@ -1835,7 +1835,9 @@ export function removeCar(v, i) {
   game.coins += Math.floor(tailSpecs(v)[t].price / 2);
 }
 
-// trains swap engines and trucks swap tractors, keeping what's hooked up behind
+// trains swap engines and trucks swap tractors, keeping what's hooked up behind. It takes a
+// workshop: only parked at your HQ or a depot.
+export const canRefit = (id) => !!id && (game.hq === id || !!game.depots[id]);
 export function upgradeCost(v, model) {
   return SPECS[v.kind][model].price - Math.floor(spec(v).price / 2);
 }
@@ -1843,6 +1845,7 @@ export function upgradeCost(v, model) {
 export function upgradeEngine(v, model) {
   const e = SPECS[v.kind][model];
   if (!v.city) return;
+  if (!canRefit(v.city)) { toast(`Engines are only swapped at your HQ or a depot. ${cityById[v.city].name} has neither.`, 'bad'); return; }
   if (e.maglev && !onMaglev(v.city)) { toast(`${cityById[v.city].name} isn’t on a maglev line`, 'bad'); return; }
   if (e.freightOnly && v.cars.some((c) => tailSpecs(v)[c].holds === 'pax')) { toast(`${e.name} only pulls freight cars. Sell the passenger cars first.`, 'bad'); return; }
   if (e.pulls && v.cars.some((c) => !e.pulls.includes(c))) { toast(`${e.name} only pulls ${e.pulls.map((k) => tailSpecs(v)[k].name.toLowerCase()).join(' and ')}s. Sell the other ${tailName(v)}s first.`, 'bad'); return; }

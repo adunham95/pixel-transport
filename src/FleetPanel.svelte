@@ -1,5 +1,5 @@
 <script>
-  import { game, ui, dev, setDev, cityById, capacity, endRoute, addCar, removeCar, canRemoveCar, upgradeEngine, upgradeCost, sellVehicle, sellValue, resetGame, openLoad, followVehicle, etaText, fmt, stopRepeating, spec, tailSpecs, tailName, aboard, carrierOf, deckUsed, deckRoom, deckFor, finances, clock, wear, service, serviceCost, escortee, consistOf, paintOf, paintFor, isIdle, idleVehicles, quickSend, quickSendAll, startQueue, toast, brokenVehicles, sendHelp, callRoadside, calloutCost, stillNeeded, escortText, renameVehicle, escortKind } from './game.svelte.js';
+  import { game, ui, dev, setDev, cityById, capacity, endRoute, addCar, removeCar, canRemoveCar, upgradeEngine, upgradeCost, canRefit, sellVehicle, sellValue, resetGame, openLoad, followVehicle, etaText, fmt, stopRepeating, spec, tailSpecs, tailName, aboard, carrierOf, deckUsed, deckRoom, deckFor, finances, clock, wear, service, serviceCost, escortee, consistOf, paintOf, paintFor, isIdle, idleVehicles, quickSend, quickSendAll, startQueue, toast, brokenVehicles, sendHelp, callRoadside, calloutCost, stillNeeded, escortText, renameVehicle, escortKind } from './game.svelte.js';
   import { ENGINES, TRUCKS, BOATS, PLANES, MI, JOB_TYPES, ESCORT_LABEL } from './data.js';
   import Sprite from './Sprite.svelte';
   import LoadBadges from './LoadBadges.svelte';
@@ -152,15 +152,16 @@
             {@const ups = Object.entries(LEADS[v.kind]).filter(([, x]) => x.maxCars > e.maxCars)}
             {#if ups.length}
               {@const shown = upgrading === v.id}
+              {@const shop = canRefit(v.city)}
               <button class="row drop" class:shown aria-expanded={shown} onclick={() => (upgrading = shown ? null : v.id)}>
-                <span class="grow"><b>Upgrade {v.kind === 'truck' ? 'tractor' : v.kind === 'boat' ? 'tug' : 'engine'}</b><small>{ups.length} option{ups.length > 1 ? 's' : ''}. Trade in your {e.name} and keep the {what}s.</small></span>
+                <span class="grow"><b>Upgrade {v.kind === 'truck' ? 'tractor' : v.kind === 'boat' ? 'tug' : 'engine'}</b><small>{shop ? `${ups.length} option${ups.length > 1 ? 's' : ''}. Trade in your ${e.name} and keep the ${what}s.` : 'Only at your HQ or a depot. Park it at one to swap.'}</small></span>
                 <span class="chev">+</span>
               </button>
               {#if shown}<div transition:slide={{ duration: 200 }}>
               {#each ups as [k, x]}
                 {@const locked = game.level < x.level}
                 {@const cost = upgradeCost(v, k)}
-                <button class="row" disabled={locked || game.coins < cost} onclick={() => upgradeEngine(v, k)}>
+                <button class="row" disabled={!shop || locked || game.coins < cost} onclick={() => upgradeEngine(v, k)}>
                   <span class="pv"><Sprite kind={v.kind} model={k} scale={3} /></span>
                   <span class="grow"><b>{x.name}</b><small>Pulls {x.maxCars} {what}s{x.noFerry ? ', too long for ferries' : ''}. Speed <span class="pips">{#each [1, 2, 3, 4, 5] as n}<i class:on={n <= x.pips}></i>{/each}</span></small></span>
                   <span class="pay">{locked ? `Lv ${x.level}` : `$${fmt(cost)}`}</span>

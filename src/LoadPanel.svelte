@@ -47,7 +47,7 @@
         const on = routed.has(r.to) ? [] : v.cargo.filter((j) => j.to === r.to);
         return { ...r, n: on.length, pay: on.reduce((s, j) => s + j.pay, 0) };
       })
-      .sort((a, b) => b.n - a.n || b.pay - a.pay || a.len - b.len)
+      .sort((a, b) => a.len - b.len)
   );
   const unrouted = $derived(v.cargo.filter((j) => !routed.has(j.to) && canReach(v, j.to)).length);
 
@@ -134,6 +134,13 @@
   </div>
 {/if}
 
+<!-- what a town on the route has that's worth knowing while planning: your HQ, a depot, a transfer hub -->
+{#snippet townTags(c)}
+  {#if game.hq === c.id}<span class="tag hub mini">HQ</span>{/if}
+  {#if game.depots[c.id]}<span class="tag mini">Depot</span>{/if}
+  {#if c.rail + c.air + c.port > 1}<span class="tag hub mini">Hub</span>{/if}
+{/snippet}
+
 {#if ui.picking}
   <h3>Route</h3>
   {#if ui.plan.length}
@@ -143,7 +150,7 @@
         <li class="row stop" class:bad={!l} in:fly={{ y: -8, duration: 200 }}>
           <span class="num">{i + 1}</span>
           <span class="grow">
-            <b>{cityById[id].name}</b>
+            <b>{cityById[id].name}{@render townTags(cityById[id])}</b>
             <small>{!l ? 'Out of reach from the stop before' : drops[i].n ? `Drop off ${drops[i].n}, +$${fmt(drops[i].pay)}` : 'Nothing to drop off'}{#if l?.wx}<span class="tag mini wx">{WEATHER.kinds[l.wx].name}</span>{/if}</small>
           </span>
           {#if l}<span class="right"><b>{fmtTime(l.time)}</b><small>Fuel ${l.cost}</small></span>{/if}
@@ -168,7 +175,7 @@
     {@const c = cityById[d.to]}
     <button class="row dest" class:has={d.n} onclick={() => toggleStop(v, d.to)}>
       <span class="grow">
-        <b>{c.name}{#if c.rail + c.air + c.port > 1}<span class="tag hub mini">Hub</span>{/if}</b>
+        <b>{c.name}{@render townTags(c)}</b>
         <small>{d.n ? `${d.n} on board for here, +$${fmt(d.pay)}` : 'Nothing on board for here'}{#if d.wx}<span class="tag mini wx">{WEATHER.kinds[d.wx].name}</span>{/if}</small>
       </span>
       <span class="right"><b>{fmtTime(d.time)}</b><small>Fuel ${d.cost}</small></span>
