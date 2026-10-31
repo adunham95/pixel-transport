@@ -1,4 +1,4 @@
-import { CITIES, RAILS, ROADS, ROAD_OFF, LANE, roadSide, ENGINES, CARS, PLANES, BOATS, BARGES, TRUCKS, TRAILERS, LEVELS, RATES, SPEED, CITY_PRICE, START_CITIES, JOB_TYPES, MAGLEV_LINES, HQ, WEAR, MAIL, WIDE, SECURE, GROWTH, SIZE_NAME, DEPOT, TYPE_LABEL, CONTRACTS, SUPERLOAD, ESCORT_LABEL, BREAKDOWN, CELEB, TOURISTS, PROJECTS, CONTINENTS, LUCKY, WEATHER, USED } from './data.js';
+import { CITIES, RAILS, ROADS, ROAD_OFF, LANE, roadSide, ENGINES, CARS, PLANES, BOATS, BARGES, TRUCKS, TRAILERS, LEVELS, RATES, SPEED, CITY_PRICE, START_CITIES, JOB_TYPES, MAGLEV_LINES, HQ, WEAR, MAIL, WIDE, CONTAINER, SECURE, GROWTH, SIZE_NAME, DEPOT, TYPE_LABEL, CONTRACTS, SUPERLOAD, ESCORT_LABEL, BREAKDOWN, CELEB, TOURISTS, PROJECTS, CONTINENTS, LUCKY, WEATHER, USED } from './data.js';
 import { seaLane } from './sea.js';
 
 const KEY = 'pixel-transport-save-v1';
@@ -287,8 +287,8 @@ function pickWeighted(items) {
 }
 
 // the level each job type starts turning up at, and how often it does after that
-export const TYPE_LEVEL = { pax: 1, cargo: 1, bulk: 4, fuel: 6, mail: MAIL.level, wide: WIDE.level, secure: SECURE.level, tour: TOURISTS.level };
-const TYPE_WEIGHT = { pax: 5, cargo: 4, fuel: 2, bulk: 2, mail: 3, wide: 1, secure: 2, tour: 2 };
+export const TYPE_LEVEL = { pax: 1, cargo: 1, container: CONTAINER.level, bulk: 4, fuel: 6, mail: MAIL.level, wide: WIDE.level, secure: SECURE.level, tour: TOURISTS.level };
+const TYPE_WEIGHT = { pax: 5, cargo: 4, container: 2, fuel: 2, bulk: 2, mail: 3, wide: 1, secure: 2, tour: 2 };
 
 // the job types town A turns up, as [type, weight] pairs, leaning the way the town's mix does
 function jobTypes(g, A) {
@@ -296,6 +296,8 @@ function jobTypes(g, A) {
   // fuel and bulk only move by rail car or ship, so they start and end at stations and ports
   if ((A.rail || A.port) && g.level >= TYPE_LEVEL.fuel) types.push('fuel');
   if ((A.rail || A.port) && g.level >= TYPE_LEVEL.bulk) types.push('bulk');
+  // containers are swapped between trucks, trains and ships at stations and ports, so start and end there too
+  if ((A.rail || A.port) && g.level >= CONTAINER.level) types.push('container');
   if (g.level >= MAIL.level) types.push('mail');
   if (g.level >= SECURE.level) types.push('secure');
   if (A.road && g.level >= WIDE.level && jobDests(g, A, 'wide').length) types.push('wide');
@@ -308,13 +310,15 @@ function jobTypes(g, A) {
 // where a job of this type leaving town A could be headed, as [id, weight] pairs. lean is a
 // town to count as wanted by a contract, on top of the ones that are.
 function jobDests(g, A, type, lean = null) {
-  const heavy = type === 'fuel' || type === 'bulk';
+  const heavy = type === 'fuel' || type === 'bulk', yard = heavy || type === 'container';
   // wide loads only go overland (by road or rail), so they stay on their own landmass
-  const cands = CITIES.filter((c) => c.id !== A.id && g.unlocked[c.id] && (!heavy || c.rail || c.port) && (type !== 'wide' || (c.road && sameLand(c, A))));
+  const cands = CITIES.filter((c) => c.id !== A.id && g.unlocked[c.id] && (!yard || c.rail || c.port) && (type !== 'wide' || (c.road && sameLand(c, A))));
   // heavy loads leaving a port lean toward other ports, so ships have work too, jobs lean toward
-  // towns a contract or a megaproject wants them in, and tourists toward the sights
+  // towns a contract or a megaproject wants them in, tourists toward the sights, and containers go
+  // twice as far as most, so they often need more than one ride
   const wanted = (c) => c.id === lean || (g.contracts?.active ?? []).some((k) => k.type === type && k.to === c.id) || projectWants(type, c.id, g);
-  const weight = (c) => (1 / (1 + (dist(A.id, c.id) / 70) ** 2)) * (heavy && A.port && c.port ? 3 : 1) * (wanted(c) ? 3 : 1) * (type === 'tour' ? 1 + 2 * sightOf(c.id, g) : 1);
+  const reach = type === 'container' ? 140 : 70;
+  const weight = (c) => (1 / (1 + (dist(A.id, c.id) / reach) ** 2)) * (heavy && A.port && c.port ? 3 : 1) * (wanted(c) ? 3 : 1) * (type === 'tour' ? 1 + 2 * sightOf(c.id, g) : 1);
   return cands.map((c) => [c.id, weight(c)]);
 }
 
@@ -489,15 +493,17 @@ const tripEnd = (v) => v.trip.startAt + v.trip.dur;
 // what a vehicle has earned and spent on fuel since it joined the fleet (game time)
 function books(v) { return (v.books ??= { earned: 0, fuel: 0, since: gameNow() }); }
 
-// hand over everything on board that's for this town, and get paid for it; at is when (game time)
-function dropOff(v, to, at = gameNow()) {
+// hand over everything on board that's for this town, and get paid for it; at is when (game time).
+// by is the kind of vehicle that brought it here (a truck's ferry or cargo plane, if it rode one).
+function dropOff(v, to, at = gameNow(), by = v.kind) {
   let total = 0, n = 0;
+  for (const j of v.cargo) if (j.type === 'container') ridden(j, by);
   // lucky cargo pays whatever turns out to be inside
   const finds = [];
   const pay = (j) => {
     const f = j.lucky ? pickWeighted(LUCKY.finds.map((x) => [x, x.weight])) : null;
     if (f) finds.push(f);
-    return Math.round(j.pay * payBoost(v, j) * (f?.mult ?? 1));
+    return Math.round(j.pay * payBoost(v, j) * viaBoost(j) * (f?.mult ?? 1));
   };
   v.cargo = v.cargo.filter((j) => {
     if (j.to === to) { total += pay(j); n++; grow(j.to); grow(j.from); countToward(j, at); countProject(j); return false; }
@@ -817,10 +823,10 @@ function makeCeleb(id) {
 function canSend(type, to) {
   const T = cityById[to];
   if (T.anchor || !isOpen(to)) return false;
-  const heavy = type === 'fuel' || type === 'bulk';
-  if (heavy && !T.rail && !T.port) return false;
+  const yard = type === 'fuel' || type === 'bulk' || type === 'container';
+  if (yard && !T.rail && !T.port) return false;
   if (type === 'wide' && !T.road) return false;
-  return CITIES.some((c) => c.id !== to && isOpen(c.id) && !c.anchor && (!heavy || c.rail || c.port) && (type !== 'wide' || (c.road && sameLand(c, T))));
+  return CITIES.some((c) => c.id !== to && isOpen(c.id) && !c.anchor && (!yard || c.rail || c.port) && (type !== 'wide' || (c.road && sameLand(c, T))));
 }
 
 // how many jobs of this type would turn up a game minute headed for this town, with a contract
@@ -1034,6 +1040,16 @@ export function escortee(x) { return x.escorting != null ? game.vehicles.find((v
 export function payBoost(v, j) {
   const police = j.type === 'secure' && escortsOf(v).some((x) => escortKind(x) === 'police');
   return (spec(v).pays?.[j.type] ?? 1) * (police ? 1 + SECURE.escortBonus : 1);
+}
+
+// note that a container has had a ride on this kind of vehicle
+function ridden(j, kind) { if (!(j.via ??= []).includes(kind)) j.via.push(kind); }
+// a container pays CONTAINER.bonus more for each kind of vehicle past the first that has carried
+// it, counting kind (the one taking it now) if given
+export function viaBoost(j, kind = null) {
+  if (j.type !== 'container') return 1;
+  const kinds = new Set([...(j.via ?? []), ...(kind ? [kind] : [])]);
+  return 1 + CONTAINER.bonus * Math.max(0, kinds.size - 1);
 }
 
 // a free escort here that this vehicle can take along if it likes (an armored car's police car), or null
@@ -1942,7 +1958,7 @@ export function driveOff(f, t) {
   if (!f.city || t.aboard !== f.id) return;
   delete t.aboard;
   t.city = f.city;
-  const { n, total } = dropOff(t, f.city);
+  const { n, total } = dropOff(t, f.city, gameNow(), f.kind);
   if (n) toast(`${t.name} delivered ${n} at ${cityById[f.city].name}. +$${fmt(total)}`, 'good');
 }
 

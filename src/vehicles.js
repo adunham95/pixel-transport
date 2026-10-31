@@ -405,6 +405,21 @@ export const CARS = {
       <circle cx="0" cy="0" r="0.45" fill="#e6c35a" stroke="#2a2f38" stroke-width="0.15"/>
     </svg>`,
   },
+  well: {
+    name: "Container flatcar",
+    short: "Container",
+    level: 7,
+    price: 250,
+    holds: "container",
+    cap: 2,
+    color: "#1f8580",
+    dark: "#4a4f57",
+    art: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-3.9 -2.6 7.8 5.2">
+      <rect x="-3.5" y="-1.5" width="7" height="3" rx="0.3" fill="#4a4f57" stroke="rgba(18,24,38,0.9)" stroke-width="0.8"/>
+      <g stroke="rgba(18,24,38,0.9)" stroke-width="0.4"><rect x="-3.2" y="-1.9" width="3" height="3.8" rx="0.2" fill="#1f8580"/><rect x="0.2" y="-1.9" width="3" height="3.8" rx="0.2" fill="#d6453a"/></g>
+      <g fill="rgba(18,24,38,0.35)"><rect x="-2.6" y="-1.6" width="0.25" height="3.2"/><rect x="-1.85" y="-1.6" width="0.25" height="3.2"/><rect x="-1.1" y="-1.6" width="0.25" height="3.2"/><rect x="0.8" y="-1.6" width="0.25" height="3.2"/><rect x="1.55" y="-1.6" width="0.25" height="3.2"/><rect x="2.3" y="-1.6" width="0.25" height="3.2"/></g>
+    </svg>`,
+  },
   flat: {
     name: "Flatcar",
     short: "Flatcar",
@@ -1221,6 +1236,22 @@ export const BOATS = {
       <rect x="-3.7" y="-0.5" width="0.6" height="1" fill="#ffd23f"/>
     </svg>`,
   },
+  feeder: {
+    name: "Feeder Ship",
+    level: 7,
+    price: 1800,
+    cap: { container: 4 },
+    speed: 4,
+    run: 0.05,
+    pips: 1,
+    art: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-7.5 -3 15 6">
+      <path d="M-6.4 -2.3L3 -2.3Q7 -2.3 7 0Q7 2.3 3 2.3L-6.4 2.3Q-7 2.3 -7 1.7L-7 -1.7Q-7 -2.3 -6.4 -2.3Z" fill="#23344f" stroke="rgba(18,24,38,0.9)" stroke-width="0.7" stroke-linejoin="round"/>
+      <path d="M-6.2 -1.6L3 -1.6Q5.9 -1.6 5.9 0Q5.9 1.6 3 1.6L-6.2 1.6Z" fill="#5b6470"/>
+      <rect x="-5.8" y="-1.3" width="2.6" height="2.6" rx="0.4" fill="#f4f6f8" stroke="rgba(18,24,38,0.9)" stroke-width="0.4"/>
+      <rect x="-5.2" y="-0.5" width="1.2" height="1" rx="0.3" fill="#d6453a"/>
+      <g stroke="rgba(18,24,38,0.5)" stroke-width="0.15"><rect x="-2.6" y="-1.35" width="2.4" height="1.25" fill="#1f8580"/><rect x="-2.6" y="0.1" width="2.4" height="1.25" fill="#f2c14e"/><rect x="0" y="-1.35" width="2.4" height="1.25" fill="#d6453a"/><rect x="0" y="0.1" width="2.4" height="1.25" fill="#2a6fd6"/></g>
+    </svg>`,
+  },
   freighter: {
     name: "Freighter",
     level: 7,
@@ -1289,7 +1320,7 @@ export const BOATS = {
     name: "Container Ship",
     level: 10,
     price: 20000,
-    cap: { cargo: 36 },
+    cap: { cargo: 18, container: 18 },
     speed: 5,
     run: 0.2,
     pips: 2,
@@ -1585,6 +1616,19 @@ export const BARGES = {
       <rect x="-4" y="-1.4" width="8" height="2.8" rx="0.3" fill="#4a4f55"/>
       <g fill="#c9ced4" stroke="rgba(18,24,38,0.7)" stroke-width="0.25"><circle cx="-2.2" cy="0" r="1.1"/><circle cx="0.4" cy="0" r="1.1"/><circle cx="2.9" cy="0" r="0.9"/></g>
       <rect x="-3.6" y="-0.1" width="7" height="0.2" fill="#6d7680"/>
+    </svg>`,
+  },
+  box: {
+    name: "Container barge",
+    short: "Container",
+    level: 7,
+    price: 400,
+    holds: "container",
+    cap: 4,
+    color: "#1f8580",
+    art: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-5 -2.4 10 4.8">
+      <rect x="-4.6" y="-2" width="9.2" height="4" rx="0.6" fill="#4a4f55" stroke="rgba(18,24,38,0.9)" stroke-width="0.6"/>
+      <g stroke="rgba(18,24,38,0.7)" stroke-width="0.25"><rect x="-4" y="-1.5" width="3.8" height="1.35" fill="#1f8580"/><rect x="0.2" y="-1.5" width="3.8" height="1.35" fill="#d6453a"/><rect x="-4" y="0.15" width="3.8" height="1.35" fill="#f2c14e"/><rect x="0.2" y="0.15" width="3.8" height="1.35" fill="#2a6fd6"/></g>
     </svg>`,
   },
 };
@@ -2417,6 +2461,21 @@ export const TRAILERS = {
       <rect x="-3.2" y="-1.1" width="6.4" height="0.5" rx="0.25" fill="#eef1f4"/>
       <rect x="-3.2" y="-0.12" width="6.4" height="0.24" fill="#6d7680"/>
       <g fill="#6d7680"><circle cx="-1.6" cy="0" r="0.4"/><circle cx="1.6" cy="0" r="0.4"/></g>
+    </svg>`,
+  },
+  chassis: {
+    name: "Container chassis",
+    short: "Chassis",
+    level: 7,
+    price: 250,
+    holds: "container",
+    cap: 2,
+    deck: 2,
+    color: "#1f8580",
+    art: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-4 -1.9 8 3.8">
+      <rect x="-3.7" y="-1.2" width="7.4" height="2.4" rx="0.2" fill="#4a4f57" stroke="rgba(18,24,38,0.9)" stroke-width="0.5"/>
+      <g stroke="rgba(18,24,38,0.9)" stroke-width="0.4"><rect x="-3.6" y="-1.6" width="3.5" height="3.2" rx="0.2" fill="#1f8580"/><rect x="0.1" y="-1.6" width="3.5" height="3.2" rx="0.2" fill="#e08a2c"/></g>
+      <g fill="rgba(18,24,38,0.35)"><rect x="-2.8" y="-1.3" width="0.25" height="2.6"/><rect x="-1.8" y="-1.3" width="0.25" height="2.6"/><rect x="-0.8" y="-1.3" width="0.25" height="2.6"/><rect x="0.9" y="-1.3" width="0.25" height="2.6"/><rect x="1.9" y="-1.3" width="0.25" height="2.6"/><rect x="2.9" y="-1.3" width="0.25" height="2.6"/></g>
     </svg>`,
   },
   lowboy: {

@@ -1,5 +1,5 @@
 <script>
-  import { game, ui, cityById, capacity, used, loadJob, unloadJob, autoLoad, destinations, dispatch, route, canReach, planLegs, autoPlan, toggleStop, fmt, fmtTime, loopStops, aboard, canBoard, fitsAboard, deckFor, deckSize, deckUsed, deckRoom, driveOn, driveOff, wear, fetcher, convoyNeeds, pickEscorts, escortText, consistOf, optionalEscort, paintOf, spec, nextInQueue, queueLeft, escortAs, escortKind, superloadCarrier, SUPER_KIND } from './game.svelte.js';
+  import { game, ui, cityById, capacity, used, loadJob, unloadJob, autoLoad, destinations, dispatch, route, canReach, planLegs, autoPlan, toggleStop, fmt, fmtTime, loopStops, aboard, canBoard, fitsAboard, deckFor, deckSize, deckUsed, deckRoom, driveOn, driveOff, wear, fetcher, convoyNeeds, pickEscorts, escortText, consistOf, optionalEscort, paintOf, spec, nextInQueue, queueLeft, escortAs, escortKind, superloadCarrier, SUPER_KIND, viaBoost } from './game.svelte.js';
   import Icon from './Icon.svelte';
   import Sprite from './Sprite.svelte';
   import JobRow from './JobRow.svelte';
@@ -25,7 +25,7 @@
   const optKind = $derived(v.kind === 'truck' ? TRUCKS[v.model].escortedBy ?? null : null);
   const sidekick = $derived(optKind ? optionalEscort(v) : null);
   const riding = $derived(ui.escort && sidekick ? [sidekick] : []);
-  const boost = (j) => (spec(v).pays?.[j.type] ?? 1) * (j.type === 'secure' && riding.length ? 1 + SECURE.escortBonus : 1);
+  const boost = (j) => (spec(v).pays?.[j.type] ?? 1) * (j.type === 'secure' && riding.length ? 1 + SECURE.escortBonus : 1) * viaBoost(j, v.kind);
   const escFuel = $derived([...convoy.picked, ...riding].reduce((s, x) => s + planLegs(x, stops).reduce((a, l) => a + (l?.cost ?? 0), 0), 0));
   const total = $derived(legs.reduce((s, l) => ({ cost: s.cost + (l?.cost ?? 0), time: s.time + (l?.time ?? 0) }), { cost: escFuel, time: 0 }));
   const broken = $derived(legs.some((l) => !l));
@@ -51,8 +51,8 @@
   );
   const unrouted = $derived(v.cargo.filter((j) => !routed.has(j.to) && canReach(v, j.to)).length);
 
-  const NEEDS = { pax: 'passenger car', cargo: 'boxcar', fuel: 'tanker', bulk: 'hopper car', mail: 'mail car', wide: 'flatcar', secure: 'vault car' };
-  const TRAILER_NEEDS = { cargo: 'van trailer', fuel: 'tank trailer', bulk: 'dump trailer', wide: 'lowboy trailer' };
+  const NEEDS = { pax: 'passenger car', cargo: 'boxcar', container: 'container flatcar', fuel: 'tanker', bulk: 'hopper car', mail: 'mail car', wide: 'flatcar', secure: 'vault car' };
+  const TRAILER_NEEDS = { cargo: 'van trailer', container: 'container chassis', fuel: 'tank trailer', bulk: 'dump trailer', wide: 'lowboy trailer' };
   function blocker(j) {
     const f = fetcher(j);
     if (f) return { block: true, text: `${f.name} is on its way for it` };
@@ -67,6 +67,7 @@
       const what = TYPE_LABEL[j.type].toLowerCase();
       if (j.type === 'tour') return { block: true, text: 'Tourists only ride in show-off vehicles' };
       if (j.type === 'wide' && v.kind !== 'truck' && v.kind !== 'train') return { block: true, text: 'Wide loads only go overland, on a lowboy trailer or flatcar' };
+      if (j.type === 'container' && v.kind === 'plane') return { block: true, text: 'Containers don’t fly. They go by truck, train or ship' };
       if (j.type === 'mail' && v.kind === 'truck') return { block: true, text: 'Mail needs a mail van' };
       if (j.type === 'secure' && v.kind === 'truck') return { block: true, text: 'Valuables need an armored car' };
       if (v.kind === 'plane') return { block: true, text: `No room for ${what} on this plane` };

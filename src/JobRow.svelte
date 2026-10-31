@@ -1,10 +1,13 @@
 <script>
   import Icon from './Icon.svelte';
   import { cityById, fmt, clock, jobTtl, fetcher, contractFor, escortText, projectById } from './game.svelte.js';
-  import { TYPE_LABEL } from './data.js';
+  import { TYPE_LABEL, CONTAINER } from './data.js';
   let { job, at = null, note = '', onclick = null, disabled = false, loaded = false, action = '' } = $props();
+  // containers pay more for every other kind of vehicle that carries them
+  const KIND = { truck: 'truck', train: 'train', boat: 'ship', plane: 'plane' };
+  const via = (j) => j.via?.length ? `Container, so far by ${j.via.map((k) => KIND[k]).join(' and ')}. +${Math.round(CONTAINER.bonus * 100)}% for each other kind` : `Container. +${Math.round(CONTAINER.bonus * 100)}% for each kind of vehicle past the first`;
   const leaving = $derived(at === job.from && job.contract == null && job.project == null && job.at && clock.now - job.at > jobTtl(job) - 60000 && !fetcher(job));
-  const sub = $derived([at && job.from !== at ? `Dropped off here, from ${cityById[job.from].name}` : job.escort ? `Superload: ${job.name}, needs ${escortText(job.escort)}` : job.celeb ? `${job.celeb}. Rides in a gold limo or gold jet` : job.type === 'tour' ? 'Tourists. Only ride in show-off vehicles' : TYPE_LABEL[job.type], job.lucky && 'Lucky cargo: who knows what’s inside', leaving && 'Leaving soon', !job.escort && contractFor(job) && 'For a contract', job.project != null && `For the ${projectById[job.project].name}`, note].filter(Boolean).join('. '));
+  const sub = $derived([at && job.from !== at ? `Dropped off here, from ${cityById[job.from].name}` : job.escort ? `Superload: ${job.name}, needs ${escortText(job.escort)}` : job.celeb ? `${job.celeb}. Rides in a gold limo or gold jet` : job.type === 'tour' ? 'Tourists. Only ride in show-off vehicles' : job.type === 'container' ? via(job) : TYPE_LABEL[job.type], job.lucky && 'Lucky cargo: who knows what’s inside', leaving && 'Leaving soon', !job.escort && contractFor(job) && 'For a contract', job.project != null && `For the ${projectById[job.project].name}`, note].filter(Boolean).join('. '));
 </script>
 
 {#snippet inner()}

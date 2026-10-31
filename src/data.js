@@ -69,7 +69,7 @@ export const CONTINENTS = [
 
 // id, name, x, y, continent index (-1 for a lone island), r = station, a = airport, p = sea port,
 // and an optional job mix: how much more (or less) often than usual the town turns up each job
-// type, as multipliers on its weight (pax, cargo, fuel, bulk, mail, wide, secure, tour), plus celeb
+// type, as multipliers on its weight (pax, cargo, container, fuel, bulk, mail, wide, secure, tour), plus celeb
 // for celebrities. A town still only turns up the types it can (fuel needs a station or port).
 const RAW = [
   // Westmark
@@ -96,7 +96,7 @@ const RAW = [
   ["south", "Southport", 106, 412, 0, "ra"],
   ["fjordhavn", "Fjordhavn", 154, 430, 0, "r", { tour: 4, cargo: 0.7 }],
   ["saltcove", "Saltcove", 106, 466, 0, "ra", { bulk: 2, mail: 1.5 }],
-  ["ravenmoor", "Ravenmoor", 154, 484, 0, "rp", { fuel: 2, cargo: 1.5 }],
+  ["ravenmoor", "Ravenmoor", 154, 484, 0, "rp", { fuel: 2, cargo: 1.5, container: 2 }],
   ["hillcrest", "Hillcrest", 118, 544, 0, "r", { wide: 2.5, pax: 1.3 }],
   // Frostlands
   ["icemoor", "Icemoor", 382, 28, 1, "rp", { fuel: 3, pax: 0.6 }],
@@ -143,7 +143,7 @@ const RAW = [
   ["sunspire", "Sunspire", 664, 568, 3, "r", { tour: 3, celeb: 3 }],
   ["camelback", "Camelback", 706, 568, 3, "ra", { tour: 2, pax: 1.5 }],
   // Eastmark
-  ["eastport", "Eastport", 784, 118, 4, "rp", { cargo: 2.5, fuel: 1.5 }],
+  ["eastport", "Eastport", 784, 118, 4, "rp", { cargo: 2.5, fuel: 1.5, container: 2.5 }],
   ["highcliff", "Highcliff", 814, 154, 4, "ra", { pax: 1.5, secure: 2 }],
   ["timberline", "Timberline", 856, 190, 4, "r", { bulk: 3, wide: 2 }],
   ["lanternbay", "Lantern Bay", 808, 202, 4, "r", { tour: 3 }],
@@ -153,7 +153,7 @@ const RAW = [
   ["copperbay", "Copperbay", 832, 316, 4, "ra", { bulk: 2.5 }],
   ["seabright", "Seabright", 790, 316, 4, "r", { tour: 2, pax: 1.5 }],
   ["cobalt", "Cobalt", 850, 352, 4, "rp", { bulk: 3, fuel: 1.5 }],
-  ["drakeford", "Drakeford", 760, 352, 4, "rap", { cargo: 2, mail: 2 }],
+  ["drakeford", "Drakeford", 760, 352, 4, "rap", { cargo: 2, mail: 2, container: 2 }],
   ["starling", "Starling", 802, 358, 4, "r", { mail: 2.5 }],
   ["juniper", "Juniper", 850, 400, 4, "ra"],
   // Jade Isles
@@ -168,7 +168,7 @@ const RAW = [
   ["shellbeach", "Shell Beach", 338, 132, -1, "p", { tour: 6, celeb: 6 }],
   ["turtlerock", "Turtle Rock", 350, 498, -1, "p", { tour: 3 }],
   ["sealpoint", "Seal Point", 446, 546, -1, "p", { fuel: 2 }],
-  ["driftwood", "Driftwood", 530, 438, -1, "ap", { cargo: 2 }],
+  ["driftwood", "Driftwood", 530, 438, -1, "ap", { cargo: 2, container: 1.5 }],
   ["albatross", "Albatross", 536, 270, -1, "ap", { mail: 2 }],
   ["mangokey", "Mango Key", 608, 414, -1, "ap", { tour: 3, cargo: 1.5 }],
   ["kelpisland", "Kelp Island", 614, 342, -1, "ap", { bulk: 2 }],
@@ -349,6 +349,10 @@ export const MAIL = { level: 2, ttl: 4 * 60 * 1000 };
 // wide loads (turbine blades, boat hulls, little houses) only go overland, on lowboy trailers or
 // flatcars, between mainland towns on the same landmass
 export const WIDE = { level: 8 };
+// shipping containers turn up at stations and ports from this level, headed further than cargo
+// does. They don't fly, and they pay `bonus` more for each other kind of vehicle (truck, train,
+// boat) that carries one on its way, so long runs that change from road to rail to sea pay best.
+export const CONTAINER = { level: 7, bonus: 0.25 };
 // valuables (gold, cash, art) turn up everywhere from this level, in armored cars, vault cars,
 // courier launches and courier jets. They pay the most per mile but, like mail, only wait ttl.
 // With a police car riding along an armored car (escortedBy in TRUCKS), they pay escortBonus more.
@@ -709,6 +713,7 @@ export const CONTRACTS = {
   size: {
     pax: [5, 9],
     cargo: [4, 8],
+    container: [4, 8],
     mail: [4, 7],
     fuel: [3, 6],
     bulk: [6, 12],
@@ -733,6 +738,7 @@ export const LEVELS = [
 export const JOB_TYPES = [
   "pax",
   "cargo",
+  "container",
   "fuel",
   "bulk",
   "mail",
@@ -743,6 +749,7 @@ export const JOB_TYPES = [
 export const RATES = {
   pax: 0.9,
   cargo: 0.8,
+  container: 0.9,
   fuel: 1.3,
   bulk: 0.45,
   mail: 1.6,
@@ -753,6 +760,7 @@ export const RATES = {
 export const TYPE_LABEL = {
   pax: "Passengers",
   cargo: "Cargo",
+  container: "Containers",
   fuel: "Fuel",
   bulk: "Bulk",
   mail: "Mail",
