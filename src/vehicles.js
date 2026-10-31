@@ -1071,6 +1071,31 @@ export const PLANES = {
   },
 };
 
+// freighter versions of passenger airframes: the same plane and rotors, with the seats taken out
+// for cargo and repainted, so their art follows any change to the original
+PLANES.stormbirdcargo = {
+  ...PLANES.stormbird,
+  name: "Stormbird Cargo",
+  short: "Stormbird C",
+  price: 10500,
+  pax: 0,
+  cargo: 10,
+  color: "#8a949e",
+  trim: "#f2c14e",
+  art: PLANES.stormbird.art.replaceAll("#f4f6f8", "#8a949e").replaceAll("#d6453a", "#f2c14e"),
+};
+PLANES.humpbackcargo = {
+  ...PLANES.humpback,
+  name: "Humpback Cargo",
+  short: "Humpback C",
+  price: 45000,
+  pax: 0,
+  cargo: 32,
+  trim: "#e08a2c",
+  // no cabin windows on a freighter
+  art: PLANES.humpback.art.replace(/<rect x="5\.6" y="-1\.35"[^>]*\/>\s*<g fill="#8aa0b8">.*?<\/g>/s, "").replaceAll("#2a6fd6", "#e08a2c"),
+};
+
 // boats are slow but cheap to run; cap is how many of each job type fit on board (missing types are 0).
 // pays: { type: n } means those jobs pay n times as much on board (see TRUCKS).
 // superload: true means it carries nothing but one sea superload at a time, drawn on its deck,
