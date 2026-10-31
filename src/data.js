@@ -308,7 +308,7 @@ export const HQ = {
     { level: 12, price: 150000 },
   ],
   // auto dispatch: self-driving vehicles (TRUCKS with auto: true) can be bought, and find and carry
-  // their own passengers; and rescuers set off for breakdowns on their own
+  // their own jobs; and rescuers set off for breakdowns on their own
   auto: { level: 8, price: 30000 },
 };
 // trucks, trains and boats break down now and then as they age: each leg has a chance of their wear

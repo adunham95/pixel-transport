@@ -461,10 +461,10 @@
       b.fillStyle = `rgba(${rgb},${a})`; b.fillRect(Math.floor(x), Math.floor(y), 1, 1);
     }
     // a headlight beam fanning out ahead
-    function beam([x, y], ang, len, spread) {
+    function beam([x, y], ang, len, spread, rgb = '255,236,170') {
       const dx = Math.cos(ang), dy = Math.sin(ang), nx = -dy, ny = dx;
       const g = b.createLinearGradient(x, y, x + dx * len, y + dy * len);
-      g.addColorStop(0, 'rgba(255,236,170,0.5)'); g.addColorStop(1, 'rgba(255,236,170,0)');
+      g.addColorStop(0, `rgba(${rgb},0.5)`); g.addColorStop(1, `rgba(${rgb},0)`);
       b.fillStyle = g;
       b.beginPath();
       b.moveTo(x + nx * 1.5, y + ny * 1.5);
@@ -513,7 +513,7 @@
       if (isCarrier(model)) for (let k = -2; k <= 2; k++) for (const side of [-1, 1]) { const [lx, ly] = onArt(x, y, ang, k * s.w * 0.18, side * s.h * 0.28); b.fillStyle = 'rgba(255,220,140,0.75)'; b.fillRect(Math.floor(lx), Math.floor(ly), 1, 1); }
     }
     // trains: a headlight, lit passenger windows, a red lamp on the last car, maglevs glowing underneath.
-    // trucks and buses: headlights, and tail lights on the back of each trailer (or the truck itself)
+    // trucks and buses: headlights (teal on self-driving ones), and tail lights on the back of each trailer (or the truck itself)
     // oversize rigs, superload carriers and escorts flash their beacons in turn, day and night: amber
     // unless they say otherwise. A tug only lights its convoy beacons while it's escorting.
     function beacons(v, p, now, later) {
@@ -532,8 +532,10 @@
         const s = artSize(u.kind, u.model), last = i === placed.length - 1;
         if (u.off === 0) {
           if (v.kind === 'truck') {
-            beam(pos(u, s.w / 2, 0), u.p.ang, 14, 5);
-            for (const side of [-1, 1]) lamp(pos(u, s.w / 2, side * s.h * 0.3), '255,245,200');
+            // self-driving vehicles light the way in teal
+            const auto = TRUCKS[v.model].auto;
+            beam(pos(u, s.w / 2, 0), u.p.ang, 14, 5, auto ? '95,240,216' : undefined);
+            for (const side of [-1, 1]) lamp(pos(u, s.w / 2, side * s.h * 0.3), auto ? '95,240,216' : '255,245,200');
           } else {
             beam(pos(u, s.w / 2, 0), u.p.ang, 20, 4);
             lamp(pos(u, s.w / 2, 0), '255,245,200');

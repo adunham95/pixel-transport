@@ -692,11 +692,12 @@ function tickAuto(now) {
       delete v.autoTo;
       if (!v.cargo.length) { autoLoad(v); feedLoad(v); }
       if (v.cargo.length) { const stops = autoPlan(v); if (stops.length && dispatch(v, stops)) continue; }
-      const headed = new Set(game.vehicles.filter((x) => x !== v && x.autoTo).map((x) => x.autoTo));
+      // towns another self-driving vehicle is headed to for the same kinds of job
+      const mine = capacity(v), headed = new Set(game.vehicles.filter((x) => x !== v && x.autoTo && JOB_TYPES.some((t) => mine[t] && capacity(x)[t])).map((x) => x.autoTo));
       const taken = fetching(), rides = routing();
       const wants = (c) => {
         const lead = leg(v, v.city, c.id)?.time ?? Infinity;
-        return (j) => j.type === 'pax' && !taken.has(j.id) && !j.celeb && !loopTakes(j, c.id, rides(j), v, lead) && (canReach(v, j.to) || !!feedStop(v, j, rides(j), c.id));
+        return (j) => carries(v, j) && !taken.has(j.id) && !loopTakes(j, c.id, rides(j), v, lead) && (canReach(v, j.to) || !!feedStop(v, j, rides(j), c.id));
       };
       const best = CITIES.filter((c) => c.id !== v.city && !headed.has(c.id) && isOpen(c.id) && game.jobs[c.id].some(wants(c)))
         .map((c) => ({ c, l: leg(v, v.city, c.id), relay: game.jobs[c.id].some((j) => j.from !== c.id && wants(c)(j)) })).filter((o) => o.l)

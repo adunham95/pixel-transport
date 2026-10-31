@@ -46,7 +46,7 @@
     if (s.maglev) out.push('Maglev lines only');
     if (s.harbor) out.push('Ports with a station only');
     if (s.amphibious) out.push('Swims between ports');
-    if (s.auto) out.push(game.hqAuto ? 'Drives itself, finding its own passengers' : 'Drives itself. Needs auto dispatch at your HQ');
+    if (s.auto) out.push(game.hqAuto ? 'Drives itself, finding its own jobs' : 'Drives itself. Needs auto dispatch at your HQ');
     if (s.celebrity) out.push('Celebrities ride in it');
     if (s.escort === 'tow') out.push('Goes out to trucks that break down');
     if (s.noFerry) out.push('Too long for car ferries');

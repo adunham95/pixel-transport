@@ -29,8 +29,8 @@ function entry(spec, paint = null) {
 
 // ---------- company colors ----------
 
-// glass, lamps and tyres keep their colors whatever the paint
-const KEEP = new Set(['#9fd0ff', '#fff3a8', '#ffe7a3', '#5ab4e6', '#7fa8c8', '#23344f', '#23262b', '#1c1b1f']);
+// glass, lamps (with the teal ones of self-driving vehicles) and tyres keep their colors whatever the paint
+const KEEP = new Set(['#9fd0ff', '#fff3a8', '#5ff0d8', '#ffe7a3', '#5ab4e6', '#7fa8c8', '#23344f', '#23262b', '#1c1b1f']);
 const COLOR = /#[0-9a-fA-F]{6}\b|rgb\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*\)/g;
 
 function rgbOf(c) {

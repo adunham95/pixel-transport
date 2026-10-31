@@ -110,7 +110,7 @@
       {#if perk}<button class="btn small" disabled={game.level < perk.level || game.coins < perk.price} onclick={buyContractsPerk}>{game.level < perk.level ? `Lv ${perk.level}` : `$${fmt(perk.price)}`}</button>{/if}
     </div>
     <div class="row hq">
-      <span class="grow"><b>Auto dispatch</b><small>{game.hqAuto ? 'On. Self-driving vehicles find their own passengers, and rescuers set off for breakdowns on their own.' : 'Unlocks self-driving vehicles that find their own passengers, and sends rescuers out to breakdowns on their own.'}</small></span>
+      <span class="grow"><b>Auto dispatch</b><small>{game.hqAuto ? 'On. Self-driving vehicles find their own jobs, and rescuers set off for breakdowns on their own.' : 'Unlocks self-driving vehicles that find their own jobs, and sends rescuers out to breakdowns on their own.'}</small></span>
       {#if !game.hqAuto}<button class="btn small" disabled={game.level < HQ.auto.level || game.coins < HQ.auto.price} onclick={buyAutoPerk}>{game.level < HQ.auto.level ? `Lv ${HQ.auto.level}` : `$${fmt(HQ.auto.price)}`}</button>{/if}
     </div>
     <div class="row hq">

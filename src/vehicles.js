@@ -1602,7 +1602,7 @@ export const BARGES = {
 // superload: true means it carries nothing but one superload at a time, which brings its own
 // trailer (see SUPERLOAD_TRAILERS below). escortedBy: an escort kind that can ride along if you like
 // (valuables pay more with one).
-// auto: true means it drives itself, finding and carrying its own passengers; it needs the HQ's auto
+// auto: true means it drives itself, finding and carrying its own jobs of the kinds it holds; it needs the HQ's auto
 // dispatch. celebrity: true means celebrities will ride in it (see CELEB in data.js).
 // pays: { type: n } means those jobs pay n times as much on board. factoryPaint: true keeps its own
 // colors when the fleet is in company colors (escorts always do). amphibious: true means it can also
@@ -1904,7 +1904,7 @@ export const TRUCKS = {
       <rect x="-2.6" y="-1.4" width="5.2" height="2.8" rx="0.9" fill="#eef1f4" stroke="rgba(18,24,38,0.9)" stroke-width="0.55"/>
       <rect x="-1.9" y="-1" width="3.8" height="2" rx="0.5" fill="#23344f"/>
       <rect x="-1.6" y="-0.75" width="3.2" height="0.35" rx="0.15" fill="#5d7fa8"/>
-      <g fill="#2fb8a8"><rect x="-2.45" y="-0.8" width="0.3" height="1.6" rx="0.1"/><rect x="2.15" y="-0.8" width="0.3" height="1.6" rx="0.1"/></g>
+      <g fill="#5ff0d8"><rect x="-2.45" y="-0.8" width="0.3" height="1.6" rx="0.1"/><rect x="2.15" y="-0.8" width="0.3" height="1.6" rx="0.1"/></g>
       <g fill="#3a3f47"><circle cx="-2.1" cy="-1.15" r="0.22"/><circle cx="2.1" cy="-1.15" r="0.22"/><circle cx="-2.1" cy="1.15" r="0.22"/><circle cx="2.1" cy="1.15" r="0.22"/></g>
     </svg>`,
   },
@@ -1928,7 +1928,127 @@ export const TRUCKS = {
       <circle cx="-0.6" cy="0" r="0.62" fill="#3a3f47" stroke="rgba(18,24,38,0.9)" stroke-width="0.2"/>
       <circle cx="-0.6" cy="0" r="0.3" fill="#5d7fa8"/>
       <g fill="#3a3f47"><rect x="1.5" y="-1.6" width="0.45" height="0.3" rx="0.1"/><rect x="1.5" y="1.3" width="0.45" height="0.3" rx="0.1"/><rect x="3" y="-0.25" width="0.25" height="0.5" rx="0.1"/></g>
-      <g fill="#fff3a8"><rect x="2.8" y="-1.05" width="0.3" height="0.35"/><rect x="2.8" y="0.7" width="0.3" height="0.35"/></g>
+      <g fill="#5ff0d8"><rect x="2.8" y="-1.05" width="0.3" height="0.35"/><rect x="2.8" y="0.7" width="0.3" height="0.35"/></g>
+    </svg>`,
+  },
+  // self-driving freight: first and last mile for every other kind of job, to and from your
+  // repeating routes. Each has the roof lidar and teal lamps (#5ff0d8, kept through any paint) of the robotaxi.
+  autovan: {
+    name: "Self-Driving Van",
+    short: "Auto Van",
+    level: 8,
+    price: 5500,
+    cap: { cargo: 3, mail: 3 },
+    auto: true,
+    maxCars: 0,
+    speed: 7,
+    run: 0.02,
+    deck: 1,
+    pips: 3,
+    art: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-3.8 -1.9 7.6 3.8">
+      <path d="M-3 -1.5H1.9Q3.4 -1.5 3.4 0Q3.4 1.5 1.9 1.5H-3A0.4 0.4 0 0 1 -3.4 1.1V-1.1A0.4 0.4 0 0 1 -3 -1.5Z" fill="#eef1f4" stroke="rgba(18,24,38,0.9)" stroke-width="0.6" stroke-linejoin="round"/>
+      <rect x="-3.1" y="-1.2" width="4" height="2.4" rx="0.3" fill="#ffffff"/>
+      <rect x="-3.1" y="-0.15" width="4" height="0.3" fill="#2fb8a8"/>
+      <circle cx="-1.1" cy="0" r="0.6" fill="#3a3f47" stroke="rgba(18,24,38,0.9)" stroke-width="0.2"/>
+      <circle cx="-1.1" cy="0" r="0.28" fill="#5d7fa8"/>
+      <path d="M1.1 -1.3Q2.6 -1.25 2.75 0Q2.6 1.25 1.1 1.3L1.5 0.85Q2.15 0.75 2.2 0Q2.15 -0.75 1.5 -0.85Z" fill="#23344f"/>
+      <g fill="#5ff0d8"><rect x="-3.3" y="-0.8" width="0.28" height="1.6" rx="0.1"/><rect x="2.9" y="-1.05" width="0.3" height="0.4" rx="0.1"/><rect x="2.9" y="0.65" width="0.3" height="0.4" rx="0.1"/></g>
+      <g fill="#23262b"><rect x="1" y="-1.75" width="0.4" height="0.28" rx="0.1"/><rect x="1" y="1.47" width="0.4" height="0.28" rx="0.1"/></g>
+    </svg>`,
+  },
+  autobox: {
+    name: "Self-Driving Box Truck",
+    short: "Auto Box",
+    level: 9,
+    price: 8000,
+    cap: { cargo: 6 },
+    auto: true,
+    maxCars: 0,
+    speed: 6,
+    run: 0.04,
+    deck: 2,
+    pips: 3,
+    art: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-4.4 -1.9 8.8 3.8">
+      <path d="M1.6 -1.3H3.2A0.8 0.8 0 0 1 4 -0.5V0.5A0.8 0.8 0 0 1 3.2 1.3H1.6Z" fill="#f4f6f8" stroke="rgba(18,24,38,0.9)" stroke-width="0.6" stroke-linejoin="round"/>
+      <rect x="3.1" y="-1" width="0.45" height="2" fill="#9fd0ff"/>
+      <circle cx="2.3" cy="0" r="0.48" fill="#3a3f47" stroke="rgba(18,24,38,0.9)" stroke-width="0.2"/>
+      <circle cx="2.3" cy="0" r="0.22" fill="#5d7fa8"/>
+      <g fill="#5ff0d8"><rect x="3.65" y="-1" width="0.3" height="0.35" rx="0.1"/><rect x="3.65" y="0.65" width="0.3" height="0.35" rx="0.1"/></g>
+      <rect x="-4" y="-1.55" width="5.4" height="3.1" rx="0.3" fill="#dfe4ea" stroke="rgba(18,24,38,0.9)" stroke-width="0.6"/>
+      <g fill="#c7ced6"><rect x="-2.9" y="-1.55" width="0.2" height="3.1"/><rect x="-1.6" y="-1.55" width="0.2" height="3.1"/><rect x="-0.3" y="-1.55" width="0.2" height="3.1"/></g>
+      <rect x="-4" y="-0.18" width="5.4" height="0.36" fill="#2fb8a8"/>
+    </svg>`,
+  },
+  autotanker: {
+    name: "Self-Driving Tanker",
+    short: "Auto Tanker",
+    level: 9,
+    price: 8500,
+    cap: { fuel: 3 },
+    auto: true,
+    maxCars: 0,
+    speed: 6,
+    run: 0.05,
+    deck: 2,
+    pips: 3,
+    art: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-4.4 -1.9 8.8 3.8">
+      <path d="M1.6 -1.3H3.2A0.8 0.8 0 0 1 4 -0.5V0.5A0.8 0.8 0 0 1 3.2 1.3H1.6Z" fill="#f4f6f8" stroke="rgba(18,24,38,0.9)" stroke-width="0.6" stroke-linejoin="round"/>
+      <rect x="3.1" y="-1" width="0.45" height="2" fill="#9fd0ff"/>
+      <circle cx="2.3" cy="0" r="0.48" fill="#3a3f47" stroke="rgba(18,24,38,0.9)" stroke-width="0.2"/>
+      <circle cx="2.3" cy="0" r="0.22" fill="#5d7fa8"/>
+      <g fill="#5ff0d8"><rect x="3.65" y="-1" width="0.3" height="0.35" rx="0.1"/><rect x="3.65" y="0.65" width="0.3" height="0.35" rx="0.1"/></g>
+      <rect x="-4" y="-1.5" width="5.5" height="3" rx="1.4" fill="#c9ced4" stroke="rgba(18,24,38,0.9)" stroke-width="0.6"/>
+      <rect x="-3.5" y="-1.05" width="4.5" height="0.45" rx="0.22" fill="#eef1f4"/>
+      <rect x="-3.5" y="-0.15" width="4.5" height="0.3" fill="#2fb8a8"/>
+      <circle cx="-1.25" cy="0" r="0.4" fill="#6d7680"/>
+    </svg>`,
+  },
+  autodump: {
+    name: "Self-Driving Dump Truck",
+    short: "Auto Dump",
+    level: 9,
+    price: 8000,
+    cap: { bulk: 4 },
+    auto: true,
+    maxCars: 0,
+    speed: 5.5,
+    run: 0.05,
+    deck: 2,
+    pips: 3,
+    art: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-4.4 -1.9 8.8 3.8">
+      <path d="M1.6 -1.3H3.2A0.8 0.8 0 0 1 4 -0.5V0.5A0.8 0.8 0 0 1 3.2 1.3H1.6Z" fill="#f4f6f8" stroke="rgba(18,24,38,0.9)" stroke-width="0.6" stroke-linejoin="round"/>
+      <rect x="3.1" y="-1" width="0.45" height="2" fill="#9fd0ff"/>
+      <circle cx="2.3" cy="0" r="0.48" fill="#3a3f47" stroke="rgba(18,24,38,0.9)" stroke-width="0.2"/>
+      <circle cx="2.3" cy="0" r="0.22" fill="#5d7fa8"/>
+      <g fill="#5ff0d8"><rect x="3.65" y="-1" width="0.3" height="0.35" rx="0.1"/><rect x="3.65" y="0.65" width="0.3" height="0.35" rx="0.1"/></g>
+      <path d="M-4 -1.55H1.4V1.55H-4L-3.6 0Z" fill="#dfe4ea" stroke="rgba(18,24,38,0.9)" stroke-width="0.6" stroke-linejoin="round"/>
+      <path d="M-3.2 -1.1H1V1.1H-3.2Q-3.5 0 -3.2 -1.1Z" fill="#8b7355"/>
+      <g fill="#a68b62">${[[-2.5, -0.5], [-1.5, 0.4], [-0.6, -0.3], [0.3, 0.5], [-2, 0.6]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r="0.28"/>`).join("")}</g>
+      <rect x="1.1" y="-1.55" width="0.3" height="3.1" fill="#2fb8a8"/>
+    </svg>`,
+  },
+  autoarmored: {
+    name: "Self-Driving Armored Car",
+    short: "Auto Armored",
+    level: 11,
+    price: 12000,
+    cap: { secure: 2 },
+    auto: true,
+    maxCars: 0,
+    speed: 7,
+    run: 0.04,
+    deck: 1,
+    pips: 3,
+    art: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-3.4 -1.8 6.8 3.6">
+      <rect x="-3" y="-1.45" width="6" height="2.9" rx="0.5" fill="#c9ced4" stroke="rgba(18,24,38,0.9)" stroke-width="0.6"/>
+      <rect x="-2.7" y="-1.1" width="3.6" height="2.2" rx="0.3" fill="#dfe4ea"/>
+      <g fill="#8a939c">${[-2.3, -1.3, -0.3, 0.7].map((x) => `<circle cx="${x}" cy="-0.85" r="0.13"/><circle cx="${x}" cy="0.85" r="0.13"/>`).join("")}</g>
+      <rect x="-1.9" y="-0.45" width="1.4" height="0.9" rx="0.15" fill="#a8801a"/>
+      <circle cx="0.35" cy="0" r="0.5" fill="#3a3f47" stroke="rgba(18,24,38,0.9)" stroke-width="0.2"/>
+      <circle cx="0.35" cy="0" r="0.23" fill="#5d7fa8"/>
+      <rect x="1.4" y="-1.1" width="0.5" height="2.2" fill="#7fa8c8"/>
+      <rect x="2" y="-1.15" width="0.7" height="2.3" fill="#c9ced4"/>
+      <g fill="#5ff0d8"><rect x="2.7" y="-1.1" width="0.3" height="0.4" rx="0.1"/><rect x="2.7" y="0.7" width="0.3" height="0.4" rx="0.1"/><rect x="-3.2" y="-0.7" width="0.25" height="1.4" rx="0.1"/></g>
     </svg>`,
   },
   pilot: {
