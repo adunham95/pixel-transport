@@ -190,7 +190,7 @@
     {#if ui.repeat}
       <label class="row repeat">
         <input type="checkbox" bind:checked={ui.relay} />
-        <span class="grow"><b>Fill up with transfers</b><small>Any room left goes to jobs headed off the loop. They’re dropped at the stop nearest where they’re going, for another vehicle to take the rest of the way, and pay when they get there.</small></span>
+        <span class="grow"><b>Fill up with transfers</b><small>Any room left goes to jobs headed off the loop that your other repeating routes, or self-driving vehicles, can take the rest of the way. They’re dropped where the next one picks them up, and pay when they get there.</small></span>
       </label>
     {/if}
   {:else}

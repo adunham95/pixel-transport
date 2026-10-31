@@ -4,6 +4,9 @@ import { seaLane } from './sea.js';
 const KEY = 'pixel-transport-save-v1';
 // a repeating vehicle with nothing to carry anywhere on its loop checks again this often (game time)
 const LOOP_WAIT = 30 * 1000;
+// a self-driving vehicle leaves a job for a repeating route as long as the route gets it there no
+// more than this many times as long as driving it there itself would, since that frees it up
+const LOOP_SLACK = 1.25;
 const JOB_CAP = 6;
 // a job left waiting at its town this long (game time) goes elsewhere, so towns can't clog up
 export const JOB_TTL = 15 * 60 * 1000;
@@ -259,9 +262,10 @@ export function canReach(v, to) {
   return reachCache.get(key).has(to);
 }
 
-// visit every on-board destination, nearest first, adding fuel stops where needed
+// visit every on-board destination (or the town a job is being taken to for a transfer), nearest
+// first, adding fuel stops where needed
 export function autoPlan(v) {
-  const left = new Set(v.cargo.map((j) => j.to).filter((to) => canReach(v, to)));
+  const left = new Set(v.cargo.map((j) => j.hop ?? j.to).filter((to) => canReach(v, to)));
   const stops = [];
   let at = v.city;
   while (left.size) {
@@ -676,7 +680,8 @@ export const brokenVehicles = () => game.vehicles.filter((v) => v.broken);
 // with auto dispatch, a parked self-driving vehicle loads any passengers it can take here and sets
 // off; with none here, it drives empty to the nearest town with passengers waiting that no other
 // self-driving vehicle is already headed to, going first to towns with passengers left there
-// partway through their trip. With nowhere to go it checks again in a while.
+// partway through their trip. Passengers it can't drive all the way it takes to where your
+// repeating routes pick them up (see feedStop). With nowhere to go it checks again in a while.
 function tickAuto(now) {
   if (!game.hqAuto) return;
   for (const v of game.vehicles) {
@@ -685,13 +690,16 @@ function tickAuto(now) {
     quiet = true;
     try {
       delete v.autoTo;
-      if (!v.cargo.length) autoLoad(v);
+      if (!v.cargo.length) { autoLoad(v); feedLoad(v); }
       if (v.cargo.length) { const stops = autoPlan(v); if (stops.length && dispatch(v, stops)) continue; }
       const headed = new Set(game.vehicles.filter((x) => x !== v && x.autoTo).map((x) => x.autoTo));
-      const taken = fetching();
-      const wants = (j) => j.type === 'pax' && !taken.has(j.id) && !j.celeb && canReach(v, j.to);
-      const best = CITIES.filter((c) => c.id !== v.city && !headed.has(c.id) && isOpen(c.id) && game.jobs[c.id].some(wants))
-        .map((c) => ({ c, l: leg(v, v.city, c.id), relay: game.jobs[c.id].some((j) => j.from !== c.id && wants(j)) })).filter((o) => o.l)
+      const taken = fetching(), rides = routing();
+      const wants = (c) => {
+        const lead = leg(v, v.city, c.id)?.time ?? Infinity;
+        return (j) => j.type === 'pax' && !taken.has(j.id) && !j.celeb && !loopTakes(j, c.id, rides(j), v, lead) && (canReach(v, j.to) || !!feedStop(v, j, rides(j), c.id));
+      };
+      const best = CITIES.filter((c) => c.id !== v.city && !headed.has(c.id) && isOpen(c.id) && game.jobs[c.id].some(wants(c)))
+        .map((c) => ({ c, l: leg(v, v.city, c.id), relay: game.jobs[c.id].some((j) => j.from !== c.id && wants(c)(j)) })).filter((o) => o.l)
         .sort((a, b) => b.relay - a.relay || a.l.len - b.l.len)[0];
       if (best && dispatch(v, [best.c.id])) v.autoTo = best.c.id;
       else v.autoWait = now + 20000;
@@ -1447,9 +1455,10 @@ export function unloadJob(v, job) {
 const loadOrder = (at) => (a, b) => (b.from !== at) - (a.from !== at) || b.pay - a.pay;
 
 export function autoLoad(v) {
-  // only jobs this vehicle can get to their destination
-  const taken = fetching();
-  const list = [...game.jobs[v.city]].filter((j) => canReach(v, j.to) && !taken.has(j.id)).sort(loadOrder(v.city));
+  // only jobs this vehicle can get to their destination. A self-driving one leaves any a repeating
+  // route here will carry on about as quickly, so the loops do the long runs and it finishes them off
+  const taken = fetching(), rides = spec(v).auto && routing();
+  const list = [...game.jobs[v.city]].filter((j) => canReach(v, j.to) && !taken.has(j.id) && !(rides && loopTakes(j, v.city, rides(j), v))).sort(loadOrder(v.city));
   let n = 0;
   for (const j of list) if (canLoad(v, j)) { loadJob(v, j); n++; }
   if (!n) toast(list.length ? 'Nothing more fits on board' : `No jobs here that ${v.name} can deliver`);
@@ -1595,23 +1604,110 @@ function collect(v, at, id, next) {
 
 // ---------- repeating routes ----------
 
-// can a job left at one town still get on to another from there: overland, or port to port or
-// airport to airport
-const onward = (a, b) => { const A = cityById[a], B = cityById[b]; return sameLand(A, B) || (A.port && B.port) || (A.air && B.air); };
+// can this vehicle ever carry a job like this one (room aside)
+const carries = (x, j) => !j.escort && capacity(x)[j.type] > 0 && (!j.celeb || !!spec(x).celebrity);
 
-// for a job headed off the loop: the stop on it nearest the job's destination, to leave it at for
-// something else to take the rest of the way. Null unless that's nearer than here, so a job only
-// ever moves closer and never bounces between loops.
-function relayStop(v, j, at) {
-  let best = null;
-  for (const id of v.loop.stops) if (id !== at && onward(id, j.to) && (best === null || dist(id, j.to) < dist(best, j.to))) best = id;
-  return best && dist(best, j.to) < dist(at, j.to) ? best : null;
+// how many more rides a job needs from each town to get where it's going, on your network of
+// repeating routes: 1 from any stop on a loop that goes there, or from anywhere a self-driving
+// vehicle can drive it, and one more for each loop with transfers on that links a town to one
+// already counted. Towns left out can't get it there without you.
+function ridesTo(j) {
+  const R = { [j.to]: 0 }, loops = game.vehicles.filter((x) => x.loop && carries(x, j));
+  const reach = (ids, n) => ids.filter((id) => R[id] == null && (R[id] = n));
+  let front = loops.filter((x) => x.loop.stops.includes(j.to)).flatMap((x) => reach(x.loop.stops, 1));
+  const taxis = game.hqAuto ? game.vehicles.filter((x) => spec(x).auto && carries(x, j)).map((x) => x.city ?? x.trip?.to).filter(Boolean) : [];
+  if (taxis.some((t) => t === j.to || roadPath(t, j.to))) front.push(...reach(CITIES.filter((c) => roadPath(c.id, j.to)).map((c) => c.id), 1));
+  const relays = loops.filter((x) => x.loop.relay);
+  for (let n = 2; front.length; n++) {
+    const was = new Set(front);
+    front = relays.filter((x) => x.loop.stops.some((id) => was.has(id))).flatMap((x) => reach(x.loop.stops, n));
+  }
+  return R;
+}
+// ridesTo, worked out once for each kind of job and destination
+function routing() {
+  const memo = new Map();
+  return (j) => {
+    const k = `${j.type}${j.celeb ? '*' : ''}>${j.to}`;
+    if (!memo.has(k)) memo.set(k, ridesTo(j));
+    return memo.get(k);
+  };
 }
 
-// load jobs here that are headed somewhere else on the loop (in loadOrder), then fill any room
-// left with jobs headed off it, to drop at the stop nearest where they're going, if it relays
+// for a job headed off the loop: the stop on it to leave the job at for the next route to take on,
+// one on a way there with the fewest rides (nearest its destination when there's a choice). Null
+// unless that stop needs fewer rides from it than here, or as many but nearer where it's going (so a
+// maglev still runs passengers most of the way for a robotaxi to finish). Either way a job always
+// gets closer, and never goes in circles.
+function relayStop(v, j, at, R) {
+  let best = null;
+  for (const id of v.loop.stops) if (id !== at && R[id] != null && (best === null || R[id] < R[best] || (R[id] === R[best] && dist(id, j.to) < dist(best, j.to)))) best = id;
+  return best && R[at] != null && (R[best] < R[at] || (R[best] === R[at] && dist(best, j.to) < dist(at, j.to))) ? best : null;
+}
+
+// how long until a looping vehicle next gets to one of its stops, and then from there on to a
+// later one, in seconds of game time from now, going by its route as it is now. Null if it can't.
+function loopEta(x, at, to) {
+  const stops = x.loop.stops, n = stops.length, now = gameNow();
+  // where it next pulls in and when: the end of the leg it's on, or home where it's waiting
+  let i = x.trip ? n - 1 - (x.next?.length ?? 0) : n - 1;
+  let t = x.trip ? (tripEnd(x) - now) / 1000 : Math.max(0, (x.loop.wait ?? now) - now) / 1000;
+  let place = x.trip ? x.trip.to : x.city, wait = null;
+  for (let k = 0; k <= 2 * n; k++) {
+    if (wait == null && place === at) wait = t;
+    else if (wait != null && place === to) return { wait, ride: t - wait };
+    i = (i + 1) % n;
+    const l = leg(x, place, stops[i]);
+    if (!l) return null;
+    t += l.time;
+    place = stops[i];
+  }
+  return null;
+}
+
+// will a repeating route that stops here take this job on: straight to where it's going, or (with
+// transfers on) to a stop nearer it. Self-driving vehicles leave those jobs to the loop, unless v
+// (a self-driving vehicle lead seconds away from here) could drive it there itself well before
+// the loop would get it there (see LOOP_SLACK), counting the drive on from where the loop leaves it.
+function loopTakes(j, at, R, v = null, lead = 0) {
+  const direct = v && leg(v, at, j.to);
+  return game.vehicles.some((x) => {
+    if (!x.loop?.stops.includes(at) || !carries(x, j)) return false;
+    const hop = x.loop.stops.includes(j.to) ? j.to : x.loop.relay && relayStop(x, j, at, R);
+    if (!hop) return false;
+    if (!direct) return true;
+    const eta = loopEta(x, at, hop), rest = hop === j.to ? 0 : leg(v, hop, j.to)?.time;
+    return !!eta && rest != null && eta.wait + eta.ride + rest <= (lead + direct.time) * LOOP_SLACK;
+  });
+}
+
+// for a self-driving vehicle with a job it can't drive all the way: the town to take it to for your
+// repeating routes to carry it on, the one needing the fewest rides from there and then the nearest
+// to from. Null if a route already takes it from where it is, or none can be driven to (they keep to
+// the roads).
+function feedStop(v, j, R, from = v.city) {
+  if (R[from] != null) return null;
+  let best = null;
+  for (const id in R) if (R[id] > 0 && isOpen(id) && roadPath(from, id) && (best === null || R[id] < R[best] || (R[id] === R[best] && dist(from, id) < dist(from, best)))) best = id;
+  return best;
+}
+
+// fill any room left on a self-driving vehicle with passengers here it can't get all the way, to take
+// to where your repeating routes pick them up
+function feedLoad(v) {
+  const list = game.jobs[v.city], taken = fetching(), rides = routing();
+  for (const j of [...list].sort(loadOrder(v.city))) {
+    const hop = !taken.has(j.id) && !canReach(v, j.to) && canLoad(v, j) && feedStop(v, j, rides(j));
+    if (!hop) continue;
+    list.splice(list.indexOf(j), 1);
+    v.cargo.push(Object.assign(j, { hop }));
+  }
+}
+
+// load jobs here that are headed somewhere else on the loop (in loadOrder), then, if it relays, fill
+// any room left with jobs headed off it that the rest of the network can take on from one of its stops
 function pickUp(v, at) {
-  const ring = new Set(v.loop.stops), list = game.jobs[at], taken = fetching();
+  const ring = new Set(v.loop.stops), list = game.jobs[at], taken = fetching(), rides = routing();
   const waiting = () => [...list].filter((j) => j.to !== at && !taken.has(j.id) && !j.escort).sort(loadOrder(at));
   for (const j of waiting()) {
     if (!ring.has(j.to) || !canLoad(v, j)) continue;
@@ -1619,7 +1715,7 @@ function pickUp(v, at) {
     v.cargo.push(j);
   }
   if (v.loop.relay) for (const j of waiting()) {
-    const hop = !ring.has(j.to) && canLoad(v, j) && relayStop(v, j, at);
+    const hop = !ring.has(j.to) && canLoad(v, j) && relayStop(v, j, at, rides(j));
     if (!hop) continue;
     list.splice(list.indexOf(j), 1);
     v.cargo.push(Object.assign(j, { hop }));
@@ -1628,8 +1724,8 @@ function pickUp(v, at) {
 
 // is there anything waiting anywhere on the loop that this vehicle could carry along it?
 function loopHasWork(v) {
-  const ring = new Set(v.loop.stops), cap = capacity(v), taken = fetching();
-  return v.loop.stops.some((id) => game.jobs[id].some((j) => j.to !== id && (ring.has(j.to) || (v.loop.relay && relayStop(v, j, id))) && !taken.has(j.id) && cap[j.type] > 0));
+  const ring = new Set(v.loop.stops), taken = fetching(), rides = routing();
+  return v.loop.stops.some((id) => game.jobs[id].some((j) => j.to !== id && !taken.has(j.id) && carries(v, j) && (ring.has(j.to) || (v.loop.relay && relayStop(v, j, id, rides(j))))));
 }
 
 // start another lap from home, or wait a while if there's nothing to carry
