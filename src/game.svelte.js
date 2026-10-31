@@ -393,7 +393,7 @@ const loaded = load();
 export const game = $state(loaded ?? fresh());
 relink();
 export const ui = $state({
-  tab: 'city', sheetOpen: true, activeVehicle: null, picking: false, plan: [], repeat: false, escort: false, sendJob: null,
+  tab: 'city', sheetOpen: true, activeVehicle: null, picking: false, plan: [], repeat: false, relay: false, escort: false, sendJob: null,
   focusVehicle: null, toasts: [], focus: null, follow: null, track: null, shopTab: 'plane', shopType: null, shopMore: false, queue: null, fleetFind: '', fleetKind: null, fleetStatus: null,
 });
 // Game time runs ahead of the wall clock when dev mode speeds it up. The extra is kept
@@ -497,6 +497,8 @@ function dropOff(v, to, at = gameNow()) {
   };
   v.cargo = v.cargo.filter((j) => {
     if (j.to === to) { total += pay(j); n++; grow(j.to); grow(j.from); countToward(j, at); countProject(j); return false; }
+    // carried part of the way on a loop: left here for something else to take on, paid when it gets there
+    if (j.hop === to) { delete j.hop; if (j.from === to) j.at = at; game.jobs[to].push(j); return false; }
     return true;
   });
   if (n) { earn(total); books(v).earned += total; }
@@ -673,7 +675,8 @@ export const brokenVehicles = () => game.vehicles.filter((v) => v.broken);
 
 // with auto dispatch, a parked self-driving vehicle loads any passengers it can take here and sets
 // off; with none here, it drives empty to the nearest town with passengers waiting that no other
-// self-driving vehicle is already headed to. With nowhere to go it checks again in a while.
+// self-driving vehicle is already headed to, going first to towns with passengers left there
+// partway through their trip. With nowhere to go it checks again in a while.
 function tickAuto(now) {
   if (!game.hqAuto) return;
   for (const v of game.vehicles) {
@@ -686,8 +689,10 @@ function tickAuto(now) {
       if (v.cargo.length) { const stops = autoPlan(v); if (stops.length && dispatch(v, stops)) continue; }
       const headed = new Set(game.vehicles.filter((x) => x !== v && x.autoTo).map((x) => x.autoTo));
       const taken = fetching();
-      const best = CITIES.filter((c) => c.id !== v.city && !headed.has(c.id) && isOpen(c.id) && game.jobs[c.id].some((j) => j.type === 'pax' && j.from === c.id && !taken.has(j.id) && !j.celeb && canReach(v, j.to)))
-        .map((c) => ({ c, l: leg(v, v.city, c.id) })).filter((o) => o.l).sort((a, b) => a.l.len - b.l.len)[0];
+      const wants = (j) => j.type === 'pax' && !taken.has(j.id) && !j.celeb && canReach(v, j.to);
+      const best = CITIES.filter((c) => c.id !== v.city && !headed.has(c.id) && isOpen(c.id) && game.jobs[c.id].some(wants))
+        .map((c) => ({ c, l: leg(v, v.city, c.id), relay: game.jobs[c.id].some((j) => j.from !== c.id && wants(j)) })).filter((o) => o.l)
+        .sort((a, b) => b.relay - a.relay || a.l.len - b.l.len)[0];
       if (best && dispatch(v, [best.c.id])) v.autoTo = best.c.id;
       else v.autoWait = now + 20000;
     } finally { quiet = was; }
@@ -1431,15 +1436,20 @@ export function unloadJob(v, job) {
   const i = v.cargo.findIndex((j) => j.id === job.id);
   if (i < 0) return;
   const [j] = v.cargo.splice(i, 1);
+  delete j.hop;
   // put back at its own town, it gets a fresh wait
   if (j.from === v.city) j.at = gameNow();
   game.jobs[v.city].push(j);
 }
 
+// the order vehicles load jobs waiting at a town on their own: ones left here partway through
+// their trip first, so they don't get stuck behind fresh ones, then best paying
+const loadOrder = (at) => (a, b) => (b.from !== at) - (a.from !== at) || b.pay - a.pay;
+
 export function autoLoad(v) {
-  // only jobs this vehicle can get to their destination, best paying first
+  // only jobs this vehicle can get to their destination
   const taken = fetching();
-  const list = [...game.jobs[v.city]].filter((j) => canReach(v, j.to) && !taken.has(j.id)).sort((a, b) => b.pay - a.pay);
+  const list = [...game.jobs[v.city]].filter((j) => canReach(v, j.to) && !taken.has(j.id)).sort(loadOrder(v.city));
   let n = 0;
   for (const j of list) if (canLoad(v, j)) { loadJob(v, j); n++; }
   if (!n) toast(list.length ? 'Nothing more fits on board' : `No jobs here that ${v.name} can deliver`);
@@ -1462,8 +1472,9 @@ export function loopStops(v, stops) {
 // fuel for the whole route is paid up front. With repeat, the vehicle comes back to where it
 // started and goes round again; lap is for those later laps, which set off at a given time quietly.
 // escort: take along the optional escort parked here (see optionalEscort); on later laps it just
-// comes if it's still free
-export function dispatch(v, stops, { repeat = false, lap = null, escort = false } = {}) {
+// comes if it's still free. relay: a repeating route also carries jobs headed off the loop part of
+// the way (see relayStop)
+export function dispatch(v, stops, { repeat = false, lap = null, escort = false, relay = false } = {}) {
   if (repeat && !game.repeatRoutes) { toast('Build an HQ to unlock repeating routes', 'bad'); return false; }
   if (repeat) stops = loopStops(v, stops);
   // a carrier takes the planes that need it along, and waits for any still flying in to land
@@ -1508,7 +1519,7 @@ export function dispatch(v, stops, { repeat = false, lap = null, escort = false 
   rollBreakdown(v);
   v.next = rest;
   v.depart = { from: v.city, at: v.trip.startAt, len: legs.reduce((s, l) => s + l.len, 0) };
-  if (repeat) v.loop = escort ? { stops, escort } : { stops };
+  if (repeat) v.loop = { stops, ...(escort && { escort }), ...(relay && { relay }) };
   else if (lap == null) delete v.loop;
   v.city = null;
   if (lap == null) toast(repeat ? `${v.name} is running a ${legs.length} stop loop. Fuel $${fmt(cost)} a lap` : rest.length ? `${v.name} left on a ${legs.length} stop route. Fuel $${fmt(cost)}` : `${v.name} left for ${cityById[first.to].name}. Fuel $${cost}`);
@@ -1575,7 +1586,7 @@ function collect(v, at, id, next) {
   const list = game.jobs[at], i = list.findIndex((j) => j.id === id);
   if (i >= 0 && canLoad(v, list[i])) v.cargo.push(...list.splice(i, 1));
   const ahead = new Set([next, ...(v.next ?? [])].filter(Boolean).map((l) => l.to)), taken = fetching();
-  for (const j of [...list].sort((a, b) => b.pay - a.pay)) {
+  for (const j of [...list].sort(loadOrder(at))) {
     if (!ahead.has(j.to) || taken.has(j.id) || j.escort || !canLoad(v, j)) continue;
     list.splice(list.indexOf(j), 1);
     v.cargo.push(j);
@@ -1584,20 +1595,41 @@ function collect(v, at, id, next) {
 
 // ---------- repeating routes ----------
 
-// load jobs here that are headed somewhere else on the loop, best paying first
+// can a job left at one town still get on to another from there: overland, or port to port or
+// airport to airport
+const onward = (a, b) => { const A = cityById[a], B = cityById[b]; return sameLand(A, B) || (A.port && B.port) || (A.air && B.air); };
+
+// for a job headed off the loop: the stop on it nearest the job's destination, to leave it at for
+// something else to take the rest of the way. Null unless that's nearer than here, so a job only
+// ever moves closer and never bounces between loops.
+function relayStop(v, j, at) {
+  let best = null;
+  for (const id of v.loop.stops) if (id !== at && onward(id, j.to) && (best === null || dist(id, j.to) < dist(best, j.to))) best = id;
+  return best && dist(best, j.to) < dist(at, j.to) ? best : null;
+}
+
+// load jobs here that are headed somewhere else on the loop (in loadOrder), then fill any room
+// left with jobs headed off it, to drop at the stop nearest where they're going, if it relays
 function pickUp(v, at) {
   const ring = new Set(v.loop.stops), list = game.jobs[at], taken = fetching();
-  for (const j of [...list].sort((a, b) => b.pay - a.pay)) {
-    if (j.to === at || !ring.has(j.to) || taken.has(j.id) || j.escort || !canLoad(v, j)) continue;
+  const waiting = () => [...list].filter((j) => j.to !== at && !taken.has(j.id) && !j.escort).sort(loadOrder(at));
+  for (const j of waiting()) {
+    if (!ring.has(j.to) || !canLoad(v, j)) continue;
     list.splice(list.indexOf(j), 1);
     v.cargo.push(j);
+  }
+  if (v.loop.relay) for (const j of waiting()) {
+    const hop = !ring.has(j.to) && canLoad(v, j) && relayStop(v, j, at);
+    if (!hop) continue;
+    list.splice(list.indexOf(j), 1);
+    v.cargo.push(Object.assign(j, { hop }));
   }
 }
 
 // is there anything waiting anywhere on the loop that this vehicle could carry along it?
 function loopHasWork(v) {
   const ring = new Set(v.loop.stops), cap = capacity(v), taken = fetching();
-  return v.loop.stops.some((id) => game.jobs[id].some((j) => j.to !== id && ring.has(j.to) && !taken.has(j.id) && cap[j.type] > 0));
+  return v.loop.stops.some((id) => game.jobs[id].some((j) => j.to !== id && (ring.has(j.to) || (v.loop.relay && relayStop(v, j, id))) && !taken.has(j.id) && cap[j.type] > 0));
 }
 
 // start another lap from home, or wait a while if there's nothing to carry
@@ -1605,7 +1637,7 @@ function runLoop(v, at) {
   delete v.loop.wait;
   pickUp(v, v.city);
   if (!v.cargo.length && !loopHasWork(v)) { v.loop.wait = at + LOOP_WAIT; return; }
-  if (!dispatch(v, v.loop.stops, { repeat: true, lap: at, escort: !!v.loop.escort })) delete v.loop;
+  if (!dispatch(v, v.loop.stops, { repeat: true, lap: at, escort: !!v.loop.escort, relay: !!v.loop.relay })) delete v.loop;
 }
 
 // finish the lap it's on and then stop
@@ -1822,7 +1854,7 @@ export function resetGame() {
   relink();
   skew = 0;
   dev.speed = 1;
-  Object.assign(ui, { tab: 'city', sheetOpen: true, activeVehicle: null, picking: false, plan: [], repeat: false, sendJob: null, focusVehicle: null, follow: null, track: null, focus: { x: cityById[g.selected].x, y: cityById[g.selected].y, t: Date.now() } });
+  Object.assign(ui, { tab: 'city', sheetOpen: true, activeVehicle: null, picking: false, plan: [], repeat: false, relay: false, sendJob: null, focusVehicle: null, follow: null, track: null, focus: { x: cityById[g.selected].x, y: cityById[g.selected].y, t: Date.now() } });
   save();
 }
 

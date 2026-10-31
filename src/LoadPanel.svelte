@@ -98,7 +98,7 @@
     if (escortKind(v)) ui.activeVehicle = null;
   }
   function go() {
-    if (!dispatch(v, ui.plan, { repeat: looping, escort: riding.length > 0 })) return;
+    if (!dispatch(v, ui.plan, { repeat: looping, escort: riding.length > 0, relay: looping && ui.relay })) return;
     ui.picking = false; ui.activeVehicle = null; ui.plan = [];
     nextInQueue();
   }
@@ -187,6 +187,12 @@
       <input type="checkbox" bind:checked={ui.repeat} />
       <span class="grow"><b>Repeat this route</b><small>Picks up jobs for the loop at every stop, comes back to {city.name} and goes round again. Fuel is paid each lap.</small></span>
     </label>
+    {#if ui.repeat}
+      <label class="row repeat">
+        <input type="checkbox" bind:checked={ui.relay} />
+        <span class="grow"><b>Fill up with transfers</b><small>Any room left goes to jobs headed off the loop. They’re dropped at the stop nearest where they’re going, for another vehicle to take the rest of the way, and pay when they get there.</small></span>
+      </label>
+    {/if}
   {:else}
     <div class="row repeat off">
       <span class="grow"><b>Repeating routes</b><small>{game.level < HQ.level ? `Build an HQ from level ${HQ.level} to send vehicles round the same loop on their own.` : 'Build an HQ in any town, from its town page, to send vehicles round the same loop on their own.'}</small></span>
@@ -211,7 +217,7 @@
   {#if v.cargo.length}<h3>On board. Tap to drop off here.</h3>{/if}
   <!-- outside the if, so the very first job loaded still glides up from the waiting list -->
   {#each v.cargo as j (j.id)}
-    <div animate:flip in:receive={{ key: j.id }} out:send={{ key: j.id }}><JobRow job={j} loaded onclick={() => unloadJob(v, j)} action="Drop" note={canReach(v, j.to) ? '' : 'Can’t reach from here'} /></div>
+    <div animate:flip in:receive={{ key: j.id }} out:send={{ key: j.id }}><JobRow job={j} loaded onclick={() => unloadJob(v, j)} action="Drop" note={j.hop ? `Left at ${cityById[j.hop].name} to go on from there` : canReach(v, j.to) ? '' : 'Can’t reach from here'} /></div>
   {/each}
   {#if deck}
     <h3>Vehicle deck ({deckUsed(v)} of {deck} spaces)</h3>
