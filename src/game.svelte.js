@@ -476,9 +476,15 @@ function unlocksAt(level) {
   return out;
 }
 
+// while catching up after time away, the fleet earns XP at a cut rate and can go up at most one level
+const AWAY_XP = 0.5;
+let away = null;
+
 function earn(amount) {
   game.coins += amount;
-  game.xp += Math.max(4, Math.round(amount / 8));
+  const xp = Math.max(4, Math.round(amount / 8));
+  if (away) game.xp = Math.min(away.cap, game.xp + Math.round(xp * AWAY_XP));
+  else game.xp += xp;
   while (game.level < LEVELS.length && game.xp >= LEVELS[game.level]) {
     game.level++;
     const n = unlocksAt(game.level);
@@ -1366,12 +1372,14 @@ let started = false;
 export function start() {
   if (started) return;
   started = true;
-  const before = game.coins;
+  const before = game.coins, xpBefore = game.xp;
   quiet = true;
+  away = { cap: game.level + 1 < LEVELS.length ? Math.max(game.xp, LEVELS[game.level + 1] - 1) : Infinity };
   step();
+  away = null;
   for (const c of CITIES) if (isOpen(c.id) && !c.anchor) for (let i = ownJobs(c.id); i < 4; i++) addJob(c.id);
   quiet = false;
-  if (loaded && game.coins > before) toast(`Welcome back. Your fleet earned $${fmt(game.coins - before)} while you were away.`, 'good');
+  if (loaded && game.coins > before) toast(`Welcome back. Your fleet earned $${fmt(game.coins - before)} and ${fmt(game.xp - xpBefore)} XP while you were away.`, 'good');
   setInterval(() => { clock.now = gameNow(); step(); }, 250);
   setInterval(save, 3000);
   document.addEventListener('visibilitychange', save);
