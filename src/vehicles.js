@@ -737,6 +737,71 @@ export const PLANES = {
       <rect x="6.7" y="-0.85" width="0.6" height="0.4" fill="rgba(170,215,255,0.85)"/>
     </svg>`,
   },
+  ranger: {
+    name: "Ranger",
+    level: 3,
+    price: 2200,
+    pax: 4,
+    cargo: 1,
+    range: 110,
+    speed: 8,
+    fuel: 0.45,
+    pips: 2,
+    deckSpace: 1,
+    color: "#5b6b3a",
+    trim: "#f2c14e",
+    vtol: true,
+    rotors: [
+      [1.2, 0, 6.2],
+      [-9.4, 0.9, 1.2],
+    ],
+    art: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-11 -4 22 8">
+      <g fill="#3a3f47"><rect x="-1.4" y="-2.7" width="7" height="0.45" rx="0.2"/><rect x="-1.4" y="2.25" width="7" height="0.45" rx="0.2"/><rect x="0.2" y="-2.4" width="0.4" height="0.8"/><rect x="3.4" y="-2.4" width="0.4" height="0.8"/><rect x="0.2" y="1.6" width="0.4" height="0.8"/><rect x="3.4" y="1.6" width="0.4" height="0.8"/></g>
+      <path d="M-1 -0.6L-9.4 -0.3L-9.4 0.3L-1 0.6Z" fill="#5b6b3a" stroke="rgba(18,24,38,0.9)" stroke-width="0.5" stroke-linejoin="round"/>
+      <rect x="-6.9" y="-1.6" width="1" height="3.2" rx="0.3" fill="#4a5730" stroke="rgba(18,24,38,0.9)" stroke-width="0.35"/>
+      <rect x="-9.9" y="-0.4" width="0.9" height="0.8" fill="#4a5730"/>
+      <rect x="-9.6" y="-0.3" width="0.5" height="0.6" fill="#f2c14e"/>
+      <path d="M-1.6 -1.8L3.4 -1.8Q6.6 -1.7 6.8 0Q6.6 1.7 3.4 1.8L-1.6 1.8Q-2.2 1.8 -2.2 1.2L-2.2 -1.2Q-2.2 -1.8 -1.6 -1.8Z" fill="#5b6b3a" stroke="rgba(18,24,38,0.9)" stroke-width="0.6" stroke-linejoin="round"/>
+      <rect x="-1.4" y="-1.4" width="6" height="0.4" fill="rgba(255,255,255,0.18)"/>
+      <rect x="-1.6" y="-0.9" width="3" height="1.8" rx="0.5" fill="#4a5730" stroke="rgba(18,24,38,0.9)" stroke-width="0.3"/>
+      <rect x="-2.1" y="-0.4" width="0.6" height="0.8" fill="#2d2a2e"/>
+      <path d="M4.6 -1.4Q6.4 -1.2 6.5 0Q6.4 1.2 4.6 1.4Z" fill="#23344f"/>
+      <rect x="5" y="-1.1" width="0.6" height="0.45" fill="rgba(170,215,255,0.85)"/>
+      <rect x="-5.2" y="-0.28" width="1.2" height="0.56" fill="#f4f6f8"/>
+    </svg>`,
+  },
+  stormbird: {
+    name: "Stormbird",
+    level: 8,
+    price: 11000,
+    pax: 14,
+    cargo: 2,
+    range: 260,
+    speed: 10,
+    fuel: 0.9,
+    pips: 3,
+    deckSpace: 2,
+    color: "#f4f6f8",
+    trim: "#d6453a",
+    vtol: true,
+    rotors: [
+      [1.5, 0, 8],
+      [-12.4, 1.1, 1.6],
+    ],
+    art: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-14 -5 28 10">
+      <g fill="#c9ced4" stroke="rgba(18,24,38,0.9)" stroke-width="0.4"><rect x="-0.4" y="-3.2" width="5" height="1.4" rx="0.6"/><rect x="-0.4" y="1.8" width="5" height="1.4" rx="0.6"/></g>
+      <path d="M-3.8 -1.2L-12.4 -0.45L-12.4 0.45L-3.8 1.2Z" fill="#f4f6f8" stroke="rgba(18,24,38,0.9)" stroke-width="0.55" stroke-linejoin="round"/>
+      <rect x="-11.6" y="-2.3" width="1.1" height="1.9" rx="0.3" fill="#d6453a" stroke="rgba(18,24,38,0.9)" stroke-width="0.3"/>
+      <rect x="-13" y="-0.4" width="0.9" height="0.8" fill="#d6453a"/>
+      <path d="M-3.2 -2.2L5.6 -2.2Q9.4 -2 9.6 0Q9.4 2 5.6 2.2L-3.2 2.2Q-4 2.2 -4 1.4L-4 -1.4Q-4 -2.2 -3.2 -2.2Z" fill="#f4f6f8" stroke="rgba(18,24,38,0.9)" stroke-width="0.6" stroke-linejoin="round"/>
+      <rect x="-3.4" y="-1.8" width="11" height="0.45" fill="rgba(255,255,255,0.7)"/>
+      <rect x="-12" y="-0.2" width="19.4" height="0.4" fill="#d6453a"/>
+      <rect x="-2.6" y="-1.3" width="4.6" height="2.6" rx="0.7" fill="#c9ced4" stroke="rgba(18,24,38,0.9)" stroke-width="0.35"/>
+      <g fill="#2d2a2e"><rect x="-3.1" y="-1" width="0.6" height="0.6"/><rect x="-3.1" y="0.4" width="0.6" height="0.6"/></g>
+      <path d="M7 -1.6Q9.2 -1.4 9.3 0Q9.2 1.4 7 1.6Z" fill="#23344f"/>
+      <rect x="7.4" y="-1.3" width="0.7" height="0.5" fill="rgba(170,215,255,0.85)"/>
+    </svg>`,
+  },
   tandem: {
     name: "Tandem",
     level: 7,
