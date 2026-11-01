@@ -730,9 +730,10 @@ export const CONTRACTS = {
   payUp: 0.1,
 };
 
-// xp needed to reach level i+1
+// xp needed to reach level i+1: a quick first level, then each step about a quarter longer than
+// the last, since a bigger fleet earns faster
 export const LEVELS = [
-  0, 850, 2500, 4400, 6350, 8400, 10850, 13800, 17250, 21350, 26350, 31950,
+  0, 250, 1250, 2750, 4750, 7350, 10650, 14850, 20150, 26850, 35250, 45750,
 ];
 // job types; bulk (coal, grain, ore) turns up in batches and pays less per load
 export const JOB_TYPES = [

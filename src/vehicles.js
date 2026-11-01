@@ -20,7 +20,7 @@ export const ENGINES = {
     level: 1,
     price: 400,
     maxCars: 2,
-    speed: 5,
+    speed: 5.5,
     run: 0.08,
     pips: 1,
     color: "#2d2a2e",
@@ -452,7 +452,7 @@ export const PLANES = {
   sparrow: {
     name: "Sparrow",
     level: 1,
-    price: 600,
+    price: 900,
     pax: 2,
     cargo: 1,
     hold: { mail: 2 },
@@ -1129,7 +1129,7 @@ export const BOATS = {
     level: 1,
     price: 800,
     cap: { pax: 2, cargo: 4, fuel: 0, mail: 2 },
-    speed: 4,
+    speed: 4.5,
     run: 0.04,
     pips: 1,
     art: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-7.5 -3 15 6">

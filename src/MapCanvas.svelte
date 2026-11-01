@@ -908,4 +908,9 @@
   .zoom button:hover:not(:disabled) { background: var(--panel-3); }
   .zoom button:active:not(:disabled) { transform: scale(.9); }
   .zoom button:disabled { color: var(--line-strong); cursor: default; }
+  /* on a phone, smaller and a little see-through so they hide less of the map */
+  @media (max-width: 600px) {
+    .zoom { opacity: .85; }
+    .zoom button { width: 34px; height: 34px; font-size: 19px; }
+  }
 </style>

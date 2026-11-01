@@ -26,10 +26,11 @@
   const active = $derived(game.vehicles.find((v) => v.id === ui.activeVehicle && v.city === c.id));
   const sending = $derived(jobs.find((j) => j.id === ui.sendJob && !fetcher(j)));
   // megaprojects here: the ones started (a bridge ending here, the landmark going up here), and
-  // the ones that could be (bridges ending here, landmarks this town could take)
+  // the ones that could be (bridges ending here, landmarks this town could take) once they're
+  // no more than a level off, so a new player's town page isn't a wall of locked landmarks
   const open = $derived(!c.anchor && isOpen(c.id));
   const projects = $derived(open ? PROJECTS.filter((p) => game.projects[p.id] && projectTowns(p).includes(c.id)) : []);
-  const could = $derived(open ? PROJECTS.filter((p) => !game.projects[p.id] && (p.link ? p.link.includes(c.id) : !landmarkAt(c.id) && !cantHost(p, c))) : []);
+  const could = $derived(open ? PROJECTS.filter((p) => !game.projects[p.id] && p.level <= game.level + 1 && (p.link ? p.link.includes(c.id) : !landmarkAt(c.id) && !cantHost(p, c))) : []);
 </script>
 
 {#if active}

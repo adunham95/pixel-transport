@@ -325,7 +325,9 @@ function jobDests(g, A, type, lean = null) {
 // a new job at an unlocked town, headed to another unlocked town (null if there's nowhere to go)
 function makeJob(g, from, forceTo, forceType) {
   const A = cityById[from];
-  const types = forceType ? null : jobTypes(g, A);
+  // bulk comes three at a time, so it's held to half the town's room, leaving space for everything else
+  const bulkFull = g.jobs[from].filter((j) => j.from === from && j.type === 'bulk').length + 3 > jobCap(from, g) / 2;
+  const types = forceType ? null : jobTypes(g, A).filter(([t]) => t !== 'bulk' || !bulkFull);
   if (types && !types.length) return null;
   const type = forceType ?? pickWeighted(types);
   const dests = jobDests(g, A, type);
@@ -353,17 +355,19 @@ function fresh() {
   g.vehicles.push(newVehicle(g, 'train', 'puffer', 'frost', ['pax', 'box']));
   g.vehicles.push(newVehicle(g, 'plane', 'sparrow', 'frost'));
   g.vehicles.push(newVehicle(g, 'boat', 'coaster', 'frost'));
-  g.vehicles.push(newVehicle(g, 'truck', 'pickup', 'frost'));
+  g.vehicles.push(newVehicle(g, 'truck', 'pickup', 'iron'));
   g.vehicles.push(newVehicle(g, 'truck', 'tow', 'frost'));
   for (const c of CITIES) {
     g.jobs[c.id] = [];
     g.spawnAt[c.id] = now + 4000 + Math.random() * 8000;
   }
-  // a friendly start at Frostholm: Ironvale for the train and pickup, Puffin Rock for the plane and boat
+  // a friendly start at Frostholm: Ironvale for the train, Puffin Rock for the plane and boat, and
+  // cargo waiting at Ironvale for the pickup, so it isn't fighting the train over the same loads
   g.jobs.frost.push(makeJob(g, 'frost', 'iron', 'pax'), makeJob(g, 'frost', 'iron', 'cargo'), makeJob(g, 'frost', 'iron', 'pax'));
   g.jobs.frost.push(makeJob(g, 'frost', 'puffin', 'pax'), makeJob(g, 'frost', 'puffin', 'pax'), makeJob(g, 'frost', 'puffin', 'cargo'));
   g.jobs.frost.push(makeJob(g, 'frost', 'puffin', 'cargo'), makeJob(g, 'frost', 'puffin', 'pax'), makeJob(g, 'frost', 'puffin', 'cargo'));
-  for (let i = 0; i < 4; i++) g.jobs.iron.push(makeJob(g, 'iron'), makeJob(g, 'puffin'));
+  g.jobs.iron.push(makeJob(g, 'iron', 'frost', 'cargo'), makeJob(g, 'iron', 'frost', 'cargo'));
+  for (let i = 0; i < 4; i++) g.jobs.iron.push(makeJob(g, 'iron')), g.jobs.puffin.push(makeJob(g, 'puffin'));
   return g;
 }
 
@@ -476,9 +480,21 @@ function unlocksAt(level) {
   return out;
 }
 
-// while catching up after time away, the fleet earns XP at a cut rate and can go up at most one level
+// while the fleet runs on without you (catching up after time away, or with the tab hidden) it
+// earns XP at a cut rate and can go up at most one level
 const AWAY_XP = 0.5;
 let away = null;
+function goAway() {
+  if (away) return;
+  away = { cap: game.level + 1 < LEVELS.length ? Math.max(game.xp, LEVELS[game.level + 1] - 1) : Infinity, coins: game.coins, xp: game.xp, at: Date.now() };
+}
+// say what the fleet made while you were gone, if you were gone a while
+function comeBack(minAway = 60000) {
+  if (!away) return;
+  const { coins, xp, at } = away;
+  away = null;
+  if (game.coins > coins && Date.now() - at >= minAway) toast(`Welcome back. Your fleet earned $${fmt(game.coins - coins)} and ${fmt(game.xp - xp)} XP while you were away.`, 'good');
+}
 
 function earn(amount) {
   game.coins += amount;
@@ -741,7 +757,7 @@ function grow(id) {
   game.growth[id] = (game.growth[id] ?? 0) + 1;
   if (townSize(id) > before && !quiet) toast(`${cityById[id].name} grew into a ${sizeName(id).toLowerCase()}. More jobs, better pay.`, 'level');
 }
-const jobCap = (id) => JOB_CAP + 2 * (townSize(id) - 1) + boostAt(id, 'cap');
+function jobCap(id, g = game) { return JOB_CAP + 2 * (townSize(id, g) - 1) + boostAt(id, 'cap', g); }
 // game time until a town's next job; bigger towns and some landmarks turn them up faster. Without random, the average.
 const spawnGap = (id, random = 0.5) => (7000 + random * 8000) / (1 + 0.25 * (townSize(id) - 1) + boostAt(id, 'spawn'));
 
@@ -1372,17 +1388,17 @@ let started = false;
 export function start() {
   if (started) return;
   started = true;
-  const before = game.coins, xpBefore = game.xp;
   quiet = true;
-  away = { cap: game.level + 1 < LEVELS.length ? Math.max(game.xp, LEVELS[game.level + 1] - 1) : Infinity };
+  goAway();
   step();
-  away = null;
   for (const c of CITIES) if (isOpen(c.id) && !c.anchor) for (let i = ownJobs(c.id); i < 4; i++) addJob(c.id);
   quiet = false;
-  if (loaded && game.coins > before) toast(`Welcome back. Your fleet earned $${fmt(game.coins - before)} and ${fmt(game.xp - xpBefore)} XP while you were away.`, 'good');
+  // opened in a background tab: stay away until it's looked at
+  if (!document.hidden) loaded ? comeBack(0) : (away = null);
   setInterval(() => { clock.now = gameNow(); step(); }, 250);
   setInterval(save, 3000);
   document.addEventListener('visibilitychange', save);
+  document.addEventListener('visibilitychange', () => (document.hidden ? goAway() : comeBack()));
   addEventListener('pagehide', save);
 }
 

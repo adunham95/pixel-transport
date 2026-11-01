@@ -27,7 +27,7 @@
   });
   const open = $derived(wide || ui.sheetOpen);
   const maxed = $derived(game.level >= LEVELS.length);
-  const pct = $derived(maxed ? 100 : Math.min(100, ((game.xp - LEVELS[game.level - 1]) / (LEVELS[game.level] - LEVELS[game.level - 1])) * 100));
+  const pct = $derived(maxed ? 100 : Math.max(0, Math.min(100, ((game.xp - LEVELS[game.level - 1]) / (LEVELS[game.level] - LEVELS[game.level - 1])) * 100)));
   const idle = $derived(game.vehicles.filter(isIdle).length);
   function setTab(t) {
     if (ui.tab === t && ui.sheetOpen && !wide) { ui.sheetOpen = false; return; }
