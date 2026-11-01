@@ -1,5 +1,9 @@
-export const W = 960;
-export const H = 640;
+// the map is laid out below for a 960 by 640 world and spread out this much, so towns sit farther
+// apart and trips are longer (and pay more). Anything sized to the art, like a town's footprint or
+// the gap between a road and its rails, isn't scaled.
+export const SCALE = 1.5;
+export const W = 960 * SCALE;
+export const H = 640 * SCALE;
 export const MI = 3; // world units to "miles" for display
 // every vehicle's speed is multiplied by this, so trips take 1 / SPEED times as long
 export const SPEED = 0.05;
@@ -65,7 +69,7 @@ export const CONTINENTS = [
       [640, 365, 24],
     ],
   },
-];
+].map((c) => ({ ...c, spine: c.spine.map(([x, y, w]) => [x * SCALE, y * SCALE, w * SCALE]) }));
 
 // id, name, x, y, continent index (-1 for a lone island), r = station, a = airport, p = sea port,
 // and an optional job mix: how much more (or less) often than usual the town turns up each job
@@ -194,8 +198,8 @@ export const CITIES = [
   ...RAW.map(([id, name, x, y, cont, s, mix = {}]) => ({
     id,
     name,
-    x,
-    y,
+    x: x * SCALE,
+    y: y * SCALE,
     cont,
     rail: s.includes("r"),
     air: s.includes("a"),
@@ -208,8 +212,8 @@ export const CITIES = [
   ...ANCHORAGES.map(([id, name, x, y]) => ({
     id,
     name,
-    x,
-    y,
+    x: x * SCALE,
+    y: y * SCALE,
     cont: -1,
     rail: false,
     air: false,
@@ -291,6 +295,9 @@ export {
   TRAILERS,
   SUPERLOAD_TRAILERS,
 } from "./vehicles.js";
+import { PLANES } from "./vehicles.js";
+// plane ranges are written for the unscaled map
+for (const p of Object.values(PLANES)) p.range *= SCALE;
 
 // your headquarters, built once in any town from this level on. It unlocks repeating routes for the
 // whole fleet and company colors, and sells perks, each tier bought in order: a `contracts` tier lets
@@ -384,8 +391,8 @@ export const WEATHER = {
   every: 2 * 60 * 1000,
   max: 2,
   last: [3 * 60 * 1000, 6 * 60 * 1000],
-  radius: [45, 80],
-  north: 140,
+  radius: [45 * SCALE, 80 * SCALE],
+  north: 140 * SCALE,
   kinds: {
     fog: { name: "Fog", hits: ["plane"], time: 1.6, fuel: 1, about: "planes fly slow" },
     storm: { name: "Storm", hits: ["boat"], time: 1.5, fuel: 1.5, about: "boats slow down and burn more fuel" },
@@ -429,7 +436,7 @@ export const DEPOT = { level: 3, price: 3000, service: 0.5, repair: 150 };
 export const SUPERLOAD = {
   level: 9,
   chance: 0.3,
-  minDist: 60,
+  minDist: 60 * SCALE,
   base: 1000,
   perUnit: 12,
   loads: [

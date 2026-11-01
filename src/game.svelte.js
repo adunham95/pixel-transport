@@ -1,4 +1,4 @@
-import { CITIES, RAILS, ROADS, ROAD_OFF, LANE, roadSide, ENGINES, CARS, PLANES, BOATS, BARGES, TRUCKS, TRAILERS, LEVELS, RATES, SPEED, CITY_PRICE, START_CITIES, JOB_TYPES, MAGLEV_LINES, HQ, WEAR, MAIL, WIDE, CONTAINER, SECURE, GROWTH, SIZE_NAME, DEPOT, TYPE_LABEL, CONTRACTS, SUPERLOAD, ESCORT_LABEL, BREAKDOWN, CELEB, TOURISTS, PROJECTS, CONTINENTS, LUCKY, WEATHER, USED } from './data.js';
+import { SCALE, CITIES, RAILS, ROADS, ROAD_OFF, LANE, roadSide, ENGINES, CARS, PLANES, BOATS, BARGES, TRUCKS, TRAILERS, LEVELS, RATES, SPEED, CITY_PRICE, START_CITIES, JOB_TYPES, MAGLEV_LINES, HQ, WEAR, MAIL, WIDE, CONTAINER, SECURE, GROWTH, SIZE_NAME, DEPOT, TYPE_LABEL, CONTRACTS, SUPERLOAD, ESCORT_LABEL, BREAKDOWN, CELEB, TOURISTS, PROJECTS, CONTINENTS, LUCKY, WEATHER, USED } from './data.js';
 import { seaLane } from './sea.js';
 
 const KEY = 'pixel-transport-save-v1';
@@ -317,7 +317,7 @@ function jobDests(g, A, type, lean = null) {
   // towns a contract or a megaproject wants them in, tourists toward the sights, and containers go
   // twice as far as most, so they often need more than one ride
   const wanted = (c) => c.id === lean || (g.contracts?.active ?? []).some((k) => k.type === type && k.to === c.id) || projectWants(type, c.id, g);
-  const reach = type === 'container' ? 140 : 70;
+  const reach = (type === 'container' ? 140 : 70) * SCALE;
   const weight = (c) => (1 / (1 + (dist(A.id, c.id) / reach) ** 2)) * (heavy && A.port && c.port ? 3 : 1) * (wanted(c) ? 3 : 1) * (type === 'tour' ? 1 + 2 * sightOf(c.id, g) : 1);
   return cands.map((c) => [c.id, weight(c)]);
 }
@@ -350,7 +350,7 @@ function newVehicle(g, kind, model, city, cars) {
 
 function fresh() {
   const now = Date.now();
-  const g = { v: 1, coins: 600, xp: 0, level: 1, nextId: 1, selected: 'frost', vehicles: [], jobs: {}, spawnAt: {}, growth: {}, depots: {}, hqContracts: 0, hqSuperloads: 0, contracts: { offers: [], active: [], nextAt: 0 }, projects: {}, saved: now };
+  const g = { v: 1, coins: 600, xp: 0, level: 1, nextId: 1, selected: 'frost', vehicles: [], jobs: {}, spawnAt: {}, growth: {}, depots: {}, hqContracts: 0, hqSuperloads: 0, contracts: { offers: [], active: [], nextAt: 0 }, projects: {}, scale: SCALE, saved: now };
   g.unlocked = Object.fromEntries(START_CITIES.map((id) => [id, true]));
   g.vehicles.push(newVehicle(g, 'train', 'puffer', 'frost', ['pax', 'box']));
   g.vehicles.push(newVehicle(g, 'plane', 'sparrow', 'frost'));
@@ -385,6 +385,14 @@ function load() {
     g.hqSuperloads ??= 0;
     g.contracts ??= { offers: [], active: [], nextAt: 0 };
     g.projects ??= {};
+    // saves from before the map was spread out: stretch anything on the move, and the weather, to match
+    const k = SCALE / (g.scale ?? 1);
+    if (k !== 1) {
+      const fit = (l) => { if (l?.pts) { l.pts = l.pts.map(([x, y]) => [x * k, y * k]); l.len *= k; } };
+      for (const v of g.vehicles) { fit(v.trip); (v.next ?? []).forEach(fit); }
+      for (const w of g.weather ?? []) { w.x *= k; w.y *= k; w.r *= k; }
+    }
+    g.scale = SCALE;
     if (!g.unlocked) {
       // older saves predate unlocking: keep the starting towns plus anywhere the fleet is, is headed or has cargo for
       const keep = new Set(['bay', 'mill', 'gull']); // the starting towns back then
@@ -1267,7 +1275,7 @@ function makeWeather(now, kind = null, at = null) {
   const towns = at ? [cityById[at]] : CITIES.filter((c) => isOpen(c.id) && (!c.anchor || kind === 'storm') && (kind !== 'snow' || c.y < WEATHER.north) && (kind !== 'storm' || c.port || c.anchor));
   if (!towns.length) return null;
   const c = towns[Math.floor(Math.random() * towns.length)], span = ([a, b]) => a + Math.random() * (b - a);
-  const w = { id: game.nextId++, kind, x: c.x + (Math.random() - 0.5) * 30, y: c.y + (Math.random() - 0.5) * 30, r: span(WEATHER.radius), since: now, until: now + span(WEATHER.last) };
+  const w = { id: game.nextId++, kind, x: c.x + (Math.random() - 0.5) * 30 * SCALE, y: c.y + (Math.random() - 0.5) * 30 * SCALE, r: span(WEATHER.radius), since: now, until: now + span(WEATHER.last) };
   (game.weather ??= []).push(w);
   const k = WEATHER.kinds[kind];
   toast(`${k.name} around ${c.name}: ${k.about} through it for a while`, kind === 'tailwind' ? 'good' : 'info');

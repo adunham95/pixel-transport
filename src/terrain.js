@@ -1,4 +1,4 @@
-import { W, H, CITIES, RAILS, ROADS, ROAD_OFF, roadSide, CONTINENTS, MAGLEV_LINES } from './data.js';
+import { SCALE, W, H, CITIES, RAILS, ROADS, ROAD_OFF, roadSide, CONTINENTS, MAGLEV_LINES } from './data.js';
 
 export const R = 2; // sub pixels per world unit
 const TW = W * R, TH = H * R;
@@ -37,7 +37,7 @@ export function makeWaterPattern() {
 const SHAPES = CONTINENTS.map(({ spine: sp }) => {
   let total = 0;
   for (let i = 1; i < sp.length; i++) total += Math.hypot(sp[i][0] - sp[i - 1][0], sp[i][1] - sp[i - 1][1]);
-  const pad = Math.max(...sp.map((p) => p[2])) + 30;
+  const pad = Math.max(...sp.map((p) => p[2])) + 30 * SCALE;
   return {
     sp, total,
     x0: Math.min(...sp.map((p) => p[0])) - pad, x1: Math.max(...sp.map((p) => p[0])) + pad,
@@ -50,7 +50,7 @@ export function continentAt(x, y) {
   for (let k = 0; k < SHAPES.length; k++) {
     const { sp, total, x0, x1, y0, y1 } = SHAPES[k];
     if (x < x0 || x > x1 || y < y0 || y > y1) continue;
-    n ??= (noise(x, y, 30) - 0.5) * 26 + (noise(x, y, 7) - 0.5) * 7 + (noise(x + 50, y, 3) - 0.5) * 2;
+    n ??= (noise(x, y, 30 * SCALE) - 0.5) * 26 * SCALE + (noise(x, y, 7) - 0.5) * 7 + (noise(x + 50, y, 3) - 0.5) * 2;
     let run = 0;
     for (let i = 1; i < sp.length; i++) {
       const [ax, ay, ah] = sp[i - 1], [bx, by, bh] = sp[i];
@@ -58,9 +58,9 @@ export function continentAt(x, y) {
       const f = Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy) / (L * L)));
       const px = ax + dx * f, py = ay + dy * f;
       const s = run + L * f;
-      const t = Math.min(1, s / 50, (total - s) / 50);
+      const t = Math.min(1, s / (50 * SCALE), (total - s) / (50 * SCALE));
       const hw = (ah + (bh - ah) * f) * (0.45 + 0.55 * t * t * (3 - 2 * t))
-        + 5 * Math.sin((px + py) / 40 + k) + 3 * Math.sin((px - py) / 13);
+        + 5 * SCALE * Math.sin((px + py) / (40 * SCALE) + k) + 3 * Math.sin((px - py) / 13);
       if (Math.hypot(x - px, y - py) < hw + n) return k;
       run += L;
     }
@@ -68,10 +68,16 @@ export function continentAt(x, y) {
   return -1;
 }
 
+// towns by grid cell, so the land test only looks at the few close by
+const CELL = 16, CW = Math.ceil(W / CELL) + 1;
+const townCells = [];
+for (const c of CITIES) if (!c.anchor) (townCells[Math.floor(c.y / CELL) * CW + Math.floor(c.x / CELL)] ??= []).push(c);
+
 export function isLandWorld(x, y) {
   if (continentAt(x, y) >= 0) return true;
-  for (const c of CITIES) {
-    if (c.anchor || Math.abs(x - c.x) > 13 || Math.abs(y - c.y) > 13) continue;
+  const cx = Math.floor(x / CELL), cy = Math.floor(y / CELL);
+  for (let j = cy - 1; j <= cy + 1; j++) for (let i = cx - 1; i <= cx + 1; i++) for (const c of (i >= 0 && townCells[j * CW + i]) || []) {
+    if (Math.abs(x - c.x) > 13 || Math.abs(y - c.y) > 13) continue;
     const r = (c.rail ? 10 : 9) + (noise(x + 100, y, 4) - 0.5) * 4;
     if ((x - c.x) ** 2 + (y - c.y) ** 2 < r * r) return true;
   }
@@ -112,9 +118,22 @@ export function bresenham(x0, y0, x1, y1) {
 }
 
 export function buildTerrain() {
+  // land is tested on a coarse grid first, and pixel by pixel only near a coast: a block whose
+  // corner samples and their neighbors all agree is filled in whole
   const land = new Uint8Array(TW * TH);
-  for (let sy = 0; sy < TH; sy++) for (let sx = 0; sx < TW; sx++)
-    land[sy * TW + sx] = isLandWorld((sx + 0.5) / R, (sy + 0.5) / R) ? 1 : 0;
+  const B = 4, BW = Math.ceil(TW / B) + 1, BH = Math.ceil(TH / B) + 1;
+  const coarse = new Uint8Array(BW * BH);
+  for (let by = 0; by < BH; by++) for (let bx = 0; bx < BW; bx++) coarse[by * BW + bx] = isLandWorld((bx * B + 0.5) / R, (by * B + 0.5) / R) ? 1 : 0;
+  for (let by = 0; by < BH - 1; by++) for (let bx = 0; bx < BW - 1; bx++) {
+    const v = coarse[by * BW + bx];
+    let same = true;
+    for (let j = -1; j <= 2 && same; j++) for (let i = -1; i <= 2 && same; i++) {
+      const x = bx + i, y = by + j;
+      if (x >= 0 && y >= 0 && x < BW && y < BH && coarse[y * BW + x] !== v) same = false;
+    }
+    for (let sy = by * B; sy < Math.min(TH, by * B + B); sy++) for (let sx = bx * B; sx < Math.min(TW, bx * B + B); sx++)
+      land[sy * TW + sx] = same ? v : isLandWorld((sx + 0.5) / R, (sy + 0.5) / R) ? 1 : 0;
+  }
 
   const waterDist = bfs((i) => land[i], (j) => !land[j], 7);
   const shoreDist = bfs((i) => !land[i], (j) => land[j], 3);
@@ -157,13 +176,13 @@ export function buildTerrain() {
   }
   const nearCity = (wx, wy, r) => (cityGap[Math.min(H - 1, wy | 0) * W + Math.min(W - 1, wx | 0)] ?? 255) < r;
   const biome = (wx, wy) => {
-    if (wy < 112 + (noise(wx, wy, 10) - 0.5) * 18) return 'snow';
-    if (wy > 400 + (noise(wx + 30, wy, 12) - 0.5) * 28) return 'desert';
+    if (wy < 112 * SCALE + (noise(wx, wy, 10) - 0.5) * 18) return 'snow';
+    if (wy > 400 * SCALE + (noise(wx + 30, wy, 12) - 0.5) * 28) return 'desert';
     return 'grass';
   };
   // ranges sit where a slow noise field runs high, north of the desert
-  const mountainH = (wx, wy) => (wy < 380 && noise(wx + 500, wy, 40) > 0.68 ? noise(wx + 200, wy, 9) : 0);
-  const mesaH = (wx, wy) => (wy > 410 ? noise(wx + 11, wy + 5, 8) : 0);
+  const mountainH = (wx, wy) => (wy < 380 * SCALE && noise(wx + 500, wy, 40 * SCALE) > 0.68 ? noise(wx + 200, wy, 9) : 0);
+  const mesaH = (wx, wy) => (wy > 410 * SCALE ? noise(wx + 11, wy + 5, 8) : 0);
 
   for (let sy = 0; sy < TH; sy++) for (let sx = 0; sx < TW; sx++) {
     const i = sy * TW + sx;
