@@ -1,11 +1,11 @@
 <script>
   import { onMount } from 'svelte';
-  import { game, ui, cityById, leg, planLegs, toggleStop, selectCity, posAt, tripProgress, gameNow, isOpen, fx, darkness, loopStops, isCarrier, carrierAt, townSize, escortsOf, consistOf, paintOf, landmarkAt, projectProgress } from './game.svelte.js';
-  import { CITIES, ENGINES, PLANES, CARS, TRUCKS, BOATS, W, H, PROJECTS, ROAD_OFF, roadSide } from './data.js';
+  import { game, ui, cityById, leg, planLegs, toggleStop, selectCity, posAt, tripProgress, gameNow, isOpen, fx, darkness, loopStops, isCarrier, carrierAt, townSize, escortsOf, consistOf, paintOf, landmarkAt, projectProgress } from '../game/game.svelte.js';
+  import { CITIES, ENGINES, PLANES, CARS, TRUCKS, BOATS, W, H, PROJECTS, ROAD_OFF, roadSide } from '../game/data.js';
   import { buildTerrain, makeWaterPattern, R, bresenham } from './terrain.js';
   import { drawArt, trainUnits, paintOrder, artSize, loadArt } from './sprites.js';
   import { dockOf } from './sea.js';
-  import { reduced } from './motion.js';
+  import { reduced } from '../ui/motion.js';
 
   let { sheetPx = 0 } = $props();
   const V = 1.6; // vehicles are drawn a bit larger than the map grid so their detail reads

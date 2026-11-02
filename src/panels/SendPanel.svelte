@@ -1,7 +1,7 @@
 <script>
-  import { game, ui, cityById, fetchPlan, sendFor, fmt, fmtTime, consistOf, paintOf, escortKind } from './game.svelte.js';
-  import Sprite from './Sprite.svelte';
-  import JobRow from './JobRow.svelte';
+  import { game, ui, cityById, fetchPlan, sendFor, fmt, fmtTime, consistOf, paintOf, escortKind } from '../game/game.svelte.js';
+  import Sprite from '../ui/Sprite.svelte';
+  import JobRow from '../ui/JobRow.svelte';
   let { job, at } = $props();
   // parked vehicles, the ones already here first, then soonest to arrive. Escorts never carry jobs,
   // so they're left out.

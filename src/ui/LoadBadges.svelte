@@ -1,6 +1,6 @@
 <script>
-  import { capacity, used, deckUsed, deckRoom } from './game.svelte.js';
-  import { JOB_TYPES } from './data.js';
+  import { capacity, used, deckUsed, deckRoom } from '../game/game.svelte.js';
+  import { JOB_TYPES } from '../game/data.js';
   import Icon from './Icon.svelte';
   // small used/room badges for each hold, plus truck spaces on car ferries and cargo planes
   let { v } = $props();

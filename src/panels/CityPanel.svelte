@@ -1,13 +1,13 @@
 <script>
-  import { game, ui, cityById, etaText, fmtTime, clock, followVehicle, isOpen, connections, unlockPrice, unlockCity, carrierAt, fmt, townSize, sizeName, growthOf, buyDepot, fetcher, consistOf, paintOf, buildHQ, hqPrice, setLivery, nextContractsPerk, buyContractsPerk, contractSlots, nextSuperloadsPerk, buySuperloadsPerk, superloadSlots, buyAutoPerk, mixOf, projectTowns, landmarkAt, cantHost, escortKind } from './game.svelte.js';
-  import { CITY_PRICE, DEPOT, HQ, TYPE_LABEL, PROJECTS } from './data.js';
-  import ProjectCard from './ProjectCard.svelte';
-  import Icon from './Icon.svelte';
-  import Sprite from './Sprite.svelte';
-  import JobRow from './JobRow.svelte';
+  import { game, ui, cityById, etaText, fmtTime, clock, followVehicle, isOpen, connections, unlockPrice, unlockCity, carrierAt, fmt, townSize, sizeName, growthOf, buyDepot, fetcher, consistOf, paintOf, buildHQ, hqPrice, setLivery, nextContractsPerk, buyContractsPerk, contractSlots, nextSuperloadsPerk, buySuperloadsPerk, superloadSlots, buyAutoPerk, mixOf, projectTowns, landmarkAt, cantHost, escortKind } from '../game/game.svelte.js';
+  import { CITY_PRICE, DEPOT, HQ, TYPE_LABEL, PROJECTS } from '../game/data.js';
+  import ProjectCard from '../ui/ProjectCard.svelte';
+  import Icon from '../ui/Icon.svelte';
+  import Sprite from '../ui/Sprite.svelte';
+  import JobRow from '../ui/JobRow.svelte';
   import LoadPanel from './LoadPanel.svelte';
   import SendPanel from './SendPanel.svelte';
-  import { fly, slide, flip } from './motion.js';
+  import { fly, slide, flip } from '../ui/motion.js';
   const c = $derived(cityById[game.selected]);
   // the job types this town turns up more of than most, strongest lean first
   const knownFor = $derived(Object.entries(mixOf(c.id)).filter(([, m]) => m > 1).sort((a, b) => b[1] - a[1]).map(([t]) => t));

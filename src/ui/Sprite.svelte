@@ -1,5 +1,5 @@
 <script>
-  import { drawArt, artSize, consistBox, drawConsistRow, loadArt, artReady } from './sprites.js';
+  import { drawArt, artSize, consistBox, drawConsistRow, loadArt, artReady } from '../map/sprites.js';
   // scale 4 is used for the larger shop previews; paint is company colors for the lead unit, or null
   let { kind, model, cars = [], scale = 3, paint = null } = $props();
   let canvas;

@@ -1,6 +1,6 @@
 <script>
-  import { game, cityById, selectCity, followVehicle, fmt, isOpen, startProject, projectProgress, projectTowns, projectLoads, cantHost, superloadCarrier } from './game.svelte.js';
-  import { TYPE_LABEL } from './data.js';
+  import { game, cityById, selectCity, followVehicle, fmt, isOpen, startProject, projectProgress, projectTowns, projectLoads, cantHost, superloadCarrier } from '../game/game.svelte.js';
+  import { TYPE_LABEL } from '../game/data.js';
   import Icon from './Icon.svelte';
   // here: the town page it's shown on, if any, so a landmark can be built there
   let { p, here = null } = $props();

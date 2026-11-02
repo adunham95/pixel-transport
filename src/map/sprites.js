@@ -1,4 +1,4 @@
-import { ENGINES, CARS, PLANES, BOATS, BARGES, TRUCKS, TRAILERS, SUPERLOAD_TRAILERS } from './data.js';
+import { ENGINES, CARS, PLANES, BOATS, BARGES, TRUCKS, TRAILERS, SUPERLOAD_TRAILERS } from '../game/data.js';
 
 // Draws vehicle art from the SVGs in vehicles.js. Each SVG is rasterized once at a
 // high resolution, plus a flat silhouette of it for shadows.

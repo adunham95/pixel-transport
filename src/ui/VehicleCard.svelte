@@ -1,6 +1,6 @@
 <script>
-  import { game, ui, dev, clock, cityById, spec, tripInfo, fmt, fmtTime, stopRepeating, consistOf, paintOf, sendHelp, callRoadside, calloutCost, stillNeeded, escortText } from './game.svelte.js';
-  import { MI } from './data.js';
+  import { game, ui, dev, clock, cityById, spec, tripInfo, fmt, fmtTime, stopRepeating, consistOf, paintOf, sendHelp, callRoadside, calloutCost, stillNeeded, escortText } from '../game/game.svelte.js';
+  import { MI } from '../game/data.js';
   import Sprite from './Sprite.svelte';
   import LoadBadges from './LoadBadges.svelte';
   import { fly, fade } from './motion.js';

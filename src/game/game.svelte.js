@@ -1,5 +1,5 @@
 import { SCALE, CITIES, RAILS, ROADS, ROAD_OFF, LANE, roadSide, ENGINES, CARS, PLANES, BOATS, BARGES, TRUCKS, TRAILERS, LEVELS, RATES, SPEED, CITY_PRICE, START_CITIES, JOB_TYPES, MAGLEV_LINES, HQ, WEAR, MAIL, WIDE, CONTAINER, SECURE, GROWTH, SIZE_NAME, DEPOT, TYPE_LABEL, CONTRACTS, SUPERLOAD, ESCORT_LABEL, BREAKDOWN, CELEB, TOURISTS, PROJECTS, CONTINENTS, LUCKY, WEATHER, USED } from './data.js';
-import { seaLane } from './sea.js';
+import { seaLane } from '../map/sea.js';
 
 const KEY = 'pixel-transport-save-v1';
 // a repeating vehicle with nothing to carry anywhere on its loop checks again this often (game time)

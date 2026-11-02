@@ -2,17 +2,17 @@
   import { onMount } from 'svelte';
   import { Tween } from 'svelte/motion';
   import { cubicOut } from 'svelte/easing';
-  import MapCanvas from './MapCanvas.svelte';
-  import CityPanel from './CityPanel.svelte';
-  import FleetPanel from './FleetPanel.svelte';
-  import ShopPanel from './ShopPanel.svelte';
-  import DevPanel from './DevPanel.svelte';
-  import ContractsPanel from './ContractsPanel.svelte';
-  import VehicleCard from './VehicleCard.svelte';
-  import Icon from './Icon.svelte';
-  import { game, ui, dev, start, fmt, cityById, isIdle } from './game.svelte.js';
-  import { LEVELS, CONTRACTS } from './data.js';
-  import { fly, fade, flip, reduced } from './motion.js';
+  import MapCanvas from './map/MapCanvas.svelte';
+  import CityPanel from './panels/CityPanel.svelte';
+  import FleetPanel from './panels/FleetPanel.svelte';
+  import ShopPanel from './panels/ShopPanel.svelte';
+  import DevPanel from './panels/DevPanel.svelte';
+  import ContractsPanel from './panels/ContractsPanel.svelte';
+  import VehicleCard from './ui/VehicleCard.svelte';
+  import Icon from './ui/Icon.svelte';
+  import { game, ui, dev, start, fmt, cityById, isIdle } from './game/game.svelte.js';
+  import { LEVELS, CONTRACTS } from './game/data.js';
+  import { fly, fade, flip, reduced } from './ui/motion.js';
 
   let sheetPx = $state(0);
   onMount(start);

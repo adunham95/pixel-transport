@@ -1,7 +1,7 @@
 <script>
   import Icon from './Icon.svelte';
-  import { cityById, fmt, clock, jobTtl, fetcher, contractFor, escortText, projectById } from './game.svelte.js';
-  import { TYPE_LABEL, CONTAINER } from './data.js';
+  import { cityById, fmt, clock, jobTtl, fetcher, contractFor, escortText, projectById } from '../game/game.svelte.js';
+  import { TYPE_LABEL, CONTAINER } from '../game/data.js';
   let { job, at = null, note = '', onclick = null, disabled = false, loaded = false, action = '' } = $props();
   // containers pay more for every other kind of vehicle that carries them
   const KIND = { truck: 'truck', train: 'train', boat: 'ship', plane: 'plane' };

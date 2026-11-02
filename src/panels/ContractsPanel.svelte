@@ -1,8 +1,8 @@
 <script>
-  import { game, clock, cityById, selectCity, acceptContract, dropContract, canAccept, superloadAt, escortText, followVehicle, fmt, fmtTime, contractSlots, superloadCarrier } from './game.svelte.js';
-  import { CONTRACTS, SUPERLOAD, TYPE_LABEL } from './data.js';
-  import Icon from './Icon.svelte';
-  import { slide, flip } from './motion.js';
+  import { game, clock, cityById, selectCity, acceptContract, dropContract, canAccept, superloadAt, escortText, followVehicle, fmt, fmtTime, contractSlots, superloadCarrier } from '../game/game.svelte.js';
+  import { CONTRACTS, SUPERLOAD, TYPE_LABEL } from '../game/data.js';
+  import Icon from '../ui/Icon.svelte';
+  import { slide, flip } from '../ui/motion.js';
   const k = $derived(game.contracts);
   const usual = $derived(k.active.filter((c) => !c.super).length);
   const what = (c) => `${c.n} ${TYPE_LABEL[c.type].toLowerCase()}`;

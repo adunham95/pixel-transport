@@ -1,7 +1,7 @@
 <script>
-  import { game, dev, cityById, devCoins, devMaxLevel, devSpawn, devFinishLegs, devFillJobs, devUnlockAll, devSkipHalfDay, devSuperload, devBreakdown, devCeleb, devFinishProjects, devWeather, devUsedLot, setDev, isOpen, canBase, fmt } from './game.svelte.js';
-  import { ENGINES, PLANES, BOATS, TRUCKS, LEVELS, SUPERLOAD, WEATHER } from './data.js';
-  import Sprite from './Sprite.svelte';
+  import { game, dev, cityById, devCoins, devMaxLevel, devSpawn, devFinishLegs, devFillJobs, devUnlockAll, devSkipHalfDay, devSuperload, devBreakdown, devCeleb, devFinishProjects, devWeather, devUsedLot, setDev, isOpen, canBase, fmt } from '../game/game.svelte.js';
+  import { ENGINES, PLANES, BOATS, TRUCKS, LEVELS, SUPERLOAD, WEATHER } from '../game/data.js';
+  import Sprite from '../ui/Sprite.svelte';
   const c = $derived(cityById[game.selected]);
   // which superload to put on the board: its index in SUPERLOAD.loads, or -1 for any
   let pick = $state(-1);

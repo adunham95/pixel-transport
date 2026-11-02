@@ -1,4 +1,4 @@
-import { W, H, CITIES } from './data.js';
+import { W, H, CITIES } from '../game/data.js';
 import { isLandWorld } from './terrain.js';
 
 // Sea lanes for boats: a coarse grid over the open ocean, a mooring spot for each

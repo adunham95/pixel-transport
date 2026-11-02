@@ -1,9 +1,9 @@
 <script>
-  import { game, ui, cityById, buyPlane, buyEngine, buyBoat, buyTruck, isOpen, canBase, fmt, fmtTime, paintFor, selectCity, buyUsed, spec, wear, clock } from './game.svelte.js';
-  import { ENGINES, CARS, PLANES, BOATS, BARGES, TRUCKS, TRAILERS, MI, TYPE_LABEL, JOB_TYPES, HQ, ESCORT_LABEL, PROJECTS } from './data.js';
-  import ProjectCard from './ProjectCard.svelte';
-  import Sprite from './Sprite.svelte';
-  import Icon from './Icon.svelte';
+  import { game, ui, cityById, buyPlane, buyEngine, buyBoat, buyTruck, isOpen, canBase, fmt, fmtTime, paintFor, selectCity, buyUsed, spec, wear, clock } from '../game/game.svelte.js';
+  import { ENGINES, CARS, PLANES, BOATS, BARGES, TRUCKS, TRAILERS, MI, TYPE_LABEL, JOB_TYPES, HQ, ESCORT_LABEL, PROJECTS } from '../game/data.js';
+  import ProjectCard from '../ui/ProjectCard.svelte';
+  import Sprite from '../ui/Sprite.svelte';
+  import Icon from '../ui/Icon.svelte';
 
   // one tab per kind of vehicle, each with what it pulls (cars, trailers, barges) listed underneath
   const KINDS = [

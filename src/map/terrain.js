@@ -1,4 +1,4 @@
-import { SCALE, W, H, CITIES, RAILS, ROADS, ROAD_OFF, roadSide, CONTINENTS, MAGLEV_LINES } from './data.js';
+import { SCALE, W, H, CITIES, RAILS, ROADS, ROAD_OFF, roadSide, CONTINENTS, MAGLEV_LINES } from '../game/data.js';
 
 export const R = 2; // sub pixels per world unit
 const TW = W * R, TH = H * R;
