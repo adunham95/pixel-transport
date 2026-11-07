@@ -490,6 +490,14 @@ export const SUPERLOAD = {
       mult: 2.8,
     },
     {
+      // a giant spruce for a city's holiday plaza, lying down and wrapped for the trip
+      name: "Christmas tree",
+      trailer: "tree",
+      level: 11,
+      needs: { pilot: 1, police: 1, bucket: 1 },
+      mult: 2.4,
+    },
+    {
       name: "Mining dump truck",
       trailer: "dumptruck",
       level: 12,

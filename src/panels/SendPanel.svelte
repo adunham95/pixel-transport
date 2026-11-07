@@ -2,6 +2,7 @@
   import { game, ui, cityById, fetchPlan, sendFor, fmt, fmtTime, consistOf, paintOf, escortKind } from '../game/game.svelte.js';
   import Sprite from '../ui/Sprite.svelte';
   import JobRow from '../ui/JobRow.svelte';
+  import NavHeader from '../ui/NavHeader.svelte';
   let { job, at } = $props();
   // parked vehicles, the ones already here first, then soonest to arrive. Escorts never carry jobs,
   // so they're left out.
@@ -17,53 +18,50 @@
   function send(v) { if (sendFor(v, job, at)) ui.sendJob = null; }
 </script>
 
-<div class="loadhead">
-  <button class="btn small" onclick={() => (ui.sendJob = null)}>Back</button>
-  <div class="grow"><b>Send a vehicle</b><small>to pick up at {cityById[at].name}</small></div>
-</div>
-<JobRow {job} {at} />
+<NavHeader title="Send a vehicle" sub="to pick up at {cityById[at].name}" back={cityById[at].name} onback={() => (ui.sendJob = null)} />
+<div class="group"><JobRow {job} {at} /></div>
 
-{#if here.length}
-  <h3>Parked at {cityById[at].name}</h3>
-  {#each here as { v, p } (v.id)}
-    {@const profit = job.pay - p.cost}
-    <button class="row vrow" disabled={game.coins < p.cost} onclick={() => send(v)}>
-      <span class="pv"><Sprite kind={v.kind} model={v.model} cars={consistOf(v)} scale={3} paint={paintOf(v)} /></span>
-      <span class="grow">
-        <b>{v.name}</b>
-        <small>Loads it now and delivers in {fmtTime(p.time)}{p.stops.length > 1 ? `, ${p.stops.length} stops` : ''}{v.cargo.length ? `. ${v.cargo.length} already on board` : ''}</small>
-      </span>
-      <span class="right"><b class:loss={profit < 0}>{profit < 0 ? '−' : '+'}${fmt(Math.abs(profit))}</b><small>Fuel ${fmt(p.cost)}</small></span>
-    </button>
-  {/each}
-{/if}
-
-<h3>Parked elsewhere</h3>
-{#each able as { v, p } (v.id)}
+{#snippet option(v, p, where)}
   {@const profit = job.pay - p.cost}
   <button class="row vrow" disabled={game.coins < p.cost} onclick={() => send(v)}>
     <span class="pv"><Sprite kind={v.kind} model={v.model} cars={consistOf(v)} scale={3} paint={paintOf(v)} /></span>
-    <span class="grow">
-      <b>{v.name}</b>
-      <small>From {cityById[v.city].name}. Picks up in {fmtTime(p.pickIn)}, delivers in {fmtTime(p.time)}{p.stops.length > 2 ? `, ${p.stops.length} stops` : ''}</small>
-    </span>
+    <span class="grow"><b>{v.name}</b><small>{where}</small></span>
     <span class="right"><b class:loss={profit < 0}>{profit < 0 ? '−' : '+'}${fmt(Math.abs(profit))}</b><small>Fuel ${fmt(p.cost)}</small></span>
   </button>
-{:else}
+{/snippet}
+
+{#if here.length}
+  <h3>Parked at {cityById[at].name}</h3>
+  <div class="group">
+    {#each here as { v, p } (v.id)}
+      {@render option(v, p, `Loads it now and delivers in ${fmtTime(p.time)}${p.stops.length > 1 ? `, ${p.stops.length} stops` : ''}${v.cargo.length ? `. ${v.cargo.length} already on board` : ''}`)}
+    {/each}
+  </div>
+{/if}
+
+<h3>Parked elsewhere</h3>
+<div class="group">
+  {#each able as { v, p } (v.id)}
+    {@render option(v, p, `From ${cityById[v.city].name}. Picks up in ${fmtTime(p.pickIn)}, delivers in ${fmtTime(p.time)}${p.stops.length > 2 ? `, ${p.stops.length} stops` : ''}`)}
+  {/each}
+</div>
+{#if !able.length}
   <p class="muted small">No parked vehicle {here.length ? 'elsewhere ' : ''}can fetch this. It needs room for {job.type === 'pax' ? 'passengers' : 'this load'} and a way to {cityById[at].name} and on to {cityById[job.to].name}.</p>
-{/each}
+{/if}
 
 {#if unable.length}
   <h3>Can’t take it</h3>
-  {#each unable as { v, p } (v.id)}
-    <div class="row vrow off">
-      <span class="pv"><Sprite kind={v.kind} model={v.model} cars={consistOf(v)} scale={3} paint={paintOf(v)} /></span>
-      <span class="grow"><b>{v.name}</b><small>At {cityById[v.city].name}. {p.why}</small></span>
-    </div>
-  {/each}
+  <div class="group">
+    {#each unable as { v, p } (v.id)}
+      <div class="row vrow off">
+        <span class="pv"><Sprite kind={v.kind} model={v.model} cars={consistOf(v)} scale={3} paint={paintOf(v)} /></span>
+        <span class="grow"><b>{v.name}</b><small>At {cityById[v.city].name}. {p.why}</small></span>
+      </div>
+    {/each}
+  </div>
 {/if}
 
 <style>
-  .off { opacity: .5; box-shadow: none; }
+  .off { opacity: .5; }
   .loss { color: var(--bad); }
 </style>

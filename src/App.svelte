@@ -1,5 +1,5 @@
 <script>
-  import { onMount } from 'svelte';
+  import { onMount, untrack } from 'svelte';
   import { Tween } from 'svelte/motion';
   import { cubicOut } from 'svelte/easing';
   import MapCanvas from './map/MapCanvas.svelte';
@@ -11,11 +11,16 @@
   import RoutesPanel from './panels/RoutesPanel.svelte';
   import VehicleCard from './ui/VehicleCard.svelte';
   import Icon from './ui/Icon.svelte';
-  import { game, ui, dev, start, fmt, cityById, isIdle } from './game/game.svelte.js';
+  import Settings from './ui/Settings.svelte';
+  import { game, ui, dev, start, fmt, cityById, isIdle, escortKind } from './game/game.svelte.js';
   import { LEVELS, CONTRACTS } from './game/data.js';
   import { fly, fade, flip, reduced } from './ui/motion.js';
 
   let sheetPx = $state(0);
+  let settingsOpen = $state(false);
+  // each tab opens at its top, not wherever the last one was scrolled to
+  let bodyEl = $state();
+  $effect(() => { ui.tab; if (bodyEl) bodyEl.scrollTop = 0; });
   onMount(start);
   // on wide screens the panel sits beside the map as a sidebar instead of a sheet over it
   const wideQuery = typeof matchMedia === 'function' ? matchMedia('(min-width: 900px)') : null;
@@ -41,7 +46,59 @@
     { k: 'shop', icon: 'shop', label: 'Shop', title: 'Shop' },
     ...(dev.on ? [{ k: 'dev', icon: 'dev', label: dev.speed > 1 ? `${dev.speed}×` : '', title: 'Dev', slim: true }] : []),
   ]);
+  // ---------- the phone's back button ----------
+  // Each screen open on top of the current tab's page (and Settings) gets a history entry, so
+  // Android's back button or gesture closes it instead of leaving the game. Closing a screen any
+  // other way (its back arrow, Escape, switching tab) drops the matching entries again.
+  const parkedHere = () => ui.activeVehicle != null ? game.vehicles.find((v) => v.id === ui.activeVehicle && v.city) : null;
+  function depth() {
+    let d = settingsOpen ? 1 : 0;
+    if (ui.tab === 'city') {
+      const v = parkedHere();
+      if (v) d += ui.picking && !escortKind(v) ? 2 : 1;
+      else if (ui.sendJob != null && Object.values(game.jobs).some((js) => js.some((j) => j.id === ui.sendJob))) d += 1;
+      else if (ui.hqPage && game.hq === game.selected) d += 1;
+    } else if (ui.tab === 'fleet' && ui.focusVehicle != null && game.vehicles.some((v) => v.id === ui.focusVehicle)) d += 1;
+    else if (ui.tab === 'routes' && ui.routeEdit != null && game.routes.some((r) => r.id === ui.routeEdit)) d += 1;
+    else if (ui.tab === 'shop' && ui.shopModel) d += 1;
+    return d;
+  }
+  // close the top screen, one step
+  function goBack() {
+    if (settingsOpen) { settingsOpen = false; return; }
+    if (ui.tab === 'city') {
+      const v = parkedHere();
+      if (v && ui.picking && !escortKind(v)) { ui.picking = false; ui.plan = []; return; }
+      Object.assign(ui, { activeVehicle: null, sendJob: null, picking: false, plan: [], queue: null, hqPage: false });
+    } else if (ui.tab === 'fleet') ui.focusVehicle = null;
+    else if (ui.tab === 'routes') ui.routeEdit = null;
+    else if (ui.tab === 'shop') ui.shopModel = null;
+  }
+  let entries = 0, skip = 0;
+  $effect(() => {
+    const d = depth();
+    untrack(() => {
+      if (d > entries) { while (entries < d) history.pushState({ pixelTransport: ++entries }, ''); }
+      else if (d < entries) { skip++; history.go(d - entries); entries = d; }
+    });
+  });
+  function onPop() {
+    if (skip) { skip--; return; }
+    if (entries > 0) { entries--; goBack(); }
+  }
+
+  // a screen pushed on top of a tab's own page: a vehicle's load screen, sending for a job, a
+  // vehicle's page, a route's page, a model's page in the shop, the HQ's page
+  const pushed = (t) => ({ city: ui.activeVehicle != null || ui.sendJob != null || ui.hqPage, fleet: ui.focusVehicle != null, routes: ui.routeEdit != null, shop: !!ui.shopModel })[t] ?? false;
   function setTab(t) {
+    // tapping the tab you're on goes back to its own page first, as in most apps, and only then hides the sheet
+    if (ui.tab === t && ui.sheetOpen && pushed(t)) {
+      if (t === 'city') { ui.activeVehicle = null; ui.sendJob = null; ui.picking = false; ui.plan = []; ui.queue = null; ui.hqPage = false; }
+      else if (t === 'fleet') ui.focusVehicle = null;
+      else if (t === 'routes') ui.routeEdit = null;
+      else ui.shopModel = null;
+      return;
+    }
     if (ui.tab === t && ui.sheetOpen && !wide) { ui.sheetOpen = false; return; }
     ui.tab = t;
     ui.sheetOpen = true;
@@ -68,7 +125,8 @@
     const el = tabEls[ui.tab], nav = el?.parentElement;
     tabs.length; // a tab coming or going (dev, routes) changes every column's width
     if (!el) return;
-    const set = () => (pill = { x: el.offsetLeft, w: el.offsetWidth });
+    // the indicator sits behind the icon only, 56px wide or as wide as a slim tab allows
+    const set = () => { const w = Math.min(56, el.offsetWidth - 8); pill = { x: el.offsetLeft + (el.offsetWidth - w) / 2, w }; };
     set();
     const ro = new ResizeObserver(set);
     ro.observe(nav);
@@ -120,7 +178,7 @@
 </script>
 
 <!-- moves are watched on the window since the pointer soon leaves the sheet's header -->
-<svelte:window onpointermove={headMove} onpointerup={headUp} onpointercancel={headUp} />
+<svelte:window onpointermove={headMove} onpointerup={headUp} onpointercancel={headUp} onpopstate={onPop} />
 
 <div class="app">
   <header class="hud">
@@ -133,7 +191,9 @@
       {#key game.level}<span class="lvnum">Lv {game.level}</span>{/key}
       <span class="bar"><i style:width="{pct}%"></i></span>
     </div>
+    <button class="gear" aria-label="Settings" title="Settings" onclick={() => (settingsOpen = true)}><Icon name="gear" size={20} /></button>
   </header>
+  {#if settingsOpen}<Settings onclose={() => (settingsOpen = false)} />{/if}
 
   <main class="stage" bind:this={stageEl}>
     <div class="mapwrap">
@@ -160,9 +220,9 @@
         </nav>
       </div>
       {#if open}
-        <div class="body">
+        <div class="body" bind:this={bodyEl}>
           {#key ui.tab}
-            <div in:fly={{ y: 10, duration: 200 }}>
+            <div class="page" in:fly={{ y: 10, duration: 200 }}>
               {#if ui.tab === 'city'}<CityPanel />{:else if ui.tab === 'fleet'}<FleetPanel />{:else if ui.tab === 'routes'}<RoutesPanel />{:else if ui.tab === 'contracts'}<ContractsPanel />{:else if ui.tab === 'dev'}<DevPanel />{:else}<ShopPanel />{/if}
             </div>
           {/key}

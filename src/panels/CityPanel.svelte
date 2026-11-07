@@ -1,5 +1,5 @@
 <script>
-  import { game, ui, cityById, etaText, fmtTime, clock, followVehicle, isOpen, connections, unlockPrice, unlockCity, carrierAt, fmt, townSize, sizeName, growthOf, buyDepot, fetcher, consistOf, paintOf, buildHQ, hqPrice, setLivery, nextContractsPerk, buyContractsPerk, contractSlots, nextSuperloadsPerk, buySuperloadsPerk, superloadSlots, buyAutoPerk, mixOf, projectTowns, landmarkAt, cantHost, escortKind } from '../game/game.svelte.js';
+  import { game, ui, cityById, etaText, fmtTime, clock, followVehicle, isOpen, connections, unlockPrice, unlockCity, carrierAt, fmt, townSize, sizeName, growthOf, buyDepot, fetcher, consistOf, paintOf, buildHQ, hqPrice, mixOf, projectTowns, landmarkAt, cantHost, escortKind } from '../game/game.svelte.js';
   import { CITY_PRICE, DEPOT, HQ, TYPE_LABEL, PROJECTS, CONTINENTS } from '../game/data.js';
   import ProjectCard from '../ui/ProjectCard.svelte';
   import Icon from '../ui/Icon.svelte';
@@ -7,6 +7,7 @@
   import JobRow from '../ui/JobRow.svelte';
   import LoadPanel from './LoadPanel.svelte';
   import SendPanel from './SendPanel.svelte';
+  import HQPanel from './HQPanel.svelte';
   import { fly, slide, flip } from '../ui/motion.js';
   const c = $derived(cityById[game.selected]);
   // the job types this town turns up more of than most, strongest lean first
@@ -37,6 +38,8 @@
   <div in:fly={{ x: 28, duration: 220 }}><LoadPanel v={active} /></div>
 {:else if sending}
   <div in:fly={{ x: 28, duration: 220 }}><SendPanel job={sending} at={c.id} /></div>
+{:else if ui.hqPage && game.hq === c.id}
+  <div in:fly={{ x: 28, duration: 220 }}><HQPanel /></div>
 {:else}
   <div in:fly={{ x: -28, duration: 220 }}>
   <div class="cityhead">
@@ -94,30 +97,14 @@
     </div>
   {/if}
   {#if game.hq === c.id}
-    {@const lv = game.livery ?? { body: '#2a6fd6', accent: '#f2c14e', on: false }}
-    {@const perk = nextContractsPerk()}
-    {@const heavy = nextSuperloadsPerk()}
+    <!-- the HQ has its own page, for colors and offices -->
     <h3>Headquarters</h3>
-    <label class="row hq">
-      <input type="checkbox" checked={lv.on} onchange={(e) => setLivery({ on: e.currentTarget.checked })} />
-      <span class="grow"><b>Company colors</b><small>Paint the fleet in your colors. Escorts and special vehicles keep theirs, and any vehicle can opt out in the Fleet tab.</small></span>
-    </label>
-    <div class="row hq">
-      <span class="grow"><b>Body and trim</b><small>{lv.on ? 'Repaints every vehicle' : 'Turn on company colors to use them'}</small></span>
-      <input type="color" value={lv.body} onchange={(e) => setLivery({ body: e.currentTarget.value })} aria-label="Body color" />
-      <input type="color" value={lv.accent} onchange={(e) => setLivery({ accent: e.currentTarget.value })} aria-label="Trim color" />
-    </div>
-    <div class="row hq">
-      <span class="grow"><b>Contracts office{game.hqContracts ? ` ${game.hqContracts + 1}` : ''}</b><small>{perk ? `Work on ${contractSlots() + 1} contracts at a time instead of ${contractSlots()}, with one more offer on the board.` : `Fully staffed. You can work on ${contractSlots()} contracts at a time.`}</small></span>
-      {#if perk}<button class="btn small" disabled={game.level < perk.level || game.coins < perk.price} onclick={buyContractsPerk}>{game.level < perk.level ? `Lv ${perk.level}` : `$${fmt(perk.price)}`}</button>{/if}
-    </div>
-    <div class="row hq">
-      <span class="grow"><b>Auto dispatch</b><small>{game.hqAuto ? 'On. Self-driving vehicles find their own jobs, and rescuers set off for breakdowns on their own.' : 'Unlocks self-driving vehicles that find their own jobs, and sends rescuers out to breakdowns on their own.'}</small></span>
-      {#if !game.hqAuto}<button class="btn small" disabled={game.level < HQ.auto.level || game.coins < HQ.auto.price} onclick={buyAutoPerk}>{game.level < HQ.auto.level ? `Lv ${HQ.auto.level}` : `$${fmt(HQ.auto.price)}`}</button>{/if}
-    </div>
-    <div class="row hq">
-      <span class="grow"><b>Heavy haul office{game.hqSuperloads ? ` ${game.hqSuperloads + 1}` : ''}</b><small>{heavy ? `Run ${superloadSlots() + 1} superloads at a time by road, by rail and by sea, instead of ${superloadSlots()} of each.` : `Fully staffed. You can run ${superloadSlots()} superloads at a time by road, by rail and by sea.`}</small></span>
-      {#if heavy}<button class="btn small" disabled={game.level < heavy.level || game.coins < heavy.price} onclick={buySuperloadsPerk}>{game.level < heavy.level ? `Lv ${heavy.level}` : `$${fmt(heavy.price)}`}</button>{/if}
+    <div class="group">
+      <button class="row" onclick={() => (ui.hqPage = true)}>
+        <span class="ticon hqicon"><Icon name="town" size={18} /></span>
+        <span class="grow"><b>Your headquarters</b><small>Company colors, offices and perks</small></span>
+        <span class="go"><Icon name="chevron" size={18} /></span>
+      </button>
     </div>
   {/if}
   {#if projects.length}
@@ -125,18 +112,23 @@
     {#each projects as p (p.id)}<ProjectCard {p} here={c.id} />{/each}
   {/if}
   <h3>Parked here</h3>
+  <!-- each opens its load screen, so these end in a chevron rather than a button -->
+  <div class="group">
   {#each here as v (v.id)}
     <button class="row vrow" animate:flip transition:slide={{ duration: 200 }} onclick={() => { ui.activeVehicle = v.id; ui.plan = []; ui.picking = !!escortKind(v); }}>
       <span class="pv"><Sprite kind={v.kind} model={v.model} cars={consistOf(v)} scale={3} paint={paintOf(v)} /></span>
-      <span class="grow"><b>{v.name}</b><small>{v.loop ? 'Repeating, waiting for jobs' : v.cargo.length ? `${v.cargo.length} on board` : 'Empty'}</small></span>
-      <span class="act">{escortKind(v) ? 'Move' : 'Load'}</span>
+      <span class="grow"><b>{v.name}</b><small>{escortKind(v) ? 'Escort. Tap to move it' : v.loop ? 'Repeating, waiting for jobs' : v.cargo.length ? `${v.cargo.length} on board` : 'Empty. Tap to load'}</small></span>
+      <span class="go"><Icon name="chevron" size={18} /></span>
     </button>
-  {:else}
-    <p class="muted">{c.anchor ? 'Nothing anchored here. Send an aircraft carrier over.' : 'Nothing parked here. Send a vehicle over, or buy one in the Shop.'}</p>
   {/each}
+  </div>
+  {#if !here.length}
+    <p class="muted">{c.anchor ? 'Nothing anchored here. Send an aircraft carrier over.' : 'Nothing parked here. Send a vehicle over, or buy one in the Shop.'}</p>
+  {/if}
 
   {#if incoming.length}
     <h3>On the way</h3>
+    <div class="group">
     {#each incoming as { v, at, later, pick } (v.id)}
       <button class="row vrow" animate:flip transition:slide={{ duration: 200 }} onclick={() => followVehicle(v)}>
         <span class="pv"><Sprite kind={v.kind} model={v.model} cars={consistOf(v)} scale={3} paint={paintOf(v)} /></span>
@@ -144,19 +136,21 @@
         <span class="act">Watch</span>
       </button>
     {/each}
+    </div>
   {/if}
 
   {#if !c.anchor}
   <h3>Waiting at {c.name} ({jobs.length})</h3>
+  <div class="group">
   {#each jobs as j (j.id)}
     {@const f = fetcher(j)}
     <div animate:flip transition:slide={{ duration: 200 }}>
       {#if f}<JobRow job={j} at={c.id} note="{f.name} is on its way for it" action="Watch" onclick={() => followVehicle(f)} />
       {:else}<JobRow job={j} at={c.id} action="Send" onclick={() => (ui.sendJob = j.id)} />{/if}
     </div>
-  {:else}
-    <p class="muted">No jobs right now. New ones turn up every few seconds.</p>
   {/each}
+  </div>
+  {#if !jobs.length}<p class="muted">No jobs right now. New ones turn up every few seconds.</p>{/if}
   {/if}
   {#if could.length}
     <h3>Build a megaproject</h3>
@@ -174,10 +168,6 @@
   .gline small { color: var(--ink-soft); font-size: 12px; }
   .gline b { font-weight: 600; }
   .depot { flex-wrap: nowrap; padding-top: 6px; border-top: 1px solid var(--line); }
-  .hq { align-items: center; gap: 10px; }
-  .hq input[type='checkbox'] { width: 20px; height: 20px; flex: none; accent-color: var(--accent); }
-  label.hq { cursor: pointer; }
-  .hq input[type='color'] { width: 34px; height: 28px; padding: 0; border: 1px solid var(--line); border-radius: 6px; background: none; flex: none; }
   .bar { height: 5px; background: var(--panel-2); border-radius: 3px; overflow: hidden; }
   .bar i { display: block; height: 100%; background: var(--accent); border-radius: 3px; }
 </style>

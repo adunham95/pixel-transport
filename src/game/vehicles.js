@@ -2520,6 +2520,23 @@ function schnabel(L) {
       <g fill="#3a3f47"><path d="M${-e + 3} -1.4L${-e + 4.4} -1L${-e + 4.4} 1L${-e + 3} 1.4Z"/><path d="M${e - 3} -1.4L${e - 4.4} -1L${e - 4.4} 1L${e - 3} 1.4Z"/></g>`;
 }
 
+// a big spruce lying on its side, seen from above: trunk at the front (x0), tip at the back (x1),
+// its outline jagged with tiers of branches. It stays full most of the way, like a real spruce, and
+// narrows quickly to a point near the tip: half its width a fraction t along is spruceHalf(w, t).
+const spruceHalf = (w, t) => w * Math.pow(Math.max(0, 1 - t), 0.6);
+function spruce(x0, x1, w, tiers) {
+  const top = [], bottom = [], at = (t) => (x0 + (x1 - x0) * t).toFixed(2);
+  for (let i = 0; i < tiers; i++) {
+    const ta = i / tiers, tb = (i + 0.55) / tiers;
+    const wa = spruceHalf(w, ta).toFixed(2), wb = (spruceHalf(w, tb) * 0.8).toFixed(2);
+    top.push(`${at(ta)} -${wa}`, `${at(tb)} -${wb}`);
+    bottom.unshift(`${at(tb)} ${wb}`, `${at(ta)} ${wa}`);
+  }
+  return `M${x0} 0L${top.join("L")}L${x1} 0L${bottom.join("L")}Z`;
+}
+// burlap bands binding the branches, a fraction t along a spruce from x0 to x1
+const spruceBands = (x0, x1, w, ts) => ts.map((t) => { const h = spruceHalf(w, t) * 0.82; return `<rect x="${(x0 + (x1 - x0) * t - 0.19).toFixed(2)}" y="${(-h).toFixed(2)}" width="0.38" height="${(2 * h).toFixed(2)}" rx="0.1"/>`; }).join("");
+
 // a superload doesn't need a trailer bought for it: it comes on its own, drawn with the load on
 // board, and hitches up to whatever carries it (TRUCKS, ENGINES or BOATS with superload: true).
 // Road loads ride a deck, rail loads a schnabel car, and sea loads sit on the ship's own deck, so
@@ -2614,6 +2631,22 @@ export const SUPERLOAD_TRAILERS = {
       <rect x="-7.8" y="-0.25" width="3" height="0.5" rx="0.2" fill="#9aa3ad"/>
       <g fill="#4a4f57" stroke="rgba(18,24,38,0.9)" stroke-width="0.2"><circle cx="-9" cy="-0.75" r="0.45"/><circle cx="-9" cy="0.75" r="0.45"/><circle cx="-9.2" cy="0" r="0.5"/></g>
       <rect x="-3.4" y="-2.3" width="1.4" height="0.5" fill="#d6453a"/><rect x="-3.4" y="1.8" width="1.4" height="0.5" fill="#2a6fd6"/>
+    </svg>`,
+  },
+  tree: {
+    // a giant spruce headed for a city plaza: trunk forward, the tip hanging off the back, its
+    // branches bound in burlap bands for the trip and a red ribbon round the base
+    name: "Christmas tree",
+    art: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-10.5 -2.7 21 5.4">
+      ${deck(18)}
+      <rect x="5.4" y="-0.6" width="3.4" height="1.2" rx="0.25" fill="#7a4a26" stroke="rgba(18,24,38,0.9)" stroke-width="0.35"/>
+      <rect x="5.4" y="-0.6" width="3.4" height="0.35" fill="#9a6236"/>
+      <path d="${spruce(5.6, -10.2, 2.5, 9)}" fill="#2c6e3a" stroke="rgba(18,24,38,0.9)" stroke-width="0.4" stroke-linejoin="round"/>
+      <path d="${spruce(5.1, -9.3, 1.75, 9)}" fill="#3a8a4a"/>
+      <path d="${spruce(4.6, -8.2, 0.85, 9)}" fill="#4fa35c" opacity="0.75"/>
+      <g fill="#c9a36b">${spruceBands(5.6, -10.2, 2.5, [0.22, 0.48, 0.72])}</g>
+      <rect x="4.8" y="-2.3" width="0.5" height="4.6" rx="0.15" fill="#d6453a" stroke="rgba(18,24,38,0.9)" stroke-width="0.2"/>
+      <path d="M5.05 -2.3l-0.8 -0.35v0.7zM5.05 2.3l-0.8 0.35v-0.7z" fill="#b8352b"/>
     </svg>`,
   },
   // ---- by rail ----

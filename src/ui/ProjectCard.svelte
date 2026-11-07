@@ -68,8 +68,8 @@
 </div>
 
 <style>
-  .project { padding: 10px 12px; margin-bottom: 8px; background: var(--panel-2); border: 1px solid var(--line); border-radius: var(--r); display: flex; flex-direction: column; gap: 6px; }
-  .project.built { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, var(--panel-2)); }
+  .project { padding: 12px 14px; margin-bottom: 8px; background: var(--panel-2); border-radius: 18px; display: flex; flex-direction: column; gap: 6px; }
+  .project.built { background: color-mix(in srgb, var(--accent) 8%, var(--panel-2)); box-shadow: inset 3px 0 0 var(--accent); }
   .project.locked { opacity: .6; }
   .head { display: flex; align-items: center; gap: 10px; }
   .head small { display: block; color: var(--ink-soft); font-size: 12px; }

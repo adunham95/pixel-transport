@@ -3,6 +3,7 @@
   import Icon from '../ui/Icon.svelte';
   import Sprite from '../ui/Sprite.svelte';
   import JobRow from '../ui/JobRow.svelte';
+  import NavHeader from '../ui/NavHeader.svelte';
   import { send, receive, flip, fly } from '../ui/motion.js';
   import { TYPE_LABEL, JOB_TYPES, ENGINES, TRUCKS, HQ, ESCORT_LABEL, SECURE, WEATHER } from '../game/data.js';
   let { v } = $props();
@@ -11,6 +12,12 @@
   const city = $derived(cityById[v.city]);
   const score = (j) => (canReach(v, j.to) ? j.pay * 2 : j.pay);
   const waiting = $derived([...(game.jobs[v.city] ?? [])].sort((a, b) => score(b) - score(a)));
+  // narrowing the waiting list to one kind of job (mail, wide loads…), with how many of each are
+  // here. The filter lets go by itself once the last job of that kind is gone.
+  let onlyType = $state(null);
+  const kinds = $derived(JOB_TYPES.map((t) => ({ t, n: waiting.filter((j) => j.type === t).length })).filter((k) => k.n));
+  const only = $derived(kinds.some((k) => k.t === onlyType) ? onlyType : null);
+  const shown = $derived(only ? waiting.filter((j) => j.type === only) : waiting);
 
   // route planning
   const stops = $derived(ui.plan);
@@ -96,6 +103,15 @@
     ui.picking = false; ui.plan = [];
     if (escortKind(v)) ui.activeVehicle = null;
   }
+  // switching between loading and planning is a new screen, so it starts at the top
+  // (not on the first run, so the nav header can note where the town page was scrolled to)
+  let headEl, first = true;
+  $effect(() => {
+    ui.picking;
+    if (first) { first = false; return; }
+    headEl?.closest('.body')?.scrollTo(0, 0);
+  });
+  function leave() { ui.activeVehicle = null; ui.picking = false; ui.plan = []; ui.queue = null; }
   function go() {
     if (!dispatch(v, ui.plan, { escort: riding.length > 0 })) return;
     ui.picking = false; ui.activeVehicle = null; ui.plan = [];
@@ -103,6 +119,10 @@
   }
 </script>
 
+<!-- planning a route goes back to loading; loading goes back to the town (escorts skip loading) -->
+<NavHeader title={v.name} sub={ui.picking ? `Plan a route from ${city.name}` : `Loading at ${city.name}`}
+  back={ui.picking && !escortKind(v) ? 'Load' : city.name}
+  onback={ui.picking ? back : leave} />
 {#if ui.queue}
   <div class="queue">
     <span class="grow"><b>Sending idle vehicles</b><small>{queueLeft() ? `${queueLeft()} more after this one` : 'Last one'}</small></span>
@@ -110,15 +130,13 @@
     <button class="btn small ghost" onclick={() => (ui.queue = null)}>Stop</button>
   </div>
 {/if}
-<div class="loadhead">
-  <button class="btn small" onclick={() => { ui.activeVehicle = null; ui.picking = false; ui.plan = []; ui.queue = null; }}>Back</button>
-  <div class="grow"><b>{v.name}</b><small>at {city.name}</small></div>
-  <Sprite kind={v.kind} model={v.model} cars={consistOf(v)} scale={3} paint={paintOf(v)} />
-</div>
-<div class="meters">
-  {#each JOB_TYPES as t}
-    {#if cap[t]}<span class="meter t-{t}" class:full={u[t] >= cap[t]}><Icon name={t} size={14} />{u[t]}/{cap[t]}</span>{/if}
-  {/each}
+<div class="loadhead" bind:this={headEl}>
+  <span class="pv wide"><Sprite kind={v.kind} model={v.model} cars={consistOf(v)} scale={3} paint={paintOf(v)} /></span>
+  <div class="meters">
+    {#each JOB_TYPES as t}
+      {#if cap[t]}<span class="meter t-{t}" class:full={u[t] >= cap[t]}><Icon name={t} size={14} />{u[t]}/{cap[t]}</span>{/if}
+    {/each}
+  </div>
 </div>
 {#if Object.keys(needs).length}
   <div class="convoy" class:ready={!convoy.missing.length}>
@@ -143,7 +161,7 @@
 {#if ui.picking}
   <h3>Route</h3>
   {#if ui.plan.length}
-    <ol class="stops">
+    <ol class="stops group">
       {#each ui.plan as id, i}
         {@const l = legs[i]}
         <li class="row stop" class:bad={!l} in:fly={{ y: -8, duration: 200 }}>
@@ -170,6 +188,7 @@
   {/if}
 
   <h3>{ui.plan.length ? `Next stop after ${cityById[last].name}` : 'First stop'}</h3>
+  <div class="group">
   {#each dests as d (d.to)}
     {@const c = cityById[d.to]}
     <button class="row dest" class:has={d.n} onclick={() => toggleStop(v, d.to)}>
@@ -179,9 +198,10 @@
       </span>
       <span class="right"><b>{fmtTime(d.time)}</b><small>Fuel ${d.cost}</small></span>
     </button>
-  {:else}
-    <p class="muted">Nowhere in range from {cityById[last].name}.</p>
   {/each}
+  </div>
+  {#if !dests.length}<p class="muted">Nowhere in range from {cityById[last].name}.</p>{/if}
+  <div class="group">
   {#if optKind}
     <label class="row repeat" class:off={!sidekick}>
       <input type="checkbox" bind:checked={ui.escort} disabled={!sidekick} />
@@ -191,6 +211,7 @@
   <div class="row repeat off">
     <span class="grow"><b>Repeating routes</b><small>{game.repeatRoutes ? 'To send it round the same loop on its own, set up a route in the Routes tab and assign it there.' : game.level < HQ.level ? `Build an HQ from level ${HQ.level} to set up routes vehicles run on their own.` : 'Build an HQ in any town, from its town page, to set up routes vehicles run on their own.'}</small></span>
   </div>
+  </div>
   {#if ui.plan.length && !broken}
     <div class="profit">
       <div><small>Drop offs</small><b>+${fmt(pay)}</b></div>
@@ -199,7 +220,6 @@
     </div>
   {/if}
   <div class="footer">
-    <button class="btn" onclick={back}>Back</button>
     {#if unrouted}<button class="btn" onclick={plan}>Route cargo</button>{/if}
     <button class="btn primary" disabled={!ui.plan.length || broken || game.coins < total.cost || convoy.missing.length > 0} onclick={go}>
       {!ui.plan.length ? 'Go' : `Go ${fmtTime(total.time)}, $${fmt(total.cost)}`}
@@ -208,11 +228,14 @@
 {:else}
   {#if v.cargo.length}<h3>On board. Tap to drop off here.</h3>{/if}
   <!-- outside the if, so the very first job loaded still glides up from the waiting list -->
+  <div class="group">
   {#each v.cargo as j (j.id)}
     <div animate:flip in:receive={{ key: j.id }} out:send={{ key: j.id }}><JobRow job={j} loaded onclick={() => unloadJob(v, j)} action="Drop" note={j.hop ? `Left at ${cityById[j.hop].name} to go on from there` : canReach(v, j.to) ? '' : 'Can’t reach from here'} /></div>
   {/each}
+  </div>
   {#if deck}
     <h3>Vehicle deck ({deckUsed(v)} of {deck} spaces)</h3>
+    <div class="group">
     {#each onDeck as t (t.id)}
       <button class="row vrow" onclick={() => driveOff(v, t)}>
         <span class="pv"><Sprite kind={t.kind} model={t.model} cars={consistOf(t)} scale={3} paint={paintOf(t)} /></span>
@@ -228,24 +251,39 @@
         {#if !nope}<span class="act">{w.on}</span>{/if}
       </button>
     {/each}
+    </div>
     {#if !onDeck.length && !ashore.length}<p class="muted small">No {w.none} here. Park one at {city.name} to {w.aboard}.</p>{/if}
   {/if}
   <h3>Waiting at {city.name}</h3>
-  {#each waiting as j (j.id)}
+  {#if kinds.length > 1}
+    <div class="fchips" role="radiogroup" aria-label="Show jobs of one kind">
+      <button role="radio" aria-checked={!only} class:on={!only} onclick={() => (onlyType = null)}>All <em>{waiting.length}</em></button>
+      {#each kinds as k (k.t)}
+        <button role="radio" aria-checked={only === k.t} class:on={only === k.t} onclick={() => (onlyType = only === k.t ? null : k.t)}><span class="ti t-{k.t}"><Icon name={k.t} size={13} /></span>{TYPE_LABEL[k.t]} <em>{k.n}</em></button>
+      {/each}
+    </div>
+  {/if}
+  <div class="group">
+  {#each shown as j (j.id)}
     {@const why = blocker(j)}
     <div animate:flip in:receive={{ key: j.id }} out:send={{ key: j.id }}><JobRow job={j} at={v.city} onclick={() => loadJob(v, j)} disabled={why.block} note={why.text} action={why.block ? '' : 'Load'} /></div>
-  {:else}
-    <p class="muted">No jobs waiting. New ones turn up every few seconds.</p>
   {/each}
+  </div>
+  {#if !waiting.length}<p class="muted">No jobs waiting. New ones turn up every few seconds.</p>{/if}
   <div class="footer">
-    <button class="btn" onclick={() => autoLoad(v)}>Auto load</button>
+    <button class="btn" onclick={() => autoLoad(v, only)}>Auto load{only ? ` ${TYPE_LABEL[only].toLowerCase()}` : ''}</button>
     {#if v.cargo.length}<button class="btn" onclick={plan}>Route cargo</button>{/if}
     <button class="btn primary" onclick={() => { ui.plan = []; ui.picking = true; }}>Plan route</button>
   </div>
 {/if}
 
 <style>
-  .repeat { margin-top: 10px; cursor: pointer; }
+  .repeat { cursor: pointer; }
+  .fchips .ti { display: flex; }
+  .fchips button.on .ti { color: inherit; }
+  .loadhead { margin: 0 0 10px; }
+  .loadhead .pv { width: auto; min-width: 64px; max-width: 55%; height: 44px; padding: 0 8px; }
+  .loadhead .meters { margin: 0; }
   .wx { margin-left: 6px; }
   .queue { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; padding: 8px 10px 8px 12px; background: var(--accent-soft); border-radius: var(--r); }
   .queue small { display: block; color: var(--ink-soft); font-size: 12px; }

@@ -415,7 +415,7 @@ export const game = $state(loaded ?? fresh());
 relink();
 export const ui = $state({
   tab: 'city', sheetOpen: true, activeVehicle: null, picking: false, plan: [], repeat: false, relay: false, escort: false, sendJob: null,
-  focusVehicle: null, routeEdit: null, toasts: [], focus: null, follow: null, track: null, shopTab: 'plane', shopType: null, shopMore: false, queue: null, fleetFind: '', fleetKind: null, fleetStatus: null,
+  focusVehicle: null, routeEdit: null, toasts: [], focus: null, follow: null, track: null, shopTab: 'plane', shopType: null, shopMore: false, shopModel: null, hqPage: false, queue: null, fleetFind: '', fleetKind: null, fleetStatus: null,
 });
 // Game time runs ahead of the wall clock when dev mode speeds it up. The extra is kept
 // in skew, which is saved so trips stay in place across reloads.
@@ -888,12 +888,20 @@ function makeContract(now) {
   const taken = new Set([...offers, ...active].map((k) => `${k.type}>${k.to}`));
   const opts = [];
   for (const t of JOB_TYPES) if (game.level >= TYPE_LEVEL[t]) for (const c of CITIES) if (!taken.has(`${t}>${c.id}`) && canSend(t, c.id)) opts.push([[t, c.id], TYPE_WEIGHT[t]]);
-  if (!opts.length) return null;
-  const [type, to] = pickWeighted(opts), [lo, hi] = CONTRACTS.size[type];
+  // only somewhere jobs of that type actually come from: tourists don't turn up at all until the
+  // fleet has a show-off vehicle, and with nothing coming the wait (and the reward) is infinite
+  let type, to, s;
+  for (;;) {
+    if (!opts.length) return null;
+    const pick = pickWeighted(opts);
+    s = supply(pick[0], pick[1]);
+    if (s.rate > 0) { [type, to] = pick; break; }
+    opts.splice(opts.findIndex(([o]) => o === pick), 1);
+  }
+  const [lo, hi] = CONTRACTS.size[type];
   let n = lo + Math.floor(Math.random() * (hi - lo + 1));
   // bulk turns up in batches of three
   if (type === 'bulk') n = Math.max(3, Math.round(n / 3) * 3);
-  const s = supply(type, to);
   // time to wait for the jobs to turn up, plus a couple of trips' worth at an everyday speed for
   // this level. The bonus goes by the time it takes, so scarce jobs and far off towns pay more.
   const lv = game.level - 1, speed = CONTRACTS.speed + CONTRACTS.speedUp * lv;
@@ -950,6 +958,10 @@ export function contractText(c) {
 // keep the board stocked, and let contracts and offers whose time is up go (superloads never run out of time)
 function tickContracts(now) {
   const k = game.contracts, late = (c) => c.until != null && now > c.until;
+  // clear out any broken contract an older version made (an infinite reward, saved as null)
+  const broken = (c) => !c.super && !(Number.isFinite(c.reward) && Number.isFinite(c.time));
+  if (k.offers.some(broken)) k.offers = k.offers.filter((c) => !broken(c));
+  if (k.active.some(broken)) k.active = k.active.filter((c) => !broken(c));
   if (k.offers.some(late)) k.offers = k.offers.filter((o) => !late(o));
   for (const c of k.active.filter(late)) toast(`Contract missed: ${c.done} of ${contractText(c)}`, 'bad');
   if (k.active.some(late)) k.active = k.active.filter((c) => !late(c));
@@ -1423,9 +1435,18 @@ export function selectCity(id, focus = false) {
   ui.picking = false;
   ui.plan = [];
   ui.sendJob = null;
+  ui.hqPage = false;
   const av = game.vehicles.find((v) => v.id === ui.activeVehicle);
   if (!av || av.city !== id) ui.activeVehicle = null;
   if (focus) ui.focus = { x: cityById[id].x, y: cityById[id].y, t: Date.now() };
+}
+
+// open the HQ's own page, from anywhere: it lives in the Town tab, over its town's page
+export function openHQ() {
+  if (!game.hq) return;
+  selectCity(game.hq, true);
+  ui.activeVehicle = null;
+  ui.hqPage = true;
 }
 
 // open a parked vehicle's load screen; escorts carry nothing, so they go straight to planning a route
@@ -1507,14 +1528,16 @@ export function unloadJob(v, job) {
 // their trip first, so they don't get stuck behind fresh ones, then best paying
 const loadOrder = (at) => (a, b) => (b.from !== at) - (a.from !== at) || b.pay - a.pay;
 
-export function autoLoad(v) {
+// type, if given, loads only that kind of job (the load screen's filter)
+export function autoLoad(v, type = null) {
   // only jobs this vehicle can get to their destination. A self-driving one leaves any a repeating
   // route here will carry on about as quickly, so the loops do the long runs and it finishes them off
   const taken = fetching(), rides = spec(v).auto && routing();
-  const list = [...game.jobs[v.city]].filter((j) => canReach(v, j.to) && !taken.has(j.id) && !(rides && loopTakes(j, v.city, rides(j), v))).sort(loadOrder(v.city));
+  const list = [...game.jobs[v.city]].filter((j) => (!type || j.type === type) && canReach(v, j.to) && !taken.has(j.id) && !(rides && loopTakes(j, v.city, rides(j), v))).sort(loadOrder(v.city));
   let n = 0;
   for (const j of list) if (canLoad(v, j)) { loadJob(v, j); n++; }
-  if (!n) toast(list.length ? 'Nothing more fits on board' : `No jobs here that ${v.name} can deliver`);
+  const what = type ? `${TYPE_LABEL[type].toLowerCase()} ` : '';
+  if (!n) toast(list.length ? 'Nothing more fits on board' : `No ${what}jobs here that ${v.name} can deliver`);
 }
 
 // add a stop to the route being planned, or take it off again if it's the last one
@@ -2338,7 +2361,7 @@ export function resetGame() {
   relink();
   skew = 0;
   dev.speed = 1;
-  Object.assign(ui, { tab: 'city', sheetOpen: true, activeVehicle: null, picking: false, plan: [], repeat: false, relay: false, sendJob: null, focusVehicle: null, routeEdit: null, follow: null, track: null, focus: { x: cityById[g.selected].x, y: cityById[g.selected].y, t: Date.now() } });
+  Object.assign(ui, { tab: 'city', sheetOpen: true, activeVehicle: null, picking: false, plan: [], repeat: false, relay: false, sendJob: null, focusVehicle: null, routeEdit: null, shopModel: null, hqPage: false, follow: null, track: null, focus: { x: cityById[g.selected].x, y: cityById[g.selected].y, t: Date.now() } });
   save();
 }
 

@@ -25,8 +25,9 @@
 
 <style>
   /* a celebrity's ride stands out in gold */
-  .celeb { border-color: #e8b830; background: color-mix(in srgb, #e8b830 12%, var(--panel-2)); }
+  /* (a stripe down the left, so it still shows inside a grouped list, where rows have no border) */
+  .celeb { border-color: #e8b830; background: color-mix(in srgb, #e8b830 12%, var(--panel-2)); box-shadow: inset 3px 0 0 #e8b830; }
   /* lucky cargo pays anywhere from half to five times as much */
-  .lucky { border-style: dashed; border-color: var(--good); }
+  .lucky { border-style: dashed; border-color: var(--good); box-shadow: inset 3px 0 0 var(--good); }
   .luck { font-style: normal; color: var(--good); margin-left: 2px; }
 </style>
