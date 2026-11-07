@@ -542,7 +542,7 @@ function dropOff(v, to, at = gameNow(), by = v.kind) {
     if (j.hop === to) { delete j.hop; if (j.from === to) j.at = at; game.jobs[to].push(j); return false; }
     return true;
   });
-  if (n) { earn(total); books(v).earned += total; }
+  if (n) { earn(total); books(v).earned += total; const st = lapStats(v); if (st) st.earned += total; }
   finishContracts();
   finishProjects();
   if (n && !quiet) fx.push({ x: cityById[to].x, y: cityById[to].y, text: `+$${fmt(total)}`, t: Date.now() });
@@ -567,6 +567,7 @@ function arrive(v, at) {
   if (next) {
     if (v.loop) pickUp(v, to);
     v.trip = { ...next, startAt: at };
+    noteFill(v);
     rollBreakdown(v);
     if (n) toast(`${v.name} dropped off ${n} at ${name}. +$${fmt(total)}`, 'good');
     return;
@@ -582,6 +583,7 @@ function arrive(v, at) {
     runLoop(v, at);
     return;
   }
+  closeLap(v, at);
   if (ui.track === v.id) ui.track = null;
   if (n) toast(`${v.name} delivered ${n} at ${name}. +$${fmt(total)}`, 'good');
   else toast(`${v.name} arrived at ${name}`);
@@ -1565,6 +1567,13 @@ export function dispatch(v, stops, { repeat = false, lap = null, escort = false,
   game.coins -= cost;
   books(v).fuel += cost;
   v.miles = (v.miles ?? 0) + legs.reduce((s, l) => s + l.len, 0);
+  // the lap before this one is done; a saved route starts counting a new one
+  closeLap(v, lap ?? gameNow());
+  if (route) {
+    const st = routeStats(route);
+    st.laps++; st.fuel += cost;
+    v.lapRoute = route.id; v.lapAt = lap ?? gameNow();
+  }
   for (const p of stow) { p.aboard = v.id; p.city = null; delete p.loop; }
   for (const { x, cost: c } of escorts) {
     books(x).fuel += c;
@@ -1579,6 +1588,7 @@ export function dispatch(v, stops, { repeat = false, lap = null, escort = false,
   rollBreakdown(v);
   v.next = rest;
   v.depart = { from: v.city, at: v.trip.startAt, len: legs.reduce((s, l) => s + l.len, 0) };
+  noteFill(v);
   if (route) v.loop = { route: route.id, stops };
   else if (repeat) v.loop = { stops, ...(escort && { escort }), ...(relay && { relay }) };
   else if (lap == null) delete v.loop;
@@ -1798,7 +1808,7 @@ function runLoop(v, at) {
   delete v.loop.wait;
   const r = v.loop.route != null ? routeById(v.loop.route) : null;
   if (v.loop.route != null) {
-    if (!r || routeIds(r).length < 2) { delete v.loop; return; }
+    if (!r || routeIds(r).length < 2) { delete v.loop; closeLap(v, at); return; }
     v.loop.stops = routeStops(r, v.city);
   }
   pickUp(v, v.city);
@@ -1857,6 +1867,63 @@ export function routeProblem(v, r) {
 }
 
 export const routeVehicles = (r) => game.vehicles.filter((v) => v.loop?.route === r.id);
+
+// ---------- route stats ----------
+
+// running totals for a saved route: laps set off, fuel paid for them, what they earned, how full
+// each leg left (fill summed over legs), and how long those laps took, in vehicle-ms of game time
+// (summed over every vehicle on it, waiting for work included). A vehicle's lap belongs to the
+// route it set off on (v.lapRoute, from v.lapAt), even if it's moved to another one partway round.
+const newStats = () => ({ laps: 0, fuel: 0, earned: 0, fill: 0, legs: 0, time: 0 });
+export const routeStats = (r) => (r.stats ??= newStats());
+function lapStats(v) {
+  const r = v.lapRoute != null ? routeById(v.lapRoute) : null;
+  return r ? routeStats(r) : null;
+}
+// the lap a vehicle was on is over: count its time
+function closeLap(v, at) {
+  const st = lapStats(v);
+  if (st && v.lapAt != null) st.time += Math.max(0, at - v.lapAt);
+  delete v.lapRoute;
+  delete v.lapAt;
+}
+// how full a vehicle on a route is setting off on this leg, out of everything it can hold
+function noteFill(v) {
+  const st = lapStats(v);
+  if (!st) return;
+  const cap = Object.values(capacity(v)).reduce((a, b) => a + b, 0);
+  if (!cap) return;
+  st.fill += Math.min(1, v.cargo.length / cap);
+  st.legs++;
+}
+
+// what a route is worth, from its laps so far: fuel, earnings and profit per lap, profit per minute
+// across the vehicles on it now, and how full it runs. Null until it has run a lap.
+export function routeReport(r, now = gameNow()) {
+  const st = r.stats;
+  if (!st?.laps) return null;
+  // the laps still going count for the time they've taken so far
+  let time = st.time;
+  for (const v of game.vehicles) if (v.lapRoute === r.id && v.lapAt != null) time += Math.max(0, now - v.lapAt);
+  const profit = st.earned - st.fuel, mins = time / 60000;
+  // per vehicle-minute, times the vehicles on it now (or one, with none left)
+  const perMin = mins >= 0.5 ? (profit / mins) * Math.max(1, routeVehicles(r).length) : null;
+  return {
+    laps: st.laps,
+    fuel: st.fuel / st.laps,
+    earned: st.earned / st.laps,
+    profit: profit / st.laps,
+    perMin,
+    lapTime: time / st.laps / 1000,
+    full: st.legs ? st.fill / st.legs : null,
+  };
+}
+
+export function resetRouteStats(r) {
+  r.stats = newStats();
+  const now = gameNow();
+  for (const v of game.vehicles) if (v.lapRoute === r.id) v.lapAt = now;
+}
 
 export function createRoute() {
   if (!game.repeatRoutes) { toast('Build an HQ to unlock routes', 'bad'); return null; }
@@ -1931,6 +1998,7 @@ export function assignRoute(v, r) {
   const why = routeProblem(v, r);
   if (why) { toast(`${v.name}: ${why}`, 'bad'); return false; }
   if (v.city && !v.trip) {
+    closeLap(v, gameNow());
     v.loop = { route: r.id, stops: routeStops(r, v.city) };
     const was = quiet; quiet = true;
     try { runLoop(v, gameNow()); } finally { quiet = was; }
@@ -1949,6 +2017,7 @@ export function assignRoute(v, r) {
 export function stopRepeating(v) {
   if (!v.loop) return;
   delete v.loop;
+  if (!v.trip) closeLap(v, gameNow());
   toast(v.trip ? `${v.name} will stop repeating at the end of this lap` : `${v.name} stopped repeating`);
 }
 
@@ -1961,6 +2030,8 @@ export function endRoute(v) {
   delete v.loop;
   game.coins += refund;
   books(v).fuel -= refund;
+  const st = lapStats(v);
+  if (st) st.fuel -= refund;
   toast(`${v.name} will stop at ${cityById[v.trip.to].name}. Refunded $${fmt(refund)}`);
 }
 
