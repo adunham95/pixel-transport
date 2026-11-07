@@ -8,6 +8,7 @@
   import ShopPanel from './panels/ShopPanel.svelte';
   import DevPanel from './panels/DevPanel.svelte';
   import ContractsPanel from './panels/ContractsPanel.svelte';
+  import RoutesPanel from './panels/RoutesPanel.svelte';
   import VehicleCard from './ui/VehicleCard.svelte';
   import Icon from './ui/Icon.svelte';
   import { game, ui, dev, start, fmt, cityById, isIdle } from './game/game.svelte.js';
@@ -141,6 +142,7 @@
           {#if pill}<span class="pill" style:width="{pill.w}px" style:transform="translateX({pill.x}px)"></span>{/if}
           <button bind:this={tabEls.city} class:on={ui.tab === 'city'} onclick={() => setTab('city')}>{cityById[game.selected].name}</button>
           <button bind:this={tabEls.fleet} class:on={ui.tab === 'fleet'} onclick={() => setTab('fleet')}>Fleet <em>{game.vehicles.length}</em>{#if idle}<em class="dot" title="{idle} idle"></em>{/if}</button>
+          {#if game.repeatRoutes}<button bind:this={tabEls.routes} class:on={ui.tab === 'routes'} onclick={() => setTab('routes')}>Routes{#if game.routes.length}<em> {game.routes.length}</em>{/if}</button>{/if}
           <button bind:this={tabEls.contracts} class:on={ui.tab === 'contracts'} onclick={() => setTab('contracts')}>Contracts{#if game.contracts.active.length}<em> {game.contracts.active.length}</em>{:else if game.level >= CONTRACTS.level && game.contracts.offers.length}<em class="dot"></em>{/if}</button>
           <button bind:this={tabEls.shop} class:on={ui.tab === 'shop'} onclick={() => setTab('shop')}>Shop</button>
           {#if dev.on}<button bind:this={tabEls.dev} class:on={ui.tab === 'dev'} onclick={() => setTab('dev')}>Dev{dev.speed > 1 ? ` ${dev.speed}×` : ''}</button>{/if}
@@ -150,7 +152,7 @@
         <div class="body">
           {#key ui.tab}
             <div in:fly={{ y: 10, duration: 200 }}>
-              {#if ui.tab === 'city'}<CityPanel />{:else if ui.tab === 'fleet'}<FleetPanel />{:else if ui.tab === 'contracts'}<ContractsPanel />{:else if ui.tab === 'dev'}<DevPanel />{:else}<ShopPanel />{/if}
+              {#if ui.tab === 'city'}<CityPanel />{:else if ui.tab === 'fleet'}<FleetPanel />{:else if ui.tab === 'routes'}<RoutesPanel />{:else if ui.tab === 'contracts'}<ContractsPanel />{:else if ui.tab === 'dev'}<DevPanel />{:else}<ShopPanel />{/if}
             </div>
           {/key}
         </div>

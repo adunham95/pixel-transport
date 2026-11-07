@@ -350,7 +350,7 @@ function newVehicle(g, kind, model, city, cars) {
 
 function fresh() {
   const now = Date.now();
-  const g = { v: 1, coins: 600, xp: 0, level: 1, nextId: 1, selected: 'frost', vehicles: [], jobs: {}, spawnAt: {}, growth: {}, depots: {}, hqContracts: 0, hqSuperloads: 0, contracts: { offers: [], active: [], nextAt: 0 }, projects: {}, scale: SCALE, saved: now };
+  const g = { v: 1, coins: 600, xp: 0, level: 1, nextId: 1, selected: 'frost', vehicles: [], jobs: {}, spawnAt: {}, growth: {}, depots: {}, hqContracts: 0, hqSuperloads: 0, contracts: { offers: [], active: [], nextAt: 0 }, projects: {}, routes: [], scale: SCALE, saved: now };
   g.unlocked = Object.fromEntries(START_CITIES.map((id) => [id, true]));
   g.vehicles.push(newVehicle(g, 'train', 'puffer', 'frost', ['pax', 'box']));
   g.vehicles.push(newVehicle(g, 'plane', 'sparrow', 'frost'));
@@ -385,6 +385,7 @@ function load() {
     g.hqSuperloads ??= 0;
     g.contracts ??= { offers: [], active: [], nextAt: 0 };
     g.projects ??= {};
+    g.routes ??= [];
     // saves from before the map was spread out: stretch anything on the move, and the weather, to match
     const k = SCALE / (g.scale ?? 1);
     if (k !== 1) {
@@ -414,7 +415,7 @@ export const game = $state(loaded ?? fresh());
 relink();
 export const ui = $state({
   tab: 'city', sheetOpen: true, activeVehicle: null, picking: false, plan: [], repeat: false, relay: false, escort: false, sendJob: null,
-  focusVehicle: null, toasts: [], focus: null, follow: null, track: null, shopTab: 'plane', shopType: null, shopMore: false, queue: null, fleetFind: '', fleetKind: null, fleetStatus: null,
+  focusVehicle: null, routeEdit: null, toasts: [], focus: null, follow: null, track: null, shopTab: 'plane', shopType: null, shopMore: false, queue: null, fleetFind: '', fleetKind: null, fleetStatus: null,
 });
 // Game time runs ahead of the wall clock when dev mode speeds it up. The extra is kept
 // in skew, which is saved so trips stay in place across reloads.
@@ -1532,9 +1533,10 @@ export function loopStops(v, stops) {
 // escort: take along the optional escort parked here (see optionalEscort); on later laps it just
 // comes if it's still free. relay: a repeating route also carries jobs headed off the loop part of
 // the way (see relayStop)
-export function dispatch(v, stops, { repeat = false, lap = null, escort = false, relay = false } = {}) {
+export function dispatch(v, stops, { repeat = false, lap = null, escort = false, relay = false, route = null } = {}) {
+  if (route) { repeat = true; stops = routeStops(route, v.city); }
   if (repeat && !game.repeatRoutes) { toast('Build an HQ to unlock repeating routes', 'bad'); return false; }
-  if (repeat) stops = loopStops(v, stops);
+  if (repeat && !route) stops = loopStops(v, stops);
   // a carrier takes the planes that need it along, and waits for any still flying in to land
   let stow = [];
   if (v.kind === 'boat' && isCarrier(v.model) && v.city) {
@@ -1577,10 +1579,11 @@ export function dispatch(v, stops, { repeat = false, lap = null, escort = false,
   rollBreakdown(v);
   v.next = rest;
   v.depart = { from: v.city, at: v.trip.startAt, len: legs.reduce((s, l) => s + l.len, 0) };
-  if (repeat) v.loop = { stops, ...(escort && { escort }), ...(relay && { relay }) };
+  if (route) v.loop = { route: route.id, stops };
+  else if (repeat) v.loop = { stops, ...(escort && { escort }), ...(relay && { relay }) };
   else if (lap == null) delete v.loop;
   v.city = null;
-  if (lap == null) toast(repeat ? `${v.name} is running a ${legs.length} stop loop. Fuel $${fmt(cost)} a lap` : rest.length ? `${v.name} left on a ${legs.length} stop route. Fuel $${fmt(cost)}` : `${v.name} left for ${cityById[first.to].name}. Fuel $${cost}`);
+  if (lap == null) toast(route ? `${v.name} is running ${route.name}. Fuel $${fmt(cost)} a lap` : repeat ? `${v.name} is running a ${legs.length} stop loop. Fuel $${fmt(cost)} a lap` : rest.length ? `${v.name} left on a ${legs.length} stop route. Fuel $${fmt(cost)}` : `${v.name} left for ${cityById[first.to].name}. Fuel $${cost}`);
   return true;
 }
 
@@ -1666,13 +1669,24 @@ function ridesTo(j) {
   let front = loops.filter((x) => x.loop.stops.includes(j.to)).flatMap((x) => reach(x.loop.stops, 1));
   const taxis = game.hqAuto ? game.vehicles.filter((x) => spec(x).auto && carries(x, j)).map((x) => x.city ?? x.trip?.to).filter(Boolean) : [];
   if (taxis.some((t) => t === j.to || roadPath(t, j.to))) front.push(...reach(CITIES.filter((c) => roadPath(c.id, j.to)).map((c) => c.id), 1));
-  const relays = loops.filter((x) => x.loop.relay);
+  // a loop takes a job on from its fill stops to a drop off stop already counted
   for (let n = 2; front.length; n++) {
     const was = new Set(front);
-    front = relays.filter((x) => x.loop.stops.some((id) => was.has(id))).flatMap((x) => reach(x.loop.stops, n));
+    front = loops.filter((x) => x.loop.stops.some((id) => was.has(id) && dropsAt(x, id))).flatMap((x) => reach(x.loop.stops.filter((id) => fillsAt(x, id)), n));
   }
   return R;
 }
+
+// where a repeating route takes on jobs headed off it (fill), and leaves them for the next route
+// to carry on (drop off). A loop with transfers on does both at every stop; a saved route does
+// each at the stops it's set for.
+export const routeById = (id) => game.routes.find((r) => r.id === id) ?? null;
+function stopFlag(x, id, k) {
+  if (x.loop.route == null) return !!x.loop.relay;
+  return !!routeById(x.loop.route)?.stops.some((s) => s.city === id && s[k]);
+}
+const fillsAt = (x, id) => stopFlag(x, id, 'fill');
+const dropsAt = (x, id) => stopFlag(x, id, 'drop');
 // ridesTo, worked out once for each kind of job and destination
 function routing() {
   const memo = new Map();
@@ -1689,8 +1703,9 @@ function routing() {
 // maglev still runs passengers most of the way for a robotaxi to finish). Either way a job always
 // gets closer, and never goes in circles.
 function relayStop(v, j, at, R) {
+  if (!fillsAt(v, at)) return null;
   let best = null;
-  for (const id of v.loop.stops) if (id !== at && R[id] != null && (best === null || R[id] < R[best] || (R[id] === R[best] && dist(id, j.to) < dist(best, j.to)))) best = id;
+  for (const id of v.loop.stops) if (id !== at && dropsAt(v, id) && R[id] != null && (best === null || R[id] < R[best] || (R[id] === R[best] && dist(id, j.to) < dist(best, j.to)))) best = id;
   return best && R[at] != null && (R[best] < R[at] || (R[best] === R[at] && dist(best, j.to) < dist(at, j.to))) ? best : null;
 }
 
@@ -1722,7 +1737,7 @@ function loopTakes(j, at, R, v = null, lead = 0) {
   const direct = v && leg(v, at, j.to);
   return game.vehicles.some((x) => {
     if (!x.loop?.stops.includes(at) || !carries(x, j)) return false;
-    const hop = x.loop.stops.includes(j.to) ? j.to : x.loop.relay && relayStop(x, j, at, R);
+    const hop = x.loop.stops.includes(j.to) ? j.to : relayStop(x, j, at, R);
     if (!hop) return false;
     if (!direct) return true;
     const eta = loopEta(x, at, hop), rest = hop === j.to ? 0 : leg(v, hop, j.to)?.time;
@@ -1763,7 +1778,7 @@ function pickUp(v, at) {
     list.splice(list.indexOf(j), 1);
     v.cargo.push(j);
   }
-  if (v.loop.relay) for (const j of waiting()) {
+  if (fillsAt(v, at)) for (const j of waiting()) {
     const hop = !ring.has(j.to) && canLoad(v, j) && relayStop(v, j, at, rides(j));
     if (!hop) continue;
     list.splice(list.indexOf(j), 1);
@@ -1774,15 +1789,145 @@ function pickUp(v, at) {
 // is there anything waiting anywhere on the loop that this vehicle could carry along it?
 function loopHasWork(v) {
   const ring = new Set(v.loop.stops), taken = fetching(), rides = routing();
-  return v.loop.stops.some((id) => game.jobs[id].some((j) => j.to !== id && !taken.has(j.id) && carries(v, j) && (ring.has(j.to) || (v.loop.relay && relayStop(v, j, id, rides(j))))));
+  return v.loop.stops.some((id) => game.jobs[id].some((j) => j.to !== id && !taken.has(j.id) && carries(v, j) && (ring.has(j.to) || relayStop(v, j, id, rides(j)))));
 }
 
-// start another lap from home, or wait a while if there's nothing to carry
+// start another lap from home, or wait a while if there's nothing to carry. A vehicle on a saved
+// route picks up any changes made to it here, at the start of each lap.
 function runLoop(v, at) {
   delete v.loop.wait;
+  const r = v.loop.route != null ? routeById(v.loop.route) : null;
+  if (v.loop.route != null) {
+    if (!r || r.stops.length < 2) { delete v.loop; return; }
+    v.loop.stops = routeStops(r, v.city);
+  }
   pickUp(v, v.city);
   if (!v.cargo.length && !loopHasWork(v)) { v.loop.wait = at + LOOP_WAIT; return; }
-  if (!dispatch(v, v.loop.stops, { repeat: true, lap: at, escort: !!v.loop.escort, relay: !!v.loop.relay })) delete v.loop;
+  if (!dispatch(v, v.loop.stops, { repeat: true, lap: at, escort: !!v.loop.escort, relay: !!v.loop.relay, route: r })) delete v.loop;
+}
+
+// ---------- saved routes ----------
+
+// a lap of a route for a vehicle parked at town at: round from the stop after it and back to it,
+// or, from somewhere off the route, out to the first stop and round to the last
+export function routeStops(r, at) {
+  const ids = r.stops.map((s) => s.city), i = ids.indexOf(at);
+  return i < 0 ? ids : [...ids.slice(i + 1), ...ids.slice(0, i + 1)];
+}
+
+// the ways a route's every hop can be made: by road, rail, sea or air (plane range aside)
+export function routeModes(r) {
+  const ids = r.stops.map((s) => s.city);
+  if (ids.length < 2) return [];
+  const pairs = ids.map((id, i) => [id, ids[(i + 1) % ids.length]]);
+  const C = (id) => cityById[id];
+  const ok = {
+    truck: ([a, b]) => !!roadPath(a, b),
+    train: ([a, b]) => !!railPath(a, b),
+    boat: ([a, b]) => C(a).port && C(b).port && !!seaLane(a, b),
+    plane: ([a, b]) => C(a).air && C(b).air,
+  };
+  return Object.keys(ok).filter((k) => pairs.every(ok[k]));
+}
+
+// can't vehicles like this run routes at all: escorts, superload carriers, and anything riding aboard another
+const offRoutes = (v) => !!escortKind(v) || !!spec(v).superload || v.aboard != null;
+
+// why this vehicle can't run this route, or null if it can: every hop round it, and the drive out
+// to it from where it's parked
+export function routeProblem(v, r) {
+  if (offRoutes(v)) return spec(v).superload ? 'Only carries superloads' : v.aboard != null ? 'Riding aboard another vehicle' : 'Escorts only move with a convoy';
+  if (r.stops.length < 2) return 'Needs at least 2 stops';
+  const ids = r.stops.map((s) => s.city);
+  for (let i = 0; i < ids.length; i++) {
+    const a = ids[i], b = ids[(i + 1) % ids.length];
+    if (!leg(v, a, b)) return `Can’t get from ${cityById[a].name} to ${cityById[b].name}`;
+  }
+  if (v.city && !ids.includes(v.city) && !leg(v, v.city, ids[0])) return `Can’t get from ${cityById[v.city].name} to ${cityById[ids[0]].name}`;
+  return null;
+}
+
+export const routeVehicles = (r) => game.vehicles.filter((v) => v.loop?.route === r.id);
+
+export function createRoute() {
+  if (!game.repeatRoutes) { toast('Build an HQ to unlock routes', 'bad'); return null; }
+  let n = game.routes.length + 1;
+  while (game.routes.some((r) => r.name === `Route ${n}`)) n++;
+  const r = { id: game.nextId++, name: `Route ${n}`, stops: [] };
+  game.routes.push(r);
+  return game.routes[game.routes.length - 1];
+}
+
+export function deleteRoute(r) {
+  for (const v of routeVehicles(r)) delete v.loop;
+  game.routes = game.routes.filter((x) => x.id !== r.id);
+  if (ui.routeEdit === r.id) ui.routeEdit = null;
+}
+
+export function renameRoute(r, name) {
+  name = name.trim().slice(0, 24);
+  if (name) r.name = name;
+}
+
+// no stop right after the same town, going round the loop and back to the first
+function tidyStops(r) {
+  const out = [];
+  for (const s of r.stops) {
+    const prev = out[out.length - 1];
+    if (prev?.city === s.city) { prev.fill ||= s.fill; prev.drop ||= s.drop; } else out.push(s);
+  }
+  while (out.length > 1 && out[0].city === out[out.length - 1].city) {
+    const s = out.pop();
+    out[0].fill ||= s.fill; out[0].drop ||= s.drop;
+  }
+  r.stops = out;
+}
+
+// add a town to the end of a route, or take it off again if it's the last stop already
+export function addRouteStop(r, id) {
+  const last = r.stops[r.stops.length - 1];
+  if (last?.city === id) { r.stops.pop(); return; }
+  if (!isOpen(id)) { toast(`${cityById[id].name} is locked. Unlock it from its city panel.`, 'bad'); return; }
+  if (cityById[id].anchor) { toast('Routes stop at towns, not anchorages', 'bad'); return; }
+  if (r.stops.length > 1 && r.stops[0].city === id) { toast(`${r.name} goes back to ${cityById[id].name} on its own at the end of each lap`); return; }
+  r.stops.push({ city: id, fill: false, drop: false });
+}
+export function removeRouteStop(r, i) { r.stops.splice(i, 1); tidyStops(r); }
+export function moveRouteStop(r, i, d) {
+  const k = i + d;
+  if (k < 0 || k >= r.stops.length) return;
+  [r.stops[i], r.stops[k]] = [r.stops[k], r.stops[i]];
+  tidyStops(r);
+}
+// what a stop does with jobs headed off the route: nothing (stop), take them on (fill), leave them
+// for another route (drop), or both (transfer)
+export const STOP_MODES = [['stop', 'Stop'], ['fill', 'Fill'], ['drop', 'Drop off'], ['transfer', 'Transfer']];
+export const stopMode = (s) => (s.fill && s.drop ? 'transfer' : s.fill ? 'fill' : s.drop ? 'drop' : 'stop');
+export function setStopMode(r, i, mode) {
+  const s = r.stops[i];
+  s.fill = mode === 'fill' || mode === 'transfer';
+  s.drop = mode === 'drop' || mode === 'transfer';
+}
+
+// put a vehicle on a route. Parked, it sets off now (or waits at its stop for work); out on a
+// trip or another loop, it switches over once it's back.
+export function assignRoute(v, r) {
+  if (!game.repeatRoutes) { toast('Build an HQ to unlock routes', 'bad'); return false; }
+  const why = routeProblem(v, r);
+  if (why) { toast(`${v.name}: ${why}`, 'bad'); return false; }
+  if (v.city && !v.trip) {
+    v.loop = { route: r.id, stops: routeStops(r, v.city) };
+    const was = quiet; quiet = true;
+    try { runLoop(v, gameNow()); } finally { quiet = was; }
+    if (!v.loop) { toast(`${v.name} couldn’t set off on ${r.name}. Check you have coins for fuel.`, 'bad'); return false; }
+    toast(v.trip ? `${v.name} is running ${r.name}` : `${v.name} is on ${r.name}, waiting at ${cityById[v.city].name} for jobs`, 'good');
+    return true;
+  }
+  const end = v.next?.length ? v.next[v.next.length - 1].to : v.trip?.to;
+  if (!end) { toast(`${v.name} can’t be put on a route right now`, 'bad'); return false; }
+  v.loop = { route: r.id, stops: routeStops(r, end) };
+  toast(`${v.name} will start ${r.name} when it gets to ${cityById[end].name}`, 'good');
+  return true;
 }
 
 // finish the lap it's on and then stop
@@ -2002,7 +2147,7 @@ export function resetGame() {
   relink();
   skew = 0;
   dev.speed = 1;
-  Object.assign(ui, { tab: 'city', sheetOpen: true, activeVehicle: null, picking: false, plan: [], repeat: false, relay: false, sendJob: null, focusVehicle: null, follow: null, track: null, focus: { x: cityById[g.selected].x, y: cityById[g.selected].y, t: Date.now() } });
+  Object.assign(ui, { tab: 'city', sheetOpen: true, activeVehicle: null, picking: false, plan: [], repeat: false, relay: false, sendJob: null, focusVehicle: null, routeEdit: null, follow: null, track: null, focus: { x: cityById[g.selected].x, y: cityById[g.selected].y, t: Date.now() } });
   save();
 }
 

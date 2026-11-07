@@ -1,5 +1,5 @@
 <script>
-  import { game, ui, dev, setDev, cityById, capacity, endRoute, addCar, removeCar, canRemoveCar, upgradeEngine, upgradeCost, canRefit, sellVehicle, sellValue, resetGame, openLoad, followVehicle, etaText, fmt, stopRepeating, spec, tailSpecs, tailName, aboard, carrierOf, deckUsed, deckRoom, deckFor, finances, clock, wear, service, serviceCost, escortee, consistOf, paintOf, paintFor, isIdle, idleVehicles, quickSend, quickSendAll, startQueue, toast, brokenVehicles, sendHelp, callRoadside, calloutCost, stillNeeded, escortText, renameVehicle, escortKind } from '../game/game.svelte.js';
+  import { game, ui, dev, setDev, cityById, capacity, endRoute, addCar, removeCar, canRemoveCar, upgradeEngine, upgradeCost, canRefit, sellVehicle, sellValue, resetGame, openLoad, followVehicle, etaText, fmt, stopRepeating, spec, tailSpecs, tailName, aboard, carrierOf, deckUsed, deckRoom, deckFor, finances, clock, wear, service, serviceCost, escortee, consistOf, paintOf, paintFor, isIdle, idleVehicles, quickSend, quickSendAll, startQueue, toast, brokenVehicles, sendHelp, callRoadside, calloutCost, stillNeeded, escortText, renameVehicle, escortKind, assignRoute, routeById } from '../game/game.svelte.js';
   import { ENGINES, TRUCKS, BOATS, PLANES, MI, JOB_TYPES, ESCORT_LABEL } from '../game/data.js';
   import Sprite from '../ui/Sprite.svelte';
   import LoadBadges from '../ui/LoadBadges.svelte';
@@ -98,7 +98,7 @@
     <button class="row vrow card-head" onclick={() => (ui.focusVehicle = open ? null : v.id)}>
       <span class="pv"><Sprite kind={v.kind} model={v.model} cars={consistOf(v)} scale={3} paint={paintOf(v)} /></span>
       <span class="grow">
-        <b>{v.name}{#if v.broken}<span class="tag mini loss-tag">Broken down</span>{/if}{#if isIdle(v)}<span class="tag mini idle-tag">Idle</span>{/if}{#if v.loop}<span class="tag hub mini">Repeating</span>{/if}{#if f.perHour != null}<span class="tag mini" class:loss={f.perHour < 0}>{money(f.perHour)}/h</span>{/if}{#if wr >= 0.3}<span class="tag mini loss">Needs service</span>{/if}</b>
+        <b>{v.name}{#if v.broken}<span class="tag mini loss-tag">Broken down</span>{/if}{#if isIdle(v)}<span class="tag mini idle-tag">Idle</span>{/if}{#if v.loop}<span class="tag hub mini">{v.loop.route != null ? routeById(v.loop.route)?.name ?? 'Repeating' : 'Repeating'}</span>{/if}{#if f.perHour != null}<span class="tag mini" class:loss={f.perHour < 0}>{money(f.perHour)}/h</span>{/if}{#if wr >= 0.3}<span class="tag mini loss">Needs service</span>{/if}</b>
         <small>{v.trip ? `To ${cityById[v.trip.to].name}, ${etaText(v)} left${v.next?.length ? `, then ${v.next.length} more stop${v.next.length > 1 ? 's' : ''}` : ''}` : where(v)}</small>
         <LoadBadges {v} />
       </span>
@@ -212,6 +212,15 @@
           </label>
         {/if}
 
+        {#if game.routes.length && !escortKind(v) && !spec(v).superload && v.aboard == null}
+          <label class="name">
+            <small>Route</small>
+            <select value={v.loop?.route ?? ''} onchange={(e) => { const r = routeById(Number(e.currentTarget.value)); if (r) assignRoute(v, r); else stopRepeating(v); e.currentTarget.value = v.loop?.route ?? ''; }}>
+              <option value="">{v.loop && v.loop.route == null ? 'Its own repeating loop' : 'None'}</option>
+              {#each game.routes as r (r.id)}<option value={r.id}>{r.name}</option>{/each}
+            </select>
+          </label>
+        {/if}
         <div class="actions">
           {#if v.loop}<button class="btn ghost" onclick={() => stopRepeating(v)}>Stop repeating</button>{/if}
           {#if v.city}
@@ -259,6 +268,7 @@
   .age { margin: 8px 0; }
   .name { display: flex; align-items: center; gap: 8px; margin: 0 0 8px; }
   .name small { color: var(--ink-soft); font-size: 12px; }
+  .name select { flex: 1; min-width: 0; padding: 6px 10px; font: inherit; font-size: 14px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel-2); color: var(--ink); }
   .name input { flex: 1; min-width: 0; padding: 6px 10px; font: inherit; font-size: 14px; font-weight: 600; border: 1px solid var(--line); border-radius: 8px; background: var(--panel-2); color: var(--ink); }
   .paint { margin: 8px 0; cursor: pointer; }
   .paint input { width: 20px; height: 20px; flex: none; accent-color: var(--accent); }

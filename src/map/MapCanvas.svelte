@@ -1,6 +1,6 @@
 <script>
   import { onMount } from 'svelte';
-  import { game, ui, cityById, leg, planLegs, toggleStop, selectCity, posAt, tripProgress, gameNow, isOpen, fx, darkness, loopStops, isCarrier, carrierAt, townSize, escortsOf, consistOf, paintOf, landmarkAt, projectProgress } from '../game/game.svelte.js';
+  import { game, ui, cityById, leg, planLegs, toggleStop, selectCity, posAt, tripProgress, gameNow, isOpen, fx, darkness, isCarrier, carrierAt, townSize, escortsOf, consistOf, paintOf, landmarkAt, projectProgress, routeById, addRouteStop } from '../game/game.svelte.js';
   import { CITIES, ENGINES, PLANES, CARS, TRUCKS, BOATS, W, H, PROJECTS, ROAD_OFF, roadSide } from '../game/data.js';
   import { buildTerrain, makeWaterPattern, R, bresenham } from './terrain.js';
   import { drawArt, trainUnits, paintOrder, artSize, loadArt } from './sprites.js';
@@ -601,11 +601,21 @@
         // the route being planned, as marching dashes
         b.save();
         b.lineWidth = 2; b.setLineDash([4, 3]); b.lineDashOffset = -Math.floor(now / 80) % 7;
-        for (const l of planLegs(pv, ui.repeat && game.repeatRoutes ? loopStops(pv, ui.plan) : ui.plan)) {
+        for (const l of planLegs(pv, ui.plan)) {
           if (!l) continue;
           b.strokeStyle = 'rgba(18,22,38,0.6)'; path(l.pts, 1);
           b.strokeStyle = '#ffd23f'; path(l.pts);
         }
+        b.restore();
+      }
+      // the route being edited in the Routes tab, stop to stop and back round
+      const er = ui.tab === 'routes' && ui.routeEdit != null ? routeById(ui.routeEdit) : null;
+      if (er && er.stops.length > 1) {
+        const pts = [...er.stops, er.stops[0]].map((s) => [cityById[s.city].x, cityById[s.city].y]);
+        b.save();
+        b.lineWidth = 2; b.setLineDash([4, 3]); b.lineDashOffset = -Math.floor(now / 80) % 7;
+        b.strokeStyle = 'rgba(18,22,38,0.6)'; path(pts, 1);
+        b.strokeStyle = '#ffd23f'; path(pts);
         b.restore();
       }
       const inView = (wx, wy) => wx * R > cx - 60 && wx * R < cx + bw + 60 && wy * R > cy - 50 && wy * R < cy + bh + 50;
@@ -620,6 +630,7 @@
         if (dk && isOpen(c.id) && !c.anchor) lights.push(() => townLights(c, now));
         if (pv && leg(pv, lastStop, c.id)) ring(c, now);
         if (c.id === game.selected && (blink || pv)) brackets(c);
+        if (er && er.stops.some((s) => s.city === c.id)) ring(c, now);
       }
 
       const tv = ui.track != null && game.vehicles.find((v) => v.id === ui.track && v.trip);
@@ -838,6 +849,11 @@
       for (const c of CITIES) { const d = Math.hypot(c.x - w.x, c.y - 2 - w.y); if (d < bd) { bd = d; best = c; } }
       if (pv) {
         if (best && (best.id !== pv.city || ui.plan.length)) toggleStop(pv, best.id);
+        return;
+      }
+      const er = ui.tab === 'routes' && ui.routeEdit != null ? routeById(ui.routeEdit) : null;
+      if (er) {
+        if (best) addRouteStop(er, best.id);
         return;
       }
       ui.track = ui.follow = null;

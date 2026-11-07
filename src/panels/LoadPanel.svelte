@@ -1,5 +1,5 @@
 <script>
-  import { game, ui, cityById, capacity, used, loadJob, unloadJob, autoLoad, destinations, dispatch, route, canReach, planLegs, autoPlan, toggleStop, fmt, fmtTime, loopStops, aboard, canBoard, fitsAboard, deckFor, deckSize, deckUsed, deckRoom, driveOn, driveOff, wear, fetcher, convoyNeeds, pickEscorts, escortText, consistOf, optionalEscort, paintOf, spec, nextInQueue, queueLeft, escortAs, escortKind, superloadCarrier, SUPER_KIND, viaBoost } from '../game/game.svelte.js';
+  import { game, ui, cityById, capacity, used, loadJob, unloadJob, autoLoad, destinations, dispatch, route, canReach, planLegs, autoPlan, toggleStop, fmt, fmtTime, aboard, canBoard, fitsAboard, deckFor, deckSize, deckUsed, deckRoom, driveOn, driveOff, wear, fetcher, convoyNeeds, pickEscorts, escortText, consistOf, optionalEscort, paintOf, spec, nextInQueue, queueLeft, escortAs, escortKind, superloadCarrier, SUPER_KIND, viaBoost } from '../game/game.svelte.js';
   import Icon from '../ui/Icon.svelte';
   import Sprite from '../ui/Sprite.svelte';
   import JobRow from '../ui/JobRow.svelte';
@@ -13,9 +13,7 @@
   const waiting = $derived([...(game.jobs[v.city] ?? [])].sort((a, b) => score(b) - score(a)));
 
   // route planning
-  // a repeating route also drives back to where it started
-  const looping = $derived(ui.repeat && game.repeatRoutes);
-  const stops = $derived(looping ? loopStops(v, ui.plan) : ui.plan);
+  const stops = $derived(ui.plan);
   const legs = $derived(planLegs(v, stops));
   const last = $derived(ui.plan.length ? ui.plan[ui.plan.length - 1] : v.city);
   // a superload's convoy: the escorts it needs, which are parked here, and their fuel for the route
@@ -99,7 +97,7 @@
     if (escortKind(v)) ui.activeVehicle = null;
   }
   function go() {
-    if (!dispatch(v, ui.plan, { repeat: looping, escort: riding.length > 0, relay: looping && ui.relay })) return;
+    if (!dispatch(v, ui.plan, { escort: riding.length > 0 })) return;
     ui.picking = false; ui.activeVehicle = null; ui.plan = [];
     nextInQueue();
   }
@@ -190,35 +188,21 @@
       <span class="grow"><b>{ESCORT_LABEL[optKind][0].toUpperCase() + ESCORT_LABEL[optKind].slice(1)} escort</b><small>{sidekick ? `${sidekick.name} rides along in convoy. Valuables pay +${Math.round(SECURE.escortBonus * 100)}%.` : `Park a ${ESCORT_LABEL[optKind]} at ${city.name} to bring one along. Valuables pay +${Math.round(SECURE.escortBonus * 100)}% with it.`}</small></span>
     </label>
   {/if}
-  {#if game.repeatRoutes}
-    <label class="row repeat">
-      <input type="checkbox" bind:checked={ui.repeat} />
-      <span class="grow"><b>Repeat this route</b><small>Picks up jobs for the loop at every stop, comes back to {city.name} and goes round again. Fuel is paid each lap.</small></span>
-    </label>
-    {#if ui.repeat}
-      <label class="row repeat">
-        <input type="checkbox" bind:checked={ui.relay} />
-        <span class="grow"><b>Fill up with transfers</b><small>Any room left goes to jobs headed off the loop that your other repeating routes, or self-driving vehicles, can take the rest of the way. They’re dropped where the next one picks them up, and pay when they get there.</small></span>
-      </label>
-    {/if}
-  {:else}
-    <div class="row repeat off">
-      <span class="grow"><b>Repeating routes</b><small>{game.level < HQ.level ? `Build an HQ from level ${HQ.level} to send vehicles round the same loop on their own.` : 'Build an HQ in any town, from its town page, to send vehicles round the same loop on their own.'}</small></span>
-    </div>
-  {/if}
+  <div class="row repeat off">
+    <span class="grow"><b>Repeating routes</b><small>{game.repeatRoutes ? 'To send it round the same loop on its own, set up a route in the Routes tab and assign it there.' : game.level < HQ.level ? `Build an HQ from level ${HQ.level} to set up routes vehicles run on their own.` : 'Build an HQ in any town, from its town page, to set up routes vehicles run on their own.'}</small></span>
+  </div>
   {#if ui.plan.length && !broken}
     <div class="profit">
       <div><small>Drop offs</small><b>+${fmt(pay)}</b></div>
       <div><small>Fuel{#if wear(v)} (+{Math.round(wear(v) * 100)}% age){/if}</small><b>−${fmt(total.cost)}</b></div>
-      <div><small>{looping ? 'First lap' : 'Profit'}</small><b class:loss={pay < total.cost}>{pay < total.cost ? '−' : '+'}${fmt(Math.abs(pay - total.cost))}</b></div>
+      <div><small>Profit</small><b class:loss={pay < total.cost}>{pay < total.cost ? '−' : '+'}${fmt(Math.abs(pay - total.cost))}</b></div>
     </div>
-    {#if looping}<p class="muted small">Later laps earn from whatever they pick up along the way.</p>{/if}
   {/if}
   <div class="footer">
     <button class="btn" onclick={back}>Back</button>
     {#if unrouted}<button class="btn" onclick={plan}>Route cargo</button>{/if}
     <button class="btn primary" disabled={!ui.plan.length || broken || game.coins < total.cost || convoy.missing.length > 0} onclick={go}>
-      {!ui.plan.length ? 'Go' : looping ? `Loop ${fmtTime(total.time)}, $${fmt(total.cost)} a lap` : `Go ${fmtTime(total.time)}, $${fmt(total.cost)}`}
+      {!ui.plan.length ? 'Go' : `Go ${fmtTime(total.time)}, $${fmt(total.cost)}`}
     </button>
   </div>
 {:else}
