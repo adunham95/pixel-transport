@@ -30,6 +30,17 @@
   const maxed = $derived(game.level >= LEVELS.length);
   const pct = $derived(maxed ? 100 : Math.max(0, Math.min(100, ((game.xp - LEVELS[game.level - 1]) / (LEVELS[game.level] - LEVELS[game.level - 1])) * 100)));
   const idle = $derived(game.vehicles.filter(isIdle).length);
+  const broken = $derived(game.vehicles.some((v) => v.broken));
+  // one row of tabs, each an icon and a short word. A dot means something there wants a look:
+  // red for a breakdown, gold for idle vehicles or contract offers waiting.
+  const tabs = $derived([
+    { k: 'city', icon: 'town', label: 'Town', title: cityById[game.selected].name },
+    { k: 'fleet', icon: 'fleet', label: 'Fleet', title: `${game.vehicles.length} vehicles${idle ? `, ${idle} idle` : ''}`, dot: broken ? 'bad' : idle ? 'on' : null },
+    ...(game.repeatRoutes ? [{ k: 'routes', icon: 'routes', label: 'Routes', title: `${game.routes.length} routes` }] : []),
+    { k: 'contracts', icon: 'contracts', label: 'Contracts', title: `${game.contracts.active.length} under way`, dot: game.level >= CONTRACTS.level && game.contracts.offers.length ? 'on' : null },
+    { k: 'shop', icon: 'shop', label: 'Shop', title: 'Shop' },
+    ...(dev.on ? [{ k: 'dev', icon: 'dev', label: dev.speed > 1 ? `${dev.speed}×` : '', title: 'Dev', slim: true }] : []),
+  ]);
   function setTab(t) {
     if (ui.tab === t && ui.sheetOpen && !wide) { ui.sheetOpen = false; return; }
     ui.tab = t;
@@ -55,7 +66,7 @@
   let pill = $state(null);
   $effect(() => {
     const el = tabEls[ui.tab], nav = el?.parentElement;
-    dev.on; // the dev tab changes every column's width
+    tabs.length; // a tab coming or going (dev, routes) changes every column's width
     if (!el) return;
     const set = () => (pill = { x: el.offsetLeft, w: el.offsetWidth });
     set();
@@ -138,14 +149,14 @@
       style:height={wide ? null : dragH != null ? `${dragH}px` : ui.sheetOpen ? `${sheetFrac * 100}%` : null}>
       <div class="sheet-head" role="presentation" onpointerdown={headDown} onclickcapture={headClick}>
         <button class="grab" aria-label={ui.sheetOpen ? 'Hide panel' : 'Show panel'} onclick={() => (ui.sheetOpen = !ui.sheetOpen)}><span></span></button>
-        <nav class="tabs" class:dev={dev.on}>
+        <nav class="tabs">
           {#if pill}<span class="pill" style:width="{pill.w}px" style:transform="translateX({pill.x}px)"></span>{/if}
-          <button bind:this={tabEls.city} class:on={ui.tab === 'city'} onclick={() => setTab('city')}>{cityById[game.selected].name}</button>
-          <button bind:this={tabEls.fleet} class:on={ui.tab === 'fleet'} onclick={() => setTab('fleet')}>Fleet <em>{game.vehicles.length}</em>{#if idle}<em class="dot" title="{idle} idle"></em>{/if}</button>
-          {#if game.repeatRoutes}<button bind:this={tabEls.routes} class:on={ui.tab === 'routes'} onclick={() => setTab('routes')}>Routes{#if game.routes.length}<em> {game.routes.length}</em>{/if}</button>{/if}
-          <button bind:this={tabEls.contracts} class:on={ui.tab === 'contracts'} onclick={() => setTab('contracts')}>Contracts{#if game.contracts.active.length}<em> {game.contracts.active.length}</em>{:else if game.level >= CONTRACTS.level && game.contracts.offers.length}<em class="dot"></em>{/if}</button>
-          <button bind:this={tabEls.shop} class:on={ui.tab === 'shop'} onclick={() => setTab('shop')}>Shop</button>
-          {#if dev.on}<button bind:this={tabEls.dev} class:on={ui.tab === 'dev'} onclick={() => setTab('dev')}>Dev{dev.speed > 1 ? ` ${dev.speed}×` : ''}</button>{/if}
+          {#each tabs as t (t.k)}
+            <button bind:this={tabEls[t.k]} class:on={ui.tab === t.k} class:slim={t.slim} aria-label={t.label ? undefined : t.title} aria-current={ui.tab === t.k ? 'page' : undefined} title={t.title} onclick={() => setTab(t.k)}>
+              <span class="ico"><Icon name={t.icon} size={18} />{#if t.dot}<i class="dot {t.dot}"></i>{/if}</span>
+              {#if t.label}<span class="lbl">{t.label}</span>{/if}
+            </button>
+          {/each}
         </nav>
       </div>
       {#if open}

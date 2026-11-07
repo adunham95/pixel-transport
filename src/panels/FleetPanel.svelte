@@ -1,8 +1,9 @@
 <script>
-  import { game, ui, dev, setDev, cityById, capacity, endRoute, addCar, removeCar, canRemoveCar, upgradeEngine, upgradeCost, canRefit, sellVehicle, sellValue, resetGame, openLoad, followVehicle, etaText, fmt, stopRepeating, spec, tailSpecs, tailName, aboard, carrierOf, deckUsed, deckRoom, deckFor, finances, clock, wear, service, serviceCost, escortee, consistOf, paintOf, paintFor, isIdle, idleVehicles, quickSend, quickSendAll, startQueue, toast, brokenVehicles, sendHelp, callRoadside, calloutCost, stillNeeded, escortText, renameVehicle, escortKind, assignRoute, routeById } from '../game/game.svelte.js';
+  import { game, ui, dev, setDev, cityById, capacity, endRoute, addCar, removeCar, canRemoveCar, upgradeEngine, upgradeCost, canRefit, sellVehicle, sellValue, resetGame, openLoad, followVehicle, etaText, fmt, stopRepeating, spec, tailSpecs, tailName, aboard, carrierOf, deckUsed, deckRoom, deckFor, finances, clock, wear, service, serviceCost, escortee, consistOf, paintOf, paintFor, isIdle, idleVehicles, quickSend, quickSendAll, startQueue, toast, brokenVehicles, sendHelp, callRoadside, calloutCost, stillNeeded, escortText, renameVehicle, escortKind, assignRoute, routeById, tripInfo } from '../game/game.svelte.js';
   import { ENGINES, TRUCKS, BOATS, PLANES, MI, JOB_TYPES, ESCORT_LABEL } from '../game/data.js';
   import Sprite from '../ui/Sprite.svelte';
   import LoadBadges from '../ui/LoadBadges.svelte';
+  import Icon from '../ui/Icon.svelte';
   import { slide, reduced } from '../ui/motion.js';
   const LEADS = { train: ENGINES, truck: TRUCKS, boat: BOATS };
   // which vehicle's upgrade list is dropped down, if any
@@ -46,6 +47,15 @@
   const filtered = $derived(!!(ui.fleetFind.trim() || ui.fleetKind || ui.fleetStatus));
   function clear() { ui.fleetFind = ''; ui.fleetKind = null; ui.fleetStatus = null; }
 
+  // one pill for what it's up to, most pressing first
+  function statusOf(v) {
+    if (v.broken) return { text: 'Broken down', c: 'bad' };
+    if (v.loop) return { text: v.loop.route != null ? routeById(v.loop.route)?.name ?? 'Repeating' : 'Repeating', c: 'good' };
+    if (isIdle(v)) return { text: 'Idle', c: 'warn' };
+    if (v.trip) return { text: escortee(v) || v.trip.rescue != null ? 'Helping' : 'In transit', c: 'info' };
+    if (!v.city) return { text: escortee(v) ? 'Escorting' : 'Aboard', c: 'info' };
+    return { text: 'Parked', c: '' };
+  }
   // where a vehicle is when it isn't moving: parked in town, riding a car ferry or cargo plane, or in a convoy
   function where(v) {
     if (v.city) return v.loop ? `Repeating, waiting for jobs at ${cityById[v.city].name}` : `Parked at ${cityById[v.city].name}`;
@@ -56,25 +66,27 @@
   }
 </script>
 
-<div class="books">
-  <div><small>Earned</small><b>{money(total.earned)}</b></div>
-  <div><small>Fuel</small><b>{money(-total.fuel)}</b></div>
-  <div><small>Profit</small><b class:loss={total.earned < total.fuel}>{money(total.earned - total.fuel)}</b></div>
-  <div><small>Per hour</small><b class:loss={total.perHour < 0}>{money(total.perHour)}</b></div>
+<div class="stats">
+  <div class="stat"><small>Earned</small><b>{money(total.earned)}</b></div>
+  <div class="stat"><small>Fuel</small><b>{money(-total.fuel)}</b></div>
+  <div class="stat"><small>Profit</small><b class:loss={total.earned < total.fuel}>{money(total.earned - total.fuel)}</b></div>
+  <div class="stat"><small>Per hour</small><b class:loss={total.perHour < 0}>{money(total.perHour)}</b></div>
 </div>
 {#if broken.length}
-  <div class="idle broken">
+  <div class="alert bad">
+    <span class="ai"><Icon name="alert" size={18} /></span>
     <span class="grow"><b>{broken.length} broken down</b><small>Send a tow truck, police car, fire truck, tug or helper engine from a nearby town, or call the roadside service.</small></span>
-    <div class="idle-btns">
+    <div class="btns">
       <button class="btn small" onclick={() => (ui.fleetStatus = 'broken')}>Show</button>
       <button class="btn primary small" onclick={() => broken.forEach((v) => sendHelp(v))}>Send help to all</button>
     </div>
   </div>
 {/if}
 {#if idle.length}
-  <div class="idle">
+  <div class="alert">
+    <span class="ai"><Icon name="pause" size={18} /></span>
     <span class="grow"><b>{idle.length} parked with nothing to do</b><small>Quick send loads each one with the best paying jobs it can deliver and sets off.</small></span>
-    <div class="idle-btns">
+    <div class="btns">
       <button class="btn primary small" onclick={quickSendAll}>Quick send all</button>
       <button class="btn small" onclick={startQueue}>One by one</button>
     </div>
@@ -82,26 +94,31 @@
 {/if}
 
 <div class="find">
+  <span class="sicon"><Icon name="search" size={15} /></span>
   <input type="search" placeholder="Find by name or town" bind:value={ui.fleetFind} />
   {#if filtered}<button class="btn small ghost" onclick={clear}>Clear</button>{/if}
 </div>
-<div class="chips">
-  {#if kinds.length > 1}{#each kinds as x}<button class:on={ui.fleetKind === x.k} onclick={() => (ui.fleetKind = ui.fleetKind === x.k ? null : x.k)}>{x.label} <em>{x.n}</em></button>{/each}<span class="sep"></span>{/if}
-  {#each statuses as x}<button class:on={ui.fleetStatus === x.k} class:hot={x.k === 'idle' || x.k === 'service' || x.k === 'broken'} onclick={() => (ui.fleetStatus = ui.fleetStatus === x.k ? null : x.k)}>{x.label} <em>{x.n}</em></button>{/each}
+<div class="fchips">
+  <button class:on={!ui.fleetKind && !ui.fleetStatus} onclick={() => { ui.fleetKind = null; ui.fleetStatus = null; }}>All <em>{game.vehicles.length}</em></button>
+  {#if kinds.length > 1}{#each kinds as x}<button class:on={ui.fleetKind === x.k} onclick={() => (ui.fleetKind = ui.fleetKind === x.k ? null : x.k)}>{x.label} <em>{x.n}</em></button>{/each}{/if}
+  {#each statuses as x}<button class:on={ui.fleetStatus === x.k} onclick={() => (ui.fleetStatus = ui.fleetStatus === x.k ? null : x.k)}>{x.label} <em>{x.n}</em></button>{/each}
 </div>
 {#if !shown.length}<p class="muted">No vehicles match. <button class="link" onclick={clear}>Show all</button></p>{/if}
 {#each shown as v (v.id)}
   {@const open = ui.focusVehicle === v.id}
   {@const f = bookOf[v.id]}
   {@const wr = wear(v)}
+  {@const st = statusOf(v)}
   <div class="card" class:open use:reveal={open}>
     <button class="row vrow card-head" onclick={() => (ui.focusVehicle = open ? null : v.id)}>
       <span class="pv"><Sprite kind={v.kind} model={v.model} cars={consistOf(v)} scale={3} paint={paintOf(v)} /></span>
       <span class="grow">
-        <b>{v.name}{#if v.broken}<span class="tag mini loss-tag">Broken down</span>{/if}{#if isIdle(v)}<span class="tag mini idle-tag">Idle</span>{/if}{#if v.loop}<span class="tag hub mini">{v.loop.route != null ? routeById(v.loop.route)?.name ?? 'Repeating' : 'Repeating'}</span>{/if}{#if f.perHour != null}<span class="tag mini" class:loss={f.perHour < 0}>{money(f.perHour)}/h</span>{/if}{#if wr >= 0.3}<span class="tag mini loss">Needs service</span>{/if}</b>
+        <b><span class="vname">{v.name}</span><span class="status {st.c}">{st.text}</span>{#if wr >= 0.3}<span class="status warn"><Icon name="wrench" size={11} />Service</span>{/if}</b>
         <small>{v.trip ? `To ${cityById[v.trip.to].name}, ${etaText(v)} left${v.next?.length ? `, then ${v.next.length} more stop${v.next.length > 1 ? 's' : ''}` : ''}` : where(v)}</small>
+        {#if v.trip && !v.broken}<span class="prog trip"><i style:width="{tripInfo(v, clock.now).progress * 100}%"></i></span>{/if}
         <LoadBadges {v} />
       </span>
+      {#if f.perHour != null}<span class="ph" class:loss={f.perHour < 0}>{money(f.perHour)}<small>/h</small></span>{/if}
       <span class="chev">+</span>
     </button>
     {#if open}
@@ -248,22 +265,16 @@
 
 <style>
   .drop { margin-top: 10px; }
-  .idle { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 0 0 10px; padding: 10px 12px; background: var(--accent-soft); border-radius: var(--r); }
-  .idle small { display: block; color: var(--ink-soft); font-size: 12px; }
-  .idle-btns { display: flex; gap: 6px; }
-  .idle-tag { background: var(--accent-soft); color: var(--ink); }
-  .loss-tag { background: color-mix(in srgb, #c0392b 15%, transparent); color: #c0392b; }
-  .idle.broken { background: color-mix(in srgb, #c0392b 12%, var(--panel-2)); }
   .breakdown { margin: 8px 0; border-color: #c0392b; }
   .breakdown small { display: block; }
-  .find { display: flex; gap: 6px; align-items: center; margin-bottom: 6px; }
-  .find input { flex: 1; min-width: 0; padding: 8px 12px; font: inherit; font-size: 14px; border: 1px solid var(--line); border-radius: 999px; background: var(--panel-2); color: var(--ink); }
-  .chips { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 10px; }
-  .chips button { padding: 4px 10px; font-size: 12px; font-weight: 500; border-radius: 999px; border: 1px solid var(--line); background: var(--panel-2); color: var(--ink-soft); cursor: pointer; }
-  .chips button em { font-style: normal; opacity: .7; }
-  .chips button.on { background: var(--ink); border-color: var(--ink); color: var(--panel); }
-  .chips button.hot:not(.on) { border-color: var(--accent); color: var(--ink); }
-  .chips .sep { width: 1px; background: var(--line); margin: 2px 2px; }
+  .find { position: relative; display: flex; gap: 6px; align-items: center; margin-bottom: 8px; }
+  .find .sicon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); display: flex; color: var(--ink-soft); pointer-events: none; }
+  .find input { flex: 1; min-width: 0; padding: 9px 12px 9px 34px; font: inherit; font-size: 14px; border: 1px solid var(--line); border-radius: 999px; background: var(--panel-2); color: var(--ink); }
+  .vname { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .card-head .grow b { flex-wrap: wrap; row-gap: 3px; }
+  .prog.trip { margin: 3px 0 1px; max-width: 220px; }
+  .ph { display: flex; align-items: baseline; flex: none; font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .ph small { font-size: 11px; font-weight: 500; color: var(--ink-soft); }
   .link { border: 0; background: none; padding: 0; color: inherit; text-decoration: underline; cursor: pointer; font: inherit; }
   .age { margin: 8px 0; }
   .name { display: flex; align-items: center; gap: 8px; margin: 0 0 8px; }

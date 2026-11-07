@@ -76,7 +76,7 @@
   <div class="shop used">
     <span class="pv wide"><Sprite kind={u.kind} model={u.model} scale={4} /></span>
     <span class="grow">
-      <b><span class="tag hub mini">Used lot</span> {s.name} <span class="lv">Lv {s.level}</span></b>
+      <b><span class="status warn">Used lot</span> {s.name} <span class="lv">Lv {s.level}</span></b>
       <small>At <button class="town" onclick={() => selectCity(u.at, true)}>{cityById[u.at].name}</button>, before you can buy one new. It has {fmt(u.miles * MI)} mi on it, so it burns {Math.round(wear(u) * 100)}% more fuel and breaks down more until it’s serviced.</small>
       <small>Gone in {fmtTime((u.until - clock.now) / 1000)}</small>
     </span>
@@ -93,7 +93,7 @@
     {#if game.hq}<button class="btn" onclick={() => selectCity(game.hq)}>Visit</button>
     {:else}<span class="pay">{game.level < HQ.level ? `Lv ${HQ.level}` : `$${fmt(HQ.price)}`}</span>{/if}
   </div>
-  <h3>Megaprojects</h3>
+  <h3 class="sec">Megaprojects</h3>
   <p class="muted small">Huge builds: pay up front, then deliver what they need to the site. Landmarks change what their town turns up and draw tourists. Bridges join landmasses by road and rail.</p>
   {#each PROJECTS as p (p.id)}<ProjectCard {p} />{/each}
 {:else}
@@ -102,13 +102,13 @@
   {:else if !isOpen(c.id)}
     <p class="note"><b>{c.name}</b> is locked. Unlock it, or pick another town, to buy vehicles there.</p>
   {:else}
-    <p class="note">New vehicles show up at <b>{c.name}</b>.{#if !c[tab.where]} It has no {tab.needs.replace(/^an? /, '')}, so only some {tab.label.toLowerCase()} can be bought here.{/if}</p>
+    <div class="alert info"><span class="ai"><Icon name="info" size={18} /></span><span class="txt small">New vehicles show up at <b>{c.name}</b>.{#if !c[tab.where]} It has no {tab.needs.replace(/^an? /, '')}, so only some {tab.label.toLowerCase()} can be bought here.{/if}</span></div>
   {/if}
 
   {#if types.length > 1}
-    <div class="types">
+    <div class="fchips">
       <button class:on={!type} onclick={() => (ui.shopType = null)}>All</button>
-      {#each types as t}<button class="t-{t}" class:on={type === t} onclick={() => (ui.shopType = type === t ? null : t)}><Icon name={t} size={13} />{TYPE_LABEL[t]}</button>{/each}
+      {#each types as t}<button class:on={type === t} onclick={() => (ui.shopType = type === t ? null : t)}><span class="t-{t} ti"><Icon name={t} size={13} /></span>{TYPE_LABEL[t]}</button>{/each}
     </div>
   {/if}
 
@@ -121,7 +121,7 @@
     <div class="shop" class:locked>
       <span class="pv wide"><Sprite kind={tab.id} model={k} cars={demo(tab.id, s)} scale={4} paint={paintFor(tab.id, k)} /></span>
       <span class="grow">
-        <b>{s.name}</b>
+        <b>{s.name}{#if locked}<span class="status">Lv {s.level}</span>{/if}</b>
         <span class="holds">
           {#each JOB_TYPES as t}{#if cap[t]}<span class="meter t-{t}"><Icon name={t} size={12} />{cap[t]}</span>{/if}{/each}
           {#each JOB_TYPES.filter((t) => !cap[t] && pulled.some((x) => x.holds === t)) as t}<span class="meter pull t-{t}" title="In its {tab.tail}s"><Icon name={t} size={12} /></span>{/each}
@@ -137,7 +137,7 @@
   {#each open as [k, s] (k)}{@render row(k, s)}{:else}<p class="muted">Nothing yet. Level up to unlock some.</p>{/each}
 
   {#if soon.length}
-    <h3>Coming up</h3>
+    <h3 class="sec">Coming up</h3>
     {#each ui.shopMore ? soon : soon.slice(0, SOON) as [k, s] (k)}{@render row(k, s)}{/each}
     {#if soon.length > SOON}
       <button class="btn ghost more" onclick={() => (ui.shopMore = !ui.shopMore)}>{ui.shopMore ? 'Show fewer' : `Show ${soon.length - SOON} more`}</button>
@@ -145,7 +145,7 @@
   {/if}
 
   {#if tails.length}
-    <h3>{tab.tail[0].toUpperCase() + tab.tail.slice(1)}s</h3>
+    <h3 class="sec">{tab.tail}s</h3>
     <p class="muted small">Hook them up from the Fleet tab.</p>
     <div class="tails">
       {#each tails as t}
@@ -173,12 +173,10 @@
   .cats { position: sticky; top: 0; z-index: 2; box-shadow: 0 -12px 0 6px var(--panel); display: grid; grid-template-columns: repeat(5, 1fr); gap: 3px; padding: 3px; margin-bottom: 8px; background: var(--panel-3); border-radius: 11px; }
   .cats button { border: 0; background: transparent; padding: 7px 2px; border-radius: 8px; font-weight: 500; font-size: 13px; color: var(--ink-soft); cursor: pointer; white-space: nowrap; }
   .cats button.on { background: var(--panel-2); color: var(--ink); font-weight: 600; box-shadow: var(--shadow); }
-  .types { display: flex; flex-wrap: wrap; gap: 5px; margin: 8px 0 10px; }
-  .types button { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; font-size: 12px; font-weight: 500; border-radius: 999px; border: 1px solid var(--line); background: var(--panel-2); cursor: pointer; }
-  .types button:not(.on) { color: var(--ink-soft); }
-  .types button.on { background: color-mix(in srgb, currentColor 14%, var(--panel-2)); border-color: currentColor; }
-  .types button.on:first-child { color: var(--ink); }
-  .grow > b { display: block; }
+  .fchips .ti { display: flex; }
+  .fchips button.on .ti { color: inherit; }
+  .grow > b { display: flex; align-items: center; gap: 6px; }
+  .sec { text-transform: uppercase; }
   .holds { display: flex; flex-wrap: wrap; gap: 4px; margin: 3px 0 2px; }
   .holds .meter { padding: 1px 7px; font-size: 12px; gap: 3px; }
   .holds .pull { opacity: .75; background: transparent; border: 1px dashed currentColor; padding: 0 6px; }

@@ -24,6 +24,38 @@
     <path d="M3 8.5A1.5 1.5 0 0 1 4.5 7h3l1.5-2.5h6L16.5 7h3A1.5 1.5 0 0 1 21 8.5v9a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 17.5z" /><circle cx="12" cy="12.5" r="3.5" />
   {:else if name === 'project'}
     <path d="M4 21V9l8-5 8 5v12" /><path d="M9 21v-6h6v6M4 21h16" />
+  {:else if name === 'town'}
+    <path d="M3 21h18M5 21V11l5-3v13M10 21V5l9 4v12" /><path d="M13.5 11h2M13.5 14.5h2M13.5 18h2" />
+  {:else if name === 'fleet'}
+    <path d="M2.5 6.5h10.5v9.5H2.5zM13 10h4l3.5 3.5V16H13" /><circle cx="6.5" cy="17.5" r="2" /><circle cx="16.5" cy="17.5" r="2" />
+  {:else if name === 'routes'}
+    <circle cx="5.5" cy="18" r="2.5" /><circle cx="18.5" cy="6" r="2.5" /><path d="M8 18h7.5a3 3 0 0 0 0-6h-7a3 3 0 0 1 0-6H16" />
+  {:else if name === 'contracts'}
+    <rect x="5" y="4" width="14" height="17" rx="2" /><path d="M9 3h6v3H9zM9 11h6M9 15h6M9 19h3" />
+  {:else if name === 'shop'}
+    <path d="M5 8.5h14l-1.2 12.5H6.2z" /><path d="M9 8.5V7a3 3 0 0 1 6 0v1.5" />
+  {:else if name === 'dev'}
+    <path d="m8 7-5 5 5 5M16 7l5 5-5 5M13.5 5l-3 14" />
+  {:else if name === 'search'}
+    <circle cx="11" cy="11" r="6.5" /><path d="m16 16 4.5 4.5" />
+  {:else if name === 'alert'}
+    <path d="M12 4 2.8 19.5h18.4z" /><path d="M12 10v4.5M12 17.2v.3" />
+  {:else if name === 'wrench'}
+    <path d="M14.5 6.5a4 4 0 0 0 5 5L14 17l-1.5 1.5a2.1 2.1 0 0 1-3-3L11 14z" /><path d="M14.5 6.5 11 3a4 4 0 0 0-5 5l3.5 3.5" />
+  {:else if name === 'pause'}
+    <circle cx="12" cy="12" r="9" /><path d="M10 9v6M14 9v6" />
+  {:else if name === 'clock'}
+    <circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" />
+  {:else if name === 'info'}
+    <circle cx="12" cy="12" r="9" /><path d="M12 11v5M12 7.8v.2" />
+  {:else if name === 'check'}
+    <circle cx="12" cy="12" r="9" /><path d="m8 12.5 2.5 2.5L16 9.5" />
+  {:else if name === 'plus'}
+    <path d="M12 5v14M5 12h14" />
+  {:else if name === 'chevron'}
+    <path d="m9 6 6 6-6 6" />
+  {:else if name === 'speed'}
+    <path d="M4 17a8 8 0 1 1 16 0" /><path d="m12 17 4-5" />
   {:else if name === 'coin'}
     <circle cx="12" cy="12" r="9" fill="currentColor" stroke="none" /><path d="M12 7.5v9M14.5 9.5c-.5-1-1.4-1.5-2.5-1.5-1.5 0-2.5.8-2.5 2s1 1.6 2.5 2 2.5.8 2.5 2-1 2-2.5 2c-1.2 0-2.1-.6-2.6-1.6" stroke="#5a4314" stroke-width="1.8" />
   {/if}

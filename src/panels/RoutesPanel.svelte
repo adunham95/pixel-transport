@@ -2,6 +2,7 @@
   import { game, ui, cityById, isOpen, spec, consistOf, paintOf, createRoute, deleteRoute, renameRoute, addRouteStop, removeRouteStop, moveRouteStop, STOP_MODES, stopMode, setStopMode, routeModes, routeProblem, routeVehicles, assignRoute, stopRepeating, selectCity } from '../game/game.svelte.js';
   import { CITIES, HQ } from '../game/data.js';
   import Sprite from '../ui/Sprite.svelte';
+  import Icon from '../ui/Icon.svelte';
   import { slide, fly } from '../ui/motion.js';
 
   const MODE = { truck: 'Road', train: 'Rail', boat: 'Sea', plane: 'Air' };
@@ -36,7 +37,7 @@
     <div class="card" class:open={on} in:fly={{ y: -8, duration: 200 }}>
       <button class="row card-head" onclick={() => open(r)}>
         <span class="grow">
-          <b>{r.name}{#each modes as m}<span class="tag mini">{MODE[m]}</span>{/each}{#if runners.length}<span class="tag hub mini">{runners.length} vehicle{runners.length > 1 ? 's' : ''}</span>{/if}</b>
+          <b>{r.name}{#each modes as m}<span class="status info">{MODE[m]}</span>{/each}{#if runners.length}<span class="status good">{runners.length} vehicle{runners.length > 1 ? 's' : ''}</span>{/if}</b>
           <small>{chain(r)}</small>
         </span>
         <span class="chev">+</span>
@@ -51,11 +52,11 @@
             <input value={r.name} maxlength="24" onchange={(e) => { renameRoute(r, e.currentTarget.value); e.currentTarget.value = r.name; }} onkeydown={(e) => e.key === 'Enter' && e.currentTarget.blur()} />
           </label>
 
-          <h4>Stops</h4>
+          <h4 class="sec">Stops</h4>
           {#if r.stops.length}
             <ol class="stops">
               {#each r.stops as s, i (i + s.city)}
-                <li class="row stop">
+                <li class="row stop rstop">
                   <span class="num">{i + 1}</span>
                   <span class="grow">
                     <button class="town" onclick={() => selectCity(s.city, true)}>{cityById[s.city].name}</button>
@@ -86,11 +87,11 @@
           </div>
           {#if r.stops.length > 1 && !modes.length}<p class="warn small">No single kind of vehicle can make every hop on this route.</p>{/if}
 
-          <h4>Vehicles on this route</h4>
+          <h4 class="sec">Vehicles on this route</h4>
           {#each runners as v (v.id)}
             <div class="row vrow">
               <span class="pv"><Sprite kind={v.kind} model={v.model} cars={consistOf(v)} scale={3} paint={paintOf(v)} /></span>
-              <span class="grow"><b>{v.name}</b><small>{status(v) || spec(v).name}</small></span>
+              <span class="grow"><b>{v.name}{#if v.broken}<span class="status bad">Broken down</span>{:else if v.trip}<span class="status info">In transit</span>{:else}<span class="status warn">Waiting</span>{/if}</b><small>{status(v) || spec(v).name}</small></span>
               <button class="btn small ghost" onclick={() => stopRepeating(v)}>Take off</button>
             </div>
           {:else}
@@ -98,7 +99,7 @@
           {/each}
 
           {#if r.stops.length > 1}
-            <h4>Add a vehicle</h4>
+            <h4 class="sec">Add a vehicle</h4>
             {#each able as { v } (v.id)}
               <div class="row vrow">
                 <span class="pv"><Sprite kind={v.kind} model={v.model} cars={consistOf(v)} scale={3} paint={paintOf(v)} /></span>
@@ -125,16 +126,23 @@
       {/if}
     </div>
   {:else}
-    <p class="muted">No routes yet.</p>
+    <div class="empty">
+      <span class="eicon"><Icon name="routes" size={26} /></span>
+      <b>No routes yet</b>
+      <p class="muted small">Make a loop of stops once, then put as many vehicles on it as you like.</p>
+    </div>
   {/each}
 
-  <button class="btn primary new" onclick={add}>New route</button>
+  <button class="btn primary new" onclick={add}><Icon name="plus" size={15} /> New route</button>
 {/if}
 
 <style>
   .intro { margin: 0 0 10px; }
-  .new { width: 100%; margin-top: 6px; }
-  h4 { margin: 12px 0 6px; }
+  .new { width: 100%; margin-top: 6px; display: flex; align-items: center; justify-content: center; gap: 6px; }
+  .card-head .grow b { flex-wrap: wrap; row-gap: 3px; }
+  .empty { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 22px 16px 10px; text-align: center; }
+  .empty p { margin: 0; max-width: 280px; }
+  .eicon { display: grid; place-items: center; width: 52px; height: 52px; margin-bottom: 6px; border-radius: 14px; background: var(--panel-2); border: 1px solid var(--line); box-shadow: var(--shadow); color: var(--ink-soft); }
   .name { display: flex; align-items: center; gap: 8px; margin: 0 0 4px; }
   .name small { color: var(--ink-soft); font-size: 12px; }
   .name input, .addstop select { flex: 1; min-width: 0; padding: 6px 10px; font: inherit; font-size: 14px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel-2); color: var(--ink); }
@@ -142,7 +150,14 @@
   .addstop { display: flex; align-items: center; gap: 8px; }
   .addstop small { font-size: 12px; white-space: nowrap; }
   .town { border: 0; background: none; padding: 0; font: inherit; font-weight: 600; color: inherit; cursor: pointer; display: block; text-align: left; }
-  .flags { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 4px; }
+  /* number, town and arrows on top, what it does across the full width below */
+  .rstop { display: grid; grid-template-columns: 24px minmax(0, 1fr) auto; column-gap: 10px; row-gap: 8px; }
+  .rstop .grow { display: contents; }
+  .rstop .town { grid-column: 2; grid-row: 1; align-self: center; }
+  .rstop .move { grid-column: 3; grid-row: 1; }
+  .flags { grid-column: 1 / -1; grid-row: 2; display: grid; grid-template-columns: repeat(4, 1fr); gap: 3px; padding: 3px; background: var(--panel-3); border-radius: 10px; }
+  .flags .flag { border: 0; background: transparent; padding: 5px 2px; border-radius: 7px; white-space: nowrap; }
+  .flags .flag.on { box-shadow: var(--shadow); }
   .flag { padding: 2px 9px; font-size: 12px; font-weight: 500; border-radius: 999px; border: 1px solid var(--line); background: var(--panel-3); color: var(--ink-soft); cursor: pointer; }
   .flag.on { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
   .move { display: flex; gap: 4px; }
