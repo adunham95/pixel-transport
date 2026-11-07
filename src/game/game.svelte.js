@@ -1798,7 +1798,7 @@ function runLoop(v, at) {
   delete v.loop.wait;
   const r = v.loop.route != null ? routeById(v.loop.route) : null;
   if (v.loop.route != null) {
-    if (!r || r.stops.length < 2) { delete v.loop; return; }
+    if (!r || routeIds(r).length < 2) { delete v.loop; return; }
     v.loop.stops = routeStops(r, v.city);
   }
   pickUp(v, v.city);
@@ -1808,16 +1808,25 @@ function runLoop(v, at) {
 
 // ---------- saved routes ----------
 
-// a lap of a route for a vehicle parked at town at: round from the stop after it and back to it,
-// or, from somewhere off the route, out to the first stop and round to the last
+// the towns a route stops at in order. A town can come up more than once, just not twice in a
+// row: a repeat straight after itself, or a last stop that's the same as the first, is skipped.
+export function routeIds(r) {
+  const ids = r.stops.map((s) => s.city).filter((id, i, a) => i === 0 || id !== a[i - 1]);
+  while (ids.length > 1 && ids[0] === ids[ids.length - 1]) ids.pop();
+  return ids;
+}
+
+// a lap of a route for a vehicle parked at town at: round from the stop after it (its first visit,
+// if the route goes there more than once) and back to it, or, from somewhere off the route, out to
+// the first stop and round to the last
 export function routeStops(r, at) {
-  const ids = r.stops.map((s) => s.city), i = ids.indexOf(at);
+  const ids = routeIds(r), i = ids.indexOf(at);
   return i < 0 ? ids : [...ids.slice(i + 1), ...ids.slice(0, i + 1)];
 }
 
 // the ways a route's every hop can be made: by road, rail, sea or air (plane range aside)
 export function routeModes(r) {
-  const ids = r.stops.map((s) => s.city);
+  const ids = routeIds(r);
   if (ids.length < 2) return [];
   const pairs = ids.map((id, i) => [id, ids[(i + 1) % ids.length]]);
   const C = (id) => cityById[id];
@@ -1837,8 +1846,8 @@ const offRoutes = (v) => !!escortKind(v) || !!spec(v).superload || v.aboard != n
 // to it from where it's parked
 export function routeProblem(v, r) {
   if (offRoutes(v)) return spec(v).superload ? 'Only carries superloads' : v.aboard != null ? 'Riding aboard another vehicle' : 'Escorts only move with a convoy';
-  if (r.stops.length < 2) return 'Needs at least 2 stops';
-  const ids = r.stops.map((s) => s.city);
+  const ids = routeIds(r);
+  if (ids.length < 2) return 'Needs at least 2 different stops';
   for (let i = 0; i < ids.length; i++) {
     const a = ids[i], b = ids[(i + 1) % ids.length];
     if (!leg(v, a, b)) return `Can’t get from ${cityById[a].name} to ${cityById[b].name}`;
@@ -1869,16 +1878,13 @@ export function renameRoute(r, name) {
   if (name) r.name = name;
 }
 
-// no stop right after the same town, going round the loop and back to the first
+// no stop right after the same town. A last stop that's the same as the first is left in, so a
+// route can be built up as A, B, A, C; routeIds skips it while it's last.
 function tidyStops(r) {
   const out = [];
   for (const s of r.stops) {
     const prev = out[out.length - 1];
     if (prev?.city === s.city) { prev.fill ||= s.fill; prev.drop ||= s.drop; } else out.push(s);
-  }
-  while (out.length > 1 && out[0].city === out[out.length - 1].city) {
-    const s = out.pop();
-    out[0].fill ||= s.fill; out[0].drop ||= s.drop;
   }
   r.stops = out;
 }
@@ -1889,8 +1895,9 @@ export function addRouteStop(r, id) {
   if (last?.city === id) { r.stops.pop(); return; }
   if (!isOpen(id)) { toast(`${cityById[id].name} is locked. Unlock it from its city panel.`, 'bad'); return; }
   if (cityById[id].anchor) { toast('Routes stop at towns, not anchorages', 'bad'); return; }
-  if (r.stops.length > 1 && r.stops[0].city === id) { toast(`${r.name} goes back to ${cityById[id].name} on its own at the end of each lap`); return; }
-  r.stops.push({ city: id, fill: false, drop: false });
+  // a town on the route more than once does the same thing every time it's visited
+  const same = r.stops.find((s) => s.city === id);
+  r.stops.push({ city: id, fill: !!same?.fill, drop: !!same?.drop });
 }
 export function removeRouteStop(r, i) { r.stops.splice(i, 1); tidyStops(r); }
 export function moveRouteStop(r, i, d) {
@@ -1899,14 +1906,22 @@ export function moveRouteStop(r, i, d) {
   [r.stops[i], r.stops[k]] = [r.stops[k], r.stops[i]];
   tidyStops(r);
 }
-// what a stop does with jobs headed off the route: nothing (stop), take them on (fill), leave them
-// for another route (drop), or both (transfer)
-export const STOP_MODES = [['stop', 'Stop'], ['fill', 'Fill'], ['drop', 'Drop off'], ['transfer', 'Transfer']];
+// what a stop does with jobs headed off the route: nothing (stop: it only drops off and picks up
+// jobs between stops on the route), take them on (fill), leave them for another route (drop), or
+// both (transfer). It's set per town, so every visit to a town the route goes to more than once matches.
+export const STOP_MODES = [
+  ['stop', 'Stop', 'Drops off jobs that end here and picks up ones going to another stop on this route'],
+  ['fill', 'Fill', 'Also picks up jobs headed off the route, for another route to carry on'],
+  ['drop', 'Drop off', 'Also leaves jobs headed off the route here, for another route to carry on'],
+  ['transfer', 'Transfer', 'Both: picks up and leaves jobs headed off the route'],
+];
 export const stopMode = (s) => (s.fill && s.drop ? 'transfer' : s.fill ? 'fill' : s.drop ? 'drop' : 'stop');
 export function setStopMode(r, i, mode) {
-  const s = r.stops[i];
-  s.fill = mode === 'fill' || mode === 'transfer';
-  s.drop = mode === 'drop' || mode === 'transfer';
+  const id = r.stops[i].city;
+  for (const s of r.stops) if (s.city === id) {
+    s.fill = mode === 'fill' || mode === 'transfer';
+    s.drop = mode === 'drop' || mode === 'transfer';
+  }
 }
 
 // put a vehicle on a route. Parked, it sets off now (or waits at its stop for work); out on a

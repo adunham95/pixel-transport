@@ -1,6 +1,6 @@
 <script>
   import { onMount } from 'svelte';
-  import { game, ui, cityById, leg, planLegs, toggleStop, selectCity, posAt, tripProgress, gameNow, isOpen, fx, darkness, isCarrier, carrierAt, townSize, escortsOf, consistOf, paintOf, landmarkAt, projectProgress, routeById, addRouteStop } from '../game/game.svelte.js';
+  import { game, ui, cityById, leg, planLegs, toggleStop, selectCity, posAt, tripProgress, gameNow, isOpen, fx, darkness, isCarrier, carrierAt, townSize, escortsOf, consistOf, paintOf, landmarkAt, projectProgress, routeById, routeIds, addRouteStop } from '../game/game.svelte.js';
   import { CITIES, ENGINES, PLANES, CARS, TRUCKS, BOATS, W, H, PROJECTS, ROAD_OFF, roadSide } from '../game/data.js';
   import { buildTerrain, makeWaterPattern, R, bresenham } from './terrain.js';
   import { drawArt, trainUnits, paintOrder, artSize, loadArt } from './sprites.js';
@@ -610,8 +610,9 @@
       }
       // the route being edited in the Routes tab, stop to stop and back round
       const er = ui.tab === 'routes' && ui.routeEdit != null ? routeById(ui.routeEdit) : null;
-      if (er && er.stops.length > 1) {
-        const pts = [...er.stops, er.stops[0]].map((s) => [cityById[s.city].x, cityById[s.city].y]);
+      const eids = er ? routeIds(er) : [];
+      if (eids.length > 1) {
+        const pts = [...eids, eids[0]].map((id) => [cityById[id].x, cityById[id].y]);
         b.save();
         b.lineWidth = 2; b.setLineDash([4, 3]); b.lineDashOffset = -Math.floor(now / 80) % 7;
         b.strokeStyle = 'rgba(18,22,38,0.6)'; path(pts, 1);

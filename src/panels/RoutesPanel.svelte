@@ -1,5 +1,5 @@
 <script>
-  import { game, ui, cityById, isOpen, spec, consistOf, paintOf, createRoute, deleteRoute, renameRoute, addRouteStop, removeRouteStop, moveRouteStop, STOP_MODES, stopMode, setStopMode, routeModes, routeProblem, routeVehicles, assignRoute, stopRepeating, selectCity } from '../game/game.svelte.js';
+  import { game, ui, cityById, isOpen, spec, consistOf, paintOf, createRoute, deleteRoute, routeIds, renameRoute, addRouteStop, removeRouteStop, moveRouteStop, STOP_MODES, stopMode, setStopMode, routeModes, routeProblem, routeVehicles, assignRoute, stopRepeating, selectCity } from '../game/game.svelte.js';
   import { CITIES, HQ } from '../game/data.js';
   import Sprite from '../ui/Sprite.svelte';
   import Icon from '../ui/Icon.svelte';
@@ -22,13 +22,16 @@
     if (v.city) return v.trip ? '' : `Waiting at ${cityById[v.city].name}`;
     return v.trip ? `To ${cityById[v.trip.to].name}` : '';
   }
-  const chain = (r) => (r.stops.length ? r.stops.map((s) => cityById[s.city].name).join(' → ') + (r.stops.length > 1 ? ' ↻' : '') : 'No stops yet');
+  const chain = (r) => { const ids = routeIds(r); return ids.length ? ids.map((id) => cityById[id].name).join(' → ') + (ids.length > 1 ? ' ↻' : '') : 'No stops yet'; };
+  // the last stop is the same town as the first, so it's skipped until another stop goes after it
+  const loopsBack = (r, i) => i > 0 && i === r.stops.length - 1 && r.stops[i].city === r.stops[0].city;
+  const visits = (r, id) => r.stops.filter((s) => s.city === id).length;
 </script>
 
 {#if !game.repeatRoutes}
   <p class="muted">{game.level < HQ.level ? `Build an HQ from level ${HQ.level} to set up routes.` : 'Build an HQ in any town, from its town page, to set up routes.'}</p>
 {:else}
-  <p class="muted small intro">Set up a loop of stops, then put vehicles on it. Every stop drops off jobs that end there and picks up ones going to another stop on the route. <b>Fill</b> also picks up jobs headed off the route, <b>Drop off</b> leaves them for another route to carry on, and <b>Transfer</b> does both. For a hub and spoke, put <b>Fill</b> on the spokes and <b>Transfer</b> on the hub.</p>
+  <p class="muted small intro">Set up a loop of stops, then put vehicles on it. Every stop drops off jobs that end there and picks up ones going to another stop on the route, and that's all a <b>Stop</b> does. <b>Fill</b> also picks up jobs headed off the route, <b>Drop off</b> leaves them for another route to carry on, and <b>Transfer</b> does both. For a hub and spoke, put <b>Fill</b> on the spokes and <b>Transfer</b> on the hub. A route can go back through the same town more than once, like a hub between each spoke.</p>
 
   {#each game.routes as r (r.id)}
     {@const on = ui.routeEdit === r.id}
@@ -56,13 +59,14 @@
           {#if r.stops.length}
             <ol class="stops">
               {#each r.stops as s, i (i + s.city)}
-                <li class="row stop rstop">
+                {@const n = visits(r, s.city)}
+                <li class="row stop rstop" class:skip={loopsBack(r, i)}>
                   <span class="num">{i + 1}</span>
                   <span class="grow">
-                    <button class="town" onclick={() => selectCity(s.city, true)}>{cityById[s.city].name}</button>
+                    <button class="town" onclick={() => selectCity(s.city, true)}>{cityById[s.city].name}{#if loopsBack(r, i)}<small class="note">Same as stop 1, so it’s skipped until you add a stop after it</small>{:else if n > 1}<small class="note">Visited {n} times a lap. Its setting applies to every visit</small>{/if}</button>
                     <span class="flags" role="radiogroup" aria-label="What {cityById[s.city].name} does">
-                      {#each STOP_MODES as [k, label]}
-                        <button class="flag" class:on={stopMode(s) === k} role="radio" aria-checked={stopMode(s) === k} onclick={() => setStopMode(r, i, k)}>{label}</button>
+                      {#each STOP_MODES as [k, label, tip]}
+                        <button class="flag" class:on={stopMode(s) === k} role="radio" aria-checked={stopMode(s) === k} title={tip} onclick={() => setStopMode(r, i, k)}>{label}</button>
                       {/each}
                     </span>
                   </span>
@@ -73,7 +77,7 @@
                   </span>
                 </li>
               {/each}
-              {#if r.stops.length > 1}
+              {#if routeIds(r).length > 1}
                 <li class="row stop back"><span class="num">↻</span><span class="grow"><small>Back to {cityById[r.stops[0].city].name}, then round again</small></span></li>
               {/if}
             </ol>
@@ -85,7 +89,7 @@
             </select>
             <small class="muted">or tap towns on the map</small>
           </div>
-          {#if r.stops.length > 1 && !modes.length}<p class="warn small">No single kind of vehicle can make every hop on this route.</p>{/if}
+          {#if routeIds(r).length > 1 && !modes.length}<p class="warn small">No single kind of vehicle can make every hop on this route.</p>{/if}
 
           <h4 class="sec">Vehicles on this route</h4>
           {#each runners as v (v.id)}
@@ -98,7 +102,7 @@
             <p class="muted small">None yet.</p>
           {/each}
 
-          {#if r.stops.length > 1}
+          {#if routeIds(r).length > 1}
             <h4 class="sec">Add a vehicle</h4>
             {#each able as { v } (v.id)}
               <div class="row vrow">
@@ -163,6 +167,8 @@
   .move { display: flex; gap: 4px; }
   .move .x:disabled { opacity: .35; cursor: default; }
   .back { box-shadow: none; background: transparent; }
+  .note { display: block; font-weight: 400; font-size: 12px; color: var(--ink-soft); }
+  .skip { opacity: .6; }
   .off { opacity: .5; box-shadow: none; }
   .warn { color: var(--bad); }
 </style>
