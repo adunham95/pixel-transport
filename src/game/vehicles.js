@@ -1772,6 +1772,30 @@ export const TRUCKS = {
       <g fill="#23262b"><rect x="1" y="-1.75" width="0.4" height="0.28" rx="0.1"/><rect x="1" y="1.47" width="0.4" height="0.28" rx="0.1"/></g>
     </svg>`,
   },
+  adventure: {
+    // an electric adventure pickup: green body, black glass roof, a covered bed, and its oval
+    // "stadium" headlights joined by a light bar across the nose
+    name: "Electric Adventure Truck",
+    short: "Adventure Truck",
+    level: 4,
+    price: 2200,
+    cap: { cargo: 3 },
+    maxCars: 0,
+    speed: 7.5,
+    run: 0.02,
+    deck: 1,
+    pips: 3,
+    art: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-3.4 -1.8 6.8 3.6">
+      <g fill="#23262b"><rect x="1.3" y="-1.65" width="0.75" height="0.3" rx="0.12"/><rect x="1.3" y="1.35" width="0.75" height="0.3" rx="0.12"/><rect x="-2.4" y="-1.65" width="0.75" height="0.3" rx="0.12"/><rect x="-2.4" y="1.35" width="0.75" height="0.3" rx="0.12"/></g>
+      <path d="M-2.6 -1.4H2.2Q3.1 -1.4 3.1 -0.5V0.5Q3.1 1.4 2.2 1.4H-2.6A0.5 0.5 0 0 1 -3.1 0.9V-0.9A0.5 0.5 0 0 1 -2.6 -1.4Z" fill="#4a6b45" stroke="rgba(18,24,38,0.9)" stroke-width="0.55" stroke-linejoin="round"/>
+      <rect x="-2.85" y="-1.08" width="2.35" height="2.16" rx="0.2" fill="#2f3a2e"/>
+      <g fill="#3d4a3b"><rect x="-2.3" y="-1.08" width="0.16" height="2.16"/><rect x="-1.6" y="-1.08" width="0.16" height="2.16"/><rect x="-0.9" y="-1.08" width="0.16" height="2.16"/></g>
+      <rect x="-0.3" y="-1.08" width="1.9" height="2.16" rx="0.35" fill="#1f2633"/>
+      <rect x="1.45" y="-1" width="0.3" height="2" fill="#5c8a55"/>
+      <g fill="#fff3a8"><rect x="2.72" y="-1.22" width="0.32" height="0.62" rx="0.16"/><rect x="2.72" y="0.6" width="0.32" height="0.62" rx="0.16"/></g>
+      <rect x="2.92" y="-0.62" width="0.1" height="1.24" fill="#fff3a8" opacity="0.85"/>
+    </svg>`,
+  },
   duck: {
     name: "Duck Boat",
     short: "Duck",
@@ -1818,6 +1842,34 @@ export const TRUCKS = {
       <rect x="3.85" y="-0.35" width="0.2" height="0.7" fill="#c9ced4"/>
       <g fill="#fff3a8"><rect x="3.75" y="-1" width="0.3" height="0.35"/><rect x="3.75" y="0.65" width="0.3" height="0.35"/></g>
       <g fill="#b8862a"><rect x="-1.6" y="-1.45" width="0.35" height="0.25" rx="0.1"/><rect x="-1.6" y="1.2" width="0.35" height="0.25" rx="0.1"/></g>
+    </svg>`,
+  },
+  wedge: {
+    // a stainless steel wedge: all flat panels and sharp corners, a glass roof, the bed shut under
+    // its ribbed vault cover, a light bar right across the nose and a red one across the tail.
+    // It barely holds anything and costs a fortune, but it's as quick as anything on the road,
+    // and it keeps its bare steel in company colors.
+    name: "Steel Wedge Truck",
+    short: "Steel Wedge",
+    level: 6,
+    price: 15000,
+    cap: { cargo: 1 },
+    factoryPaint: true,
+    maxCars: 0,
+    speed: 9,
+    run: 0.02,
+    deck: 1,
+    pips: 5,
+    art: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-3.5 -1.8 7 3.6">
+      <g fill="#23262b"><rect x="1.4" y="-1.65" width="0.8" height="0.3" rx="0.1"/><rect x="1.4" y="1.35" width="0.8" height="0.3" rx="0.1"/><rect x="-2.5" y="-1.65" width="0.8" height="0.3" rx="0.1"/><rect x="-2.5" y="1.35" width="0.8" height="0.3" rx="0.1"/></g>
+      <path d="M-3 -1.4H2.6L3.2 -1V1L2.6 1.4H-3L-3.25 1.15V-1.15Z" fill="#c3c8ce" stroke="rgba(18,24,38,0.9)" stroke-width="0.5" stroke-linejoin="miter"/>
+      <rect x="-2.95" y="-1.1" width="2.45" height="2.2" fill="#a3aab2"/>
+      <g fill="#8d949c">${[-2.6, -2.15, -1.7, -1.25, -0.8].map((x) => `<rect x="${x}" y="-1.1" width="0.14" height="2.2"/>`).join("")}</g>
+      <path d="M-0.45 -1.08H1.55L2.15 -0.75V0.75L1.55 1.08H-0.45Z" fill="#23283a"/>
+      <path d="M-0.45 0H2.15" stroke="#3a4152" stroke-width="0.12"/>
+      <path d="M2.15 -0.75L2.95 -0.95M2.15 0.75L2.95 0.95" stroke="#9aa1a9" stroke-width="0.1"/>
+      <rect x="3.02" y="-0.98" width="0.16" height="1.96" fill="#f4f8ff"/>
+      <rect x="-3.22" y="-1.05" width="0.14" height="2.1" fill="#d6453a"/>
     </svg>`,
   },
   bigbox: {
