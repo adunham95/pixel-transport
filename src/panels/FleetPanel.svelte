@@ -1,5 +1,5 @@
 <script>
-  import { game, ui, dev, setDev, cityById, capacity, endRoute, addCar, removeCar, canRemoveCar, upgradeEngine, upgradeCost, canRefit, sellVehicle, sellValue, resetGame, openLoad, followVehicle, etaText, fmt, stopRepeating, spec, tailSpecs, tailName, aboard, carrierOf, deckUsed, deckRoom, deckFor, finances, clock, wear, service, serviceCost, escortee, consistOf, paintOf, paintFor, isIdle, idleVehicles, quickSend, quickSendAll, startQueue, toast, brokenVehicles, sendHelp, callRoadside, calloutCost, stillNeeded, escortText, renameVehicle, escortKind, assignRoute, routeById, tripInfo } from '../game/game.svelte.js';
+  import { game, ui, dev, setDev, cityById, capacity, endRoute, addCar, removeCar, canRemoveCar, upgradeEngine, upgradeCost, canRefit, sellVehicle, sellValue, resetGame, openLoad, followVehicle, etaText, fmt, stopRepeating, spec, tailSpecs, tailName, aboard, carrierOf, deckUsed, deckRoom, deckFor, finances, clock, wear, service, serviceCost, sendToService, canSendService, depotFor, escortee, consistOf, paintOf, paintFor, isIdle, idleVehicles, quickSend, quickSendAll, startQueue, toast, brokenVehicles, sendHelp, callRoadside, calloutCost, stillNeeded, escortText, renameVehicle, escortKind, assignRoute, routeById, tripInfo } from '../game/game.svelte.js';
   import { ENGINES, TRUCKS, BOATS, PLANES, MI, JOB_TYPES, ESCORT_LABEL } from '../game/data.js';
   import Sprite from '../ui/Sprite.svelte';
   import LoadBadges from '../ui/LoadBadges.svelte';
@@ -138,8 +138,24 @@
         {#if v.kind === 'plane'}<div class="meters"><span class="meter">Range {Math.round(PLANES[v.model].range * MI)} mi</span></div>{/if}
         <div class="row age">
           <span class="grow"><b>{Math.round((v.miles ?? 0) * MI)} mi on it</b><small>{wr ? `Burns ${Math.round(wr * 100)}% more fuel with age. Service it, or sell it.${game.depots[v.city] ? ' Half price at this depot.' : ''}` : 'Running like new. Burns more fuel as the miles add up.'}</small></span>
-          {#if wr && v.city}<button class="btn small" disabled={game.coins < serviceCost(v)} onclick={() => service(v)}>Service ${fmt(serviceCost(v))}</button>{/if}
+          {#if wr && v.city && !v.trip}<button class="btn small" disabled={game.coins < serviceCost(v)} onclick={() => service(v)}>Service here ${fmt(serviceCost(v))}</button>{/if}
         </div>
+        {#if canSendService(v)}
+          {@const due = v.loop ? !!v.loop.service : !!v.serviceDue}
+          {@const dep = !v.trip ? depotFor(v) : null}
+          {#if v.trip || v.loop || dep || due}
+            <div class="row svc">
+              <span class="grow"><small>{due ? (v.trip ? `Goes in for a service ${v.loop ? 'at the end of this lap' : 'when it stops'}, at a depot if that works out cheaper.` : 'Heading in for a service.') : dep ? `The depot at ${cityById[dep.id].name} works out cheaper, about $${fmt(dep.total)} with fuel there and back.` : v.loop ? 'Service it at the end of this lap, then it carries on the route.' : 'Service it once this trip is over, at a depot if that works out cheaper.'}</small></span>
+              {#if due}
+                <button class="btn small ghost" onclick={() => sendToService(v)}>Cancel service</button>
+              {:else if dep && !v.loop}
+                <button class="btn small primary" onclick={() => sendToService(v)}>Service at {cityById[dep.id].name}</button>
+              {:else}
+                <button class="btn small" onclick={() => sendToService(v)}>{v.trip ? 'Service when it stops' : 'Send for service'}</button>
+              {/if}
+            </div>
+          {/if}
+        {/if}
 
         {#if v.cars && spec(v).maxCars}
           {@const e = spec(v)}
@@ -277,6 +293,7 @@
   .ph small { font-size: 11px; font-weight: 500; color: var(--ink-soft); }
   .link { border: 0; background: none; padding: 0; color: inherit; text-decoration: underline; cursor: pointer; font: inherit; }
   .age { margin: 8px 0; }
+  .svc { margin: -4px 0 8px; }
   .name { display: flex; align-items: center; gap: 8px; margin: 0 0 8px; }
   .name small { color: var(--ink-soft); font-size: 12px; }
   .name select { flex: 1; min-width: 0; padding: 6px 10px; font: inherit; font-size: 14px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel-2); color: var(--ink); }

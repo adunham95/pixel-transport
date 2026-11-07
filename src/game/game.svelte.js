@@ -586,7 +586,8 @@ function arrive(v, at) {
   closeLap(v, at);
   if (ui.track === v.id) ui.track = null;
   if (n) toast(`${v.name} delivered ${n} at ${name}. +$${fmt(total)}`, 'good');
-  else toast(`${v.name} arrived at ${name}`);
+  else if (!v.serviceDue) toast(`${v.name} arrived at ${name}`);
+  if (v.serviceDue) serviceOffRoute(v, at);
 }
 
 // ---------- breakdowns and rescues ----------
@@ -1809,6 +1810,11 @@ function runLoop(v, at) {
   const r = v.loop.route != null ? routeById(v.loop.route) : null;
   if (v.loop.route != null) {
     if (!r || routeIds(r).length < 2) { delete v.loop; closeLap(v, at); return; }
+    // due a service: here, or off to a depot for it and back on the route after
+    if (r.autoService && wear(v) >= AUTO_SERVICE && game.coins >= serviceCost(v)) v.loop.service = true;
+    if (v.loop.service && serviceStop(v, at)) return;
+    // a paused route keeps its vehicles parked here until it's resumed
+    if (r.paused) { closeLap(v, at); v.loop.wait = at + LOOP_WAIT; return; }
     v.loop.stops = routeStops(r, v.city);
   }
   pickUp(v, v.city);
@@ -1919,6 +1925,103 @@ export function routeReport(r, now = gameNow()) {
   };
 }
 
+// ---------- route maintenance ----------
+
+// how worn (see wear) a vehicle on a route set to service itself gets before it goes in
+const AUTO_SERVICE = WEAR.max / 2;
+
+// what servicing a vehicle costs at a town: cheaper at a depot
+const serviceCostAt = (v, id) => Math.ceil(spec(v).price * wear(v) * WEAR.service * (game.depots[id] ? DEPOT.service : 1));
+
+// the depot to service a vehicle at, if getting there and back is cheaper all in than servicing it
+// here: { id, stops }. Null if here is as good.
+function serviceDepot(v) {
+  const here = serviceCostAt(v, v.city);
+  let best = null;
+  for (const id in game.depots) {
+    if (!game.depots[id] || id === v.city) continue;
+    const stops = stopsTo(v, v.city, id);
+    const legs = stops && planLegs(v, stops);
+    if (!legs || legs.some((l) => !l)) continue;
+    // there and about as far back again
+    const total = serviceCostAt(v, id) + 2 * legs.reduce((a, l) => a + l.cost, 0);
+    if (total < here && (!best || total < best.total)) best = { id, stops, total };
+  }
+  return best;
+}
+
+// a vehicle on a route that's due a service, parked at the end of a lap: off to a depot if that's
+// cheaper (true: it's left, and gets serviced once it's there), or serviced here
+function serviceStop(v, at) {
+  if (!wear(v)) { delete v.loop.service; return false; }
+  const d = serviceDepot(v);
+  if (d) {
+    const was = quiet; quiet = true;
+    let ok;
+    try { ok = dispatch(v, d.stops, { lap: at }); } finally { quiet = was; }
+    if (ok) { toast(`${v.name} is heading to the depot at ${cityById[d.id].name} for a service`); return true; }
+  }
+  delete v.loop.service;
+  service(v);
+  return false;
+}
+
+export const depotFor = (v) => (v.city && wear(v) ? serviceDepot(v) : null);
+
+// can this vehicle be sent in for a service by itself? Not while it's riding aboard another or
+// moving with a convoy
+export const canSendService = (v) => !!wear(v) && v.aboard == null && v.escorting == null;
+
+// a vehicle off any route: drive to a depot for its service now (parked), or once its trip ends.
+// v.serviceDue stays on until it's serviced, so it gets done when it pulls in at the depot.
+export function sendToService(v) {
+  if (v.loop) { requestService(v); return; }
+  if (!canSendService(v)) return;
+  if (v.trip) {
+    if (v.serviceDue) { delete v.serviceDue; toast(`${v.name} won’t go in for a service`); return; }
+    v.serviceDue = true;
+    toast(`${v.name} will go in for a service when it stops`);
+    return;
+  }
+  v.serviceDue = true;
+  serviceOffRoute(v, null);
+}
+
+// a vehicle off any route due a service, parked (at is when it pulled in, or null for now): off to a
+// depot if that's cheaper all in, or serviced here
+function serviceOffRoute(v, at) {
+  const d = serviceDepot(v);
+  if (d) {
+    const was = quiet; quiet = at != null;
+    let ok;
+    try { ok = dispatch(v, d.stops, at != null ? { lap: at } : {}); } finally { quiet = was; }
+    if (ok) { toast(`${v.name} is heading to the depot at ${cityById[d.id].name} for a service`); return; }
+  }
+  delete v.serviceDue;
+  service(v);
+}
+
+// send a vehicle on a route in for a service at the end of its lap (or now, if it's parked), or
+// call that off again. Off a route, a parked vehicle is just serviced where it is.
+export function requestService(v) {
+  if (!v.loop) { service(v); return; }
+  if (v.loop.service) { delete v.loop.service; toast(`${v.name} won’t go in for a service`); return; }
+  if (!wear(v)) { toast(`${v.name} is running like new already`); return; }
+  v.loop.service = true;
+  if (v.city && !v.trip) delete v.loop.wait;
+  else toast(`${v.name} will go in for a service at the end of this lap`);
+}
+
+// pause a route: its vehicles finish the lap they're on, then park at the end of it until it's resumed
+export function setRoutePaused(r, paused) {
+  r.paused = paused;
+  const runners = routeVehicles(r);
+  if (!paused) for (const v of runners) if (v.city && !v.trip) delete v.loop.wait;
+  toast(paused ? `${r.name} is paused. ${runners.length ? 'Its vehicles park once they finish this lap.' : ''}` : `${r.name} is running again`);
+}
+
+export function setAutoService(r, on) { r.autoService = on; }
+
 export function resetRouteStats(r) {
   r.stats = newStats();
   const now = gameNow();
@@ -2003,7 +2106,7 @@ export function assignRoute(v, r) {
     const was = quiet; quiet = true;
     try { runLoop(v, gameNow()); } finally { quiet = was; }
     if (!v.loop) { toast(`${v.name} couldn’t set off on ${r.name}. Check you have coins for fuel.`, 'bad'); return false; }
-    toast(v.trip ? `${v.name} is running ${r.name}` : `${v.name} is on ${r.name}, waiting at ${cityById[v.city].name} for jobs`, 'good');
+    toast(v.trip ? `${v.name} is running ${r.name}` : r.paused ? `${v.name} is on ${r.name}, parked at ${cityById[v.city].name} while it’s paused` : `${v.name} is on ${r.name}, waiting at ${cityById[v.city].name} for jobs`, 'good');
     return true;
   }
   const end = v.next?.length ? v.next[v.next.length - 1].to : v.trip?.to;
@@ -2166,6 +2269,8 @@ export function service(v) {
   if (game.coins < cost) { toast(`You need $${fmt(cost)} for that`, 'bad'); return; }
   game.coins -= cost;
   v.miles = 0;
+  delete v.serviceDue;
+  if (v.loop) delete v.loop.service;
   toast(`${v.name} is serviced and running like new`, 'good');
 }
 

@@ -1,5 +1,5 @@
 <script>
-  import { game, ui, cityById, isOpen, spec, consistOf, paintOf, createRoute, deleteRoute, routeIds, renameRoute, addRouteStop, removeRouteStop, moveRouteStop, STOP_MODES, stopMode, setStopMode, routeModes, routeProblem, routeVehicles, assignRoute, stopRepeating, selectCity } from '../game/game.svelte.js';
+  import { game, ui, cityById, isOpen, spec, consistOf, paintOf, createRoute, deleteRoute, routeIds, renameRoute, addRouteStop, removeRouteStop, moveRouteStop, STOP_MODES, stopMode, setStopMode, routeModes, routeProblem, routeVehicles, assignRoute, stopRepeating, selectCity, routeReport, resetRouteStats, requestService, setRoutePaused, setAutoService, wear, fmt, fmtTime, clock } from '../game/game.svelte.js';
   import { CITIES, HQ } from '../game/data.js';
   import Sprite from '../ui/Sprite.svelte';
   import Icon from '../ui/Icon.svelte';
@@ -37,10 +37,11 @@
     {@const on = ui.routeEdit === r.id}
     {@const runners = routeVehicles(r)}
     {@const modes = routeModes(r)}
+    {@const rep = routeReport(r, clock.now)}
     <div class="card" class:open={on} in:fly={{ y: -8, duration: 200 }}>
       <button class="row card-head" onclick={() => open(r)}>
         <span class="grow">
-          <b>{r.name}{#each modes as m}<span class="status info">{MODE[m]}</span>{/each}{#if runners.length}<span class="status good">{runners.length} vehicle{runners.length > 1 ? 's' : ''}</span>{/if}</b>
+          <b>{r.name}{#each modes as m}<span class="status info">{MODE[m]}</span>{/each}{#if runners.length}<span class="status good">{runners.length} vehicle{runners.length > 1 ? 's' : ''}</span>{/if}{#if r.paused}<span class="status warn">Paused</span>{:else if rep?.perMin != null}<span class="status {rep.perMin < 0 ? 'bad' : 'good'}">{rep.perMin < 0 ? '−' : '+'}${fmt(Math.abs(rep.perMin))}/min</span>{/if}</b>
           <small>{chain(r)}</small>
         </span>
         <span class="chev">+</span>
@@ -54,6 +55,23 @@
             <small>Name</small>
             <input value={r.name} maxlength="24" onchange={(e) => { renameRoute(r, e.currentTarget.value); e.currentTarget.value = r.name; }} onkeydown={(e) => e.key === 'Enter' && e.currentTarget.blur()} />
           </label>
+
+          <h4 class="sec">How it’s doing</h4>
+          {#if rep}
+            <div class="stats">
+              <div class="stat"><b class:loss={rep.perMin != null && rep.perMin < 0}>{rep.perMin == null ? '…' : `${rep.perMin < 0 ? '−' : ''}$${fmt(Math.abs(rep.perMin))}`}</b><small>Profit a minute</small></div>
+              <div class="stat"><b class:loss={rep.profit < 0}>{rep.profit < 0 ? '−' : ''}${fmt(Math.abs(rep.profit))}</b><small>Profit a lap</small></div>
+              <div class="stat"><b>{rep.full == null ? '–' : `${Math.round(rep.full * 100)}%`}</b><small>Full on average</small></div>
+            </div>
+            <p class="muted small sline">Averages over {rep.laps} lap{rep.laps > 1 ? 's' : ''}: earns ${fmt(rep.earned)}, fuel ${fmt(rep.fuel)}, about {fmtTime(rep.lapTime)} each, waiting for work included.{#if rep.perMin != null} Profit a minute is for {Math.max(1, runners.length)} vehicle{Math.max(1, runners.length) > 1 ? 's' : ''}.{/if} <button class="link" onclick={() => resetRouteStats(r)}>Reset</button></p>
+          {:else}
+            <p class="muted small sline">No laps run yet. Stats show up once a vehicle sets off on it.</p>
+          {/if}
+          <div class="ctl">
+            <button class="btn small" class:primary={r.paused} onclick={() => setRoutePaused(r, !r.paused)}>{r.paused ? 'Resume route' : 'Pause route'}</button>
+            <label class="auto"><input type="checkbox" checked={!!r.autoService} onchange={(e) => setAutoService(r, e.currentTarget.checked)} /><span>Service worn vehicles</span></label>
+          </div>
+          {#if r.paused}<p class="muted small sline">Paused: vehicles finish their lap, then park until you resume it. A good time to service them.</p>{/if}
 
           <h4 class="sec">Stops</h4>
           {#if r.stops.length}
@@ -95,7 +113,8 @@
           {#each runners as v (v.id)}
             <div class="row vrow">
               <span class="pv"><Sprite kind={v.kind} model={v.model} cars={consistOf(v)} scale={3} paint={paintOf(v)} /></span>
-              <span class="grow"><b>{v.name}{#if v.broken}<span class="status bad">Broken down</span>{:else if v.trip}<span class="status info">In transit</span>{:else}<span class="status warn">Waiting</span>{/if}</b><small>{status(v) || spec(v).name}</small></span>
+              <span class="grow"><b>{v.name}{#if v.broken}<span class="status bad">Broken down</span>{:else if v.trip}<span class="status info">In transit</span>{:else if r.paused}<span class="status warn">Parked</span>{:else}<span class="status warn">Waiting</span>{/if}{#if v.loop.service}<span class="status info">Service due</span>{/if}</b><small>{status(v) || spec(v).name}{#if wear(v)} · Worn, +{Math.round(wear(v) * 100)}% fuel{/if}</small></span>
+              {#if wear(v) || v.loop.service}<button class="btn small" class:primary={v.loop.service} title={v.loop.service ? 'Call off the service' : 'Service it at the end of this lap, at a depot if that works out cheaper'} onclick={() => requestService(v)}>{v.loop.service ? 'Cancel service' : 'Service'}</button>{/if}
               <button class="btn small ghost" onclick={() => stopRepeating(v)}>Take off</button>
             </div>
           {:else}
@@ -169,6 +188,10 @@
   .back { box-shadow: none; background: transparent; }
   .note { display: block; font-weight: 400; font-size: 12px; color: var(--ink-soft); }
   .skip { opacity: .6; }
+  .sline { margin: 0 0 8px; }
+  .link { border: 0; background: none; padding: 0; font: inherit; color: var(--accent); cursor: pointer; text-decoration: underline; }
+  .ctl { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 0 0 8px; }
+  .auto { display: flex; align-items: center; gap: 6px; font-size: 13px; cursor: pointer; }
   .off { opacity: .5; box-shadow: none; }
   .warn { color: var(--bad); }
 </style>
