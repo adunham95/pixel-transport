@@ -56,6 +56,8 @@
     <path d="m9 6 6 6-6 6" />
   {:else if name === 'speed'}
     <path d="M4 17a8 8 0 1 1 16 0" /><path d="m12 17 4-5" />
+  {:else if name === 'pin'}
+    <path d="M12 21s-6.5-6-6.5-11a6.5 6.5 0 0 1 13 0c0 5-6.5 11-6.5 11z" /><circle cx="12" cy="10" r="2.3" />
   {:else if name === 'coin'}
     <circle cx="12" cy="12" r="9" fill="currentColor" stroke="none" /><path d="M12 7.5v9M14.5 9.5c-.5-1-1.4-1.5-2.5-1.5-1.5 0-2.5.8-2.5 2s1 1.6 2.5 2 2.5.8 2.5 2-1 2-2.5 2c-1.2 0-2.1-.6-2.6-1.6" stroke="#5a4314" stroke-width="1.8" />
   {/if}

@@ -1,6 +1,6 @@
 <script>
   import { game, ui, cityById, etaText, fmtTime, clock, followVehicle, isOpen, connections, unlockPrice, unlockCity, carrierAt, fmt, townSize, sizeName, growthOf, buyDepot, fetcher, consistOf, paintOf, buildHQ, hqPrice, setLivery, nextContractsPerk, buyContractsPerk, contractSlots, nextSuperloadsPerk, buySuperloadsPerk, superloadSlots, buyAutoPerk, mixOf, projectTowns, landmarkAt, cantHost, escortKind } from '../game/game.svelte.js';
-  import { CITY_PRICE, DEPOT, HQ, TYPE_LABEL, PROJECTS } from '../game/data.js';
+  import { CITY_PRICE, DEPOT, HQ, TYPE_LABEL, PROJECTS, CONTINENTS } from '../game/data.js';
   import ProjectCard from '../ui/ProjectCard.svelte';
   import Icon from '../ui/Icon.svelte';
   import Sprite from '../ui/Sprite.svelte';
@@ -41,6 +41,7 @@
   <div in:fly={{ x: -28, duration: 220 }}>
   <div class="cityhead">
     <h2>{c.name}</h2>
+    <span class="region"><Icon name="pin" size={13} />{c.anchor ? 'Open sea' : c.cont < 0 ? 'Lone island' : CONTINENTS[c.cont].name}</span>
     <div class="tags">
       {#if c.rail}<span class="tag">Station</span>{/if}
       {#if c.air}<span class="tag">Airport</span>{/if}
@@ -167,6 +168,7 @@
 {/if}
 
 <style>
+  .region { display: inline-flex; align-items: center; gap: 4px; margin: -4px 0 2px; font-size: 13px; color: var(--ink-soft); }
   .grow-card { margin-top: 10px; padding: 10px 12px; background: var(--panel-3); border-radius: var(--r); display: flex; flex-direction: column; gap: 6px; }
   .gline { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
   .gline small { color: var(--ink-soft); font-size: 12px; }
