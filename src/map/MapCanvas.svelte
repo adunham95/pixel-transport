@@ -507,7 +507,8 @@
     function boatLights(x, y, ang, model) {
       const s = artSize('boat', model);
       glow(x, y, 6, '255,210,130', 0.3);
-      lamp(onArt(x, y, ang, s.w * 0.15, 0), '255,255,235');
+      // a self-sailing boat's masthead light is teal
+      lamp(onArt(x, y, ang, s.w * 0.15, 0), BOATS[model].auto ? '95,240,216' : '255,255,235');
       lamp(onArt(x, y, ang, s.w * 0.32, -s.h * 0.4), '255,70,60');
       lamp(onArt(x, y, ang, s.w * 0.32, s.h * 0.4), '80,255,120');
       lamp(onArt(x, y, ang, -s.w * 0.48, 0), '255,255,235', 0.7);
@@ -547,8 +548,10 @@
             beam(pos(u, s.w / 2, 0), u.p.ang, 14, 5, auto ? '95,240,216' : undefined);
             for (const side of [-1, 1]) lamp(pos(u, s.w / 2, side * s.h * 0.3), auto ? '95,240,216' : '255,245,200');
           } else {
-            beam(pos(u, s.w / 2, 0), u.p.ang, 20, 4);
-            lamp(pos(u, s.w / 2, 0), '255,245,200');
+            // a self-driving train's headlight is teal too
+            const auto = ENGINES[v.model]?.auto;
+            beam(pos(u, s.w / 2, 0), u.p.ang, 20, 4, auto ? '95,240,216' : undefined);
+            lamp(pos(u, s.w / 2, 0), auto ? '95,240,216' : '255,245,200');
           }
         }
         if (v.kind === 'train') {

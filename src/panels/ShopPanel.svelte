@@ -4,7 +4,7 @@
   import ProjectCard from '../ui/ProjectCard.svelte';
   import Sprite from '../ui/Sprite.svelte';
   import Icon from '../ui/Icon.svelte';
-  import Traits from '../ui/Traits.svelte';
+  import Traits, { autoVerb } from '../ui/Traits.svelte';
   import NavHeader from '../ui/NavHeader.svelte';
   import { fly } from '../ui/motion.js';
 
@@ -50,7 +50,7 @@
     if (s.maglev) out.push('Maglev lines only');
     if (s.harbor) out.push('Ports with a station only');
     if (s.amphibious) out.push('Swims between ports');
-    const self = kind === 'plane' ? 'Flies itself' : 'Drives itself';
+    const self = `${autoVerb(kind)[0].toUpperCase()}${autoVerb(kind).slice(1)} itself`;
     if (s.auto) out.push(game.hqAuto ? `${self}, finding its own jobs` : `${self}. Needs auto dispatch at your HQ`);
     if (s.prototype) out.push(kind === 'plane' ? 'A prototype: one of a kind, in its test checks' : 'A prototype: quick, but it breaks down now and then, even when new');
     if (s.celebrity) out.push('Celebrities ride in it');

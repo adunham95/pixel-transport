@@ -4,7 +4,7 @@
   import Sprite from '../ui/Sprite.svelte';
   import LoadBadges from '../ui/LoadBadges.svelte';
   import Icon from '../ui/Icon.svelte';
-  import Traits from '../ui/Traits.svelte';
+  import Traits, { autoVerb } from '../ui/Traits.svelte';
   import NavHeader from '../ui/NavHeader.svelte';
   import { slide, fly, flip } from '../ui/motion.js';
   const LEADS = { train: ENGINES, truck: TRUCKS, boat: BOATS };
@@ -198,7 +198,7 @@
       {:else if spec(v).escort}
         Goes along with superload convoys as a {ESCORT_LABEL[spec(v).escort]}. Park it where a superload is waiting.
       {:else if spec(v).auto}
-        {v.kind === 'plane' ? 'Flies' : 'Drives'} itself. {game.hqAuto ? `It finds jobs it can carry, ${v.kind === 'plane' ? 'flies' : 'drives'} out to pick them up and delivers them, handing on anything it can’t take all the way to your repeating routes.` : 'Buy auto dispatch at your HQ and it’ll find and carry its own jobs.'}
+        {autoVerb(v.kind)[0].toUpperCase() + autoVerb(v.kind).slice(1)} itself. {game.hqAuto ? `It finds jobs it can carry, ${autoVerb(v.kind)} out to pick them up and delivers them, handing on anything it can’t take all the way to your repeating routes.` : 'Buy auto dispatch at your HQ and it’ll find and carry its own jobs.'}
       {:else if v.kind === 'truck'}
         Drives the roads between mainland towns. Bigger trucks and buses are in the Shop.
       {:else if deckRoom(v)}
@@ -212,7 +212,7 @@
         Boats sail between ports. Bigger boats are in the Shop.
       {:else}
         {@const cap = capacity(v)}
-        Holds {JOB_TYPES.filter((t) => cap[t]).map((t) => `${cap[t]} ${t === 'pax' ? 'seats' : t}`).join(', ')}. Want more? Bigger planes are in the Shop.
+        Holds {JOB_TYPES.filter((t) => cap[t]).map((t) => `${cap[t]} ${t === 'pax' ? 'seats' : t}`).join(', ')}. Want more? Bigger {v.kind}s are in the Shop.
       {/if}
     </p>
   {/if}

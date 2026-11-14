@@ -1694,6 +1694,15 @@ function collect(v, at, id, next) {
 
 // ---------- repeating routes ----------
 
+// can self-driving vehicle x take a job from town a to town b by itself: by road for a truck, along
+// the rails for a train, and in one hop for a boat or drone
+function autoLink(x, a, b) {
+  if (a === b || !isOpen(b)) return false;
+  if (x.kind === 'truck') return !!roadPath(a, b);
+  if (x.kind === 'train') return !!railPath(a, b, !!ENGINES[x.model].maglev);
+  return !!baseLeg(x, a, b);
+}
+
 // can this vehicle ever carry a job like this one (room aside)
 const carries = (x, j) => !j.escort && capacity(x)[j.type] > 0 && (!j.celeb || !!spec(x).celebrity);
 
@@ -1705,8 +1714,10 @@ function ridesTo(j) {
   const R = { [j.to]: 0 }, loops = game.vehicles.filter((x) => x.loop && carries(x, j));
   const reach = (ids, n) => ids.filter((id) => R[id] == null && (R[id] = n));
   let front = loops.filter((x) => x.loop.stops.includes(j.to)).flatMap((x) => reach(x.loop.stops, 1));
-  const taxis = game.hqAuto ? game.vehicles.filter((x) => spec(x).auto && carries(x, j)).map((x) => x.city ?? x.trip?.to).filter(Boolean) : [];
-  if (taxis.some((t) => t === j.to || roadPath(t, j.to))) front.push(...reach(CITIES.filter((c) => roadPath(c.id, j.to)).map((c) => c.id), 1));
+  if (game.hqAuto) for (const x of game.vehicles) {
+    const at = spec(x).auto && carries(x, j) && (x.city ?? x.trip?.to);
+    if (at && (at === j.to || autoLink(x, at, j.to))) front.push(...reach(CITIES.filter((c) => autoLink(x, c.id, j.to)).map((c) => c.id), 1));
+  }
   // a loop takes a job on from its fill stops to a drop off stop already counted
   for (let n = 2; front.length; n++) {
     const was = new Set(front);
@@ -1785,12 +1796,12 @@ function loopTakes(j, at, R, v = null, lead = 0) {
 
 // for a self-driving vehicle with a job it can't drive all the way: the town to take it to for your
 // repeating routes to carry it on, the one needing the fewest rides from there and then the nearest
-// to from. Null if a route already takes it from where it is, or none can be driven to (trucks keep to
-// the roads; drones fly there in one hop).
+// to from. Null if a route already takes it from where it is, or it can't get to any of them itself
+// (see autoLink).
 function feedStop(v, j, R, from = v.city) {
   if (R[from] != null) return null;
   let best = null;
-  for (const id in R) if (R[id] > 0 && isOpen(id) && (v.kind === 'plane' ? leg(v, from, id) : roadPath(from, id)) && (best === null || R[id] < R[best] || (R[id] === R[best] && dist(from, id) < dist(from, best)))) best = id;
+  for (const id in R) if (R[id] > 0 && isOpen(id) && autoLink(v, from, id) && (best === null || R[id] < R[best] || (R[id] === R[best] && dist(from, id) < dist(from, best)))) best = id;
   return best;
 }
 
@@ -2189,6 +2200,7 @@ export function buyBoat(model) {
   const c = cityById[game.selected], b = BOATS[model];
   if (!shopHere(c)) return;
   if (!canBase('boat', model, c)) { toast(b.harbor ? `${b.name} needs a port with a rail station` : `${c.name} has no port. Pick a port city first.`, 'bad'); return; }
+  if (b.auto && !game.hqAuto) { toast(`A ${b.name} needs auto dispatch at your HQ`, 'bad'); return; }
   if (!spend(b.price, b.level, b.name)) return;
   const v = newVehicle(game, 'boat', model, c.id);
   game.vehicles.push(v);
@@ -2214,6 +2226,7 @@ export function buyEngine(model) {
   const c = cityById[game.selected], e = ENGINES[model];
   if (!shopHere(c)) return;
   if (!canBase('train', model, c)) { toast(e.maglev ? `${c.name} isn’t on a maglev line` : `${c.name} has no station. Pick a station city first.`, 'bad'); return; }
+  if (e.auto && !game.hqAuto) { toast(`A ${e.name} needs auto dispatch at your HQ`, 'bad'); return; }
   if (!spend(e.price, e.level, e.name)) return;
   const v = newVehicle(game, 'train', model, c.id, []);
   game.vehicles.push(v);

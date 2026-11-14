@@ -2,6 +2,7 @@
   import { game, ui, dev, clock, cityById, spec, tripInfo, fmt, fmtTime, stopRepeating, consistOf, paintOf, sendHelp, callRoadside, calloutCost, stillNeeded, escortText } from '../game/game.svelte.js';
   import { MI } from '../game/data.js';
   import Sprite from './Sprite.svelte';
+  import { autoLabel } from './Traits.svelte';
   import LoadBadges from './LoadBadges.svelte';
   import { fly, fade } from './motion.js';
 
@@ -22,7 +23,7 @@
         <span class="pv"><Sprite kind={v.kind} model={v.model} cars={consistOf(v)} scale={3} paint={paintOf(v)} /></span>
         <span class="grow">
           <b>{v.name} <span class="chev">›</span></b>
-          <small>{KIND[v.kind]} · {spec(v).name}{spec(v).auto ? (v.kind === 'plane' ? ' · Self-flying' : ' · Self-driving') : ''}{spec(v).prototype ? ' · Prototype' : ''}{info.stops ? ` · ${info.stops + 1} stops` : ''}</small>
+          <small>{KIND[v.kind]} · {spec(v).name}{spec(v).auto ? ` · ${autoLabel(v.kind)}` : ''}{spec(v).prototype ? ' · Prototype' : ''}{info.stops ? ` · ${info.stops + 1} stops` : ''}</small>
           <LoadBadges {v} />
         </span>
       </button>

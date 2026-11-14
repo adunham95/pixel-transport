@@ -3119,3 +3119,118 @@ PLANES.drone = {
     <g fill="#5ff0d8"><circle cx="1.15" cy="-0.5" r="0.18"/><circle cx="1.15" cy="0.5" r="0.18"/></g>
   </svg>`,
 };
+
+// ---------- filling out the trains and boats ----------
+
+ENGINES.railbus = {
+  // a little railcar on the branch lines: a few seats and a mailbag, and it pulls nothing
+  name: "Railbus",
+  level: 2,
+  price: 1200,
+  cap: { pax: 4, mail: 1 },
+  maxCars: 0,
+  speed: 6.5,
+  run: 0.05,
+  pips: 2,
+  color: "#e8dcc0",
+  trim: "#c0392b",
+  art: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-5 -2.6 10 5.2">
+    <path d="M-4 -2H4Q4.8 -2 4.8 -1.2V1.2Q4.8 2 4 2H-4Q-4.8 2 -4.8 1.2V-1.2Q-4.8 -2 -4 -2Z" fill="#e8dcc0" stroke="rgba(18,24,38,0.9)" stroke-width="0.8" stroke-linejoin="round"/>
+    <g fill="#cfc2a4">${[-3, -1.2, 0.6].map((x) => `<rect x="${x}" y="-1.5" width="1.2" height="0.7" rx="0.15"/><rect x="${x}" y="0.8" width="1.2" height="0.7" rx="0.15"/>`).join("")}</g>
+    <rect x="-4.8" y="-0.3" width="9.6" height="0.6" fill="#c0392b"/>
+    <g fill="#23344f"><rect x="4" y="-1.5" width="0.55" height="3" rx="0.2"/><rect x="-4.55" y="-1.5" width="0.55" height="3" rx="0.2"/></g>
+    <g fill="#fff3a8"><rect x="4.6" y="-1.3" width="0.25" height="0.5"/><rect x="4.6" y="0.8" width="0.25" height="0.5"/></g>
+  </svg>`,
+};
+
+ENGINES.metro = {
+  // a driverless metro car: it runs itself with the HQ's auto dispatch (auto, as in TRUCKS), with
+  // the teal stripe, roof lidar and teal lamps of the self-driving trucks
+  name: "Driverless Metro",
+  short: "Metro",
+  level: 8,
+  price: 6000,
+  cap: { pax: 8 },
+  auto: true,
+  maxCars: 0,
+  speed: 8,
+  run: 0.08,
+  pips: 3,
+  color: "#dfe4ea",
+  trim: "#2fb8a8",
+  art: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-6 -2.6 12 5.2">
+    <path d="M-5.4 -2H4.6Q5.8 -1.9 5.9 0Q5.8 1.9 4.6 2H-5.4Q-5.8 2 -5.8 1.6V-1.6Q-5.8 -2 -5.4 -2Z" fill="#dfe4ea" stroke="rgba(18,24,38,0.9)" stroke-width="0.8" stroke-linejoin="round"/>
+    <g fill="#c7ced6">${[-4.8, -2.4, 0].map((x) => `<rect x="${x}" y="-1.55" width="2" height="0.9" rx="0.2"/><rect x="${x}" y="0.65" width="2" height="0.9" rx="0.2"/>`).join("")}</g>
+    <rect x="-5.8" y="-0.3" width="11.2" height="0.6" fill="#2fb8a8"/>
+    <path d="M4.4 -1.6Q5.4 -1.3 5.5 0Q5.4 1.3 4.4 1.6Z" fill="#23344f"/>
+    <circle cx="3.2" cy="0" r="0.55" fill="#3a3f47" stroke="rgba(18,24,38,0.9)" stroke-width="0.2"/>
+    <circle cx="3.2" cy="0" r="0.25" fill="#5d7fa8"/>
+    <g fill="#5ff0d8"><rect x="5.35" y="-1.25" width="0.3" height="0.5" rx="0.1"/><rect x="5.35" y="0.75" width="0.3" height="0.5" rx="0.1"/><rect x="-5.95" y="-0.8" width="0.3" height="1.6" rx="0.1"/></g>
+  </svg>`,
+};
+
+ENGINES.colossus = {
+  // the biggest freight engine: the longest trains, at a fair clip, for the late game
+  name: "Colossus",
+  level: 11,
+  price: 16000,
+  maxCars: 14,
+  freightOnly: true,
+  speed: 8,
+  run: 0.26,
+  pips: 3,
+  color: "#2c3e57",
+  trim: "#f2c14e",
+  art: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-6.5 -2.6 13 5.2">
+    <path d="M-5.6 -2.1H5.2A1 1 0 0 1 6.2 -1.1V1.1A1 1 0 0 1 5.2 2.1H-5.6A0.6 0.6 0 0 1 -6.2 1.5V-1.5A0.6 0.6 0 0 1 -5.6 -2.1Z" fill="#2c3e57" stroke="rgba(18,24,38,0.9)" stroke-width="0.8" stroke-linejoin="round"/>
+    <g fill="#3d5170">${[-5.4, -4.2, -3, -1.8, -0.6, 0.6].map((x) => `<rect x="${x}" y="-1.6" width="0.8" height="3.2" rx="0.1"/>`).join("")}</g>
+    <g fill="#1f2c3f" stroke="#4c6386" stroke-width="0.2"><circle cx="-4.2" cy="0" r="0.9"/><circle cx="-1.6" cy="0" r="0.9"/></g>
+    <g fill="#f2c14e"><rect x="-6.2" y="-2.1" width="12.4" height="0.35"/><rect x="-6.2" y="1.75" width="12.4" height="0.35"/></g>
+    <rect x="2.2" y="-1.75" width="3.2" height="3.5" rx="0.4" fill="#34496a" stroke="rgba(18,24,38,0.9)" stroke-width="0.3"/>
+    <rect x="4.85" y="-1.4" width="0.5" height="2.8" fill="#9fd0ff"/>
+    <path d="M5.6 -1.1L6.15 -0.6M5.6 1.1L6.15 0.6" stroke="#f2c14e" stroke-width="0.3"/>
+    <rect x="5.95" y="-0.4" width="0.3" height="0.8" fill="#fff3a8"/>
+  </svg>`,
+};
+
+BOATS.watertaxi = {
+  // a little yellow water taxi with a checked roof: the cheap way to start a harbor run
+  name: "Water Taxi",
+  short: "Taxi",
+  level: 2,
+  price: 600,
+  cap: { pax: 3, mail: 1 },
+  speed: 5.5,
+  run: 0.03,
+  pips: 2,
+  art: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-4.8 -2 9.6 4">
+    <rect x="-4.7" y="-0.4" width="0.7" height="0.8" rx="0.15" fill="#3a3f47"/>
+    <path d="M-3.8 -1.5L1.6 -1.5Q4.2 -1.1 4.4 0Q4.2 1.1 1.6 1.5L-3.8 1.5Q-4.2 1.5 -4.2 1.1L-4.2 -1.1Q-4.2 -1.5 -3.8 -1.5Z" fill="#f2c14e" stroke="rgba(18,24,38,0.9)" stroke-width="0.5" stroke-linejoin="round"/>
+    <g fill="#c4952a"><rect x="-3.6" y="-1" width="0.7" height="0.8" rx="0.15"/><rect x="-3.6" y="0.2" width="0.7" height="0.8" rx="0.15"/></g>
+    <rect x="-2.2" y="-1.1" width="3.2" height="2.2" rx="0.45" fill="#f4f6f8" stroke="rgba(18,24,38,0.9)" stroke-width="0.3"/>
+    ${checks(-1.6, -0.4, 2, 0.8, 0.4)}
+    <rect x="1.05" y="-0.9" width="0.35" height="1.8" rx="0.1" fill="#9fd0ff"/>
+  </svg>`,
+};
+
+BOATS.autofreighter = {
+  // a crewless cargo boat: no bridge at all, just its hold, a lidar mast at the bow and teal lamps.
+  // It sails itself with the HQ's auto dispatch (auto, as in TRUCKS)
+  name: "Self-Sailing Freighter",
+  short: "Auto Freighter",
+  level: 9,
+  price: 7000,
+  cap: { cargo: 8, mail: 2 },
+  auto: true,
+  speed: 5,
+  run: 0.06,
+  pips: 2,
+  art: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-8 -2.8 16 5.6">
+    <path d="M-7.2 -2.3L4 -2.3Q7.6 -1.8 7.8 0Q7.6 1.8 4 2.3L-7.2 2.3Q-7.6 2.3 -7.6 1.9L-7.6 -1.9Q-7.6 -2.3 -7.2 -2.3Z" fill="#eef1f4" stroke="rgba(18,24,38,0.9)" stroke-width="0.6" stroke-linejoin="round"/>
+    <rect x="-6.9" y="-1.85" width="10" height="3.7" rx="0.3" fill="#c9ced4"/>
+    <g stroke="rgba(18,24,38,0.7)" stroke-width="0.2">${[[-6.6, "#2fb8a8"], [-3.3, "#8a949e"], [0, "#2fb8a8"]].map(([x, c], i) => `<rect x="${x}" y="-1.65" width="2.9" height="1.5" fill="${c}"/><rect x="${x}" y="0.15" width="2.9" height="1.5" fill="${i === 1 ? "#2fb8a8" : "#8a949e"}"/>`).join("")}</g>
+    <circle cx="4.7" cy="0" r="0.65" fill="#3a3f47" stroke="rgba(18,24,38,0.9)" stroke-width="0.2"/>
+    <circle cx="4.7" cy="0" r="0.3" fill="#5d7fa8"/>
+    <g fill="#5ff0d8"><circle cx="6.6" cy="-0.9" r="0.25"/><circle cx="6.6" cy="0.9" r="0.25"/><rect x="-7.55" y="-1" width="0.3" height="2" rx="0.1"/></g>
+  </svg>`,
+};
