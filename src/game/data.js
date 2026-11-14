@@ -314,7 +314,7 @@ export const HQ = {
     { level: 10, price: 50000 },
     { level: 12, price: 150000 },
   ],
-  // auto dispatch: self-driving vehicles (TRUCKS with auto: true) can be bought, and find and carry
+  // auto dispatch: self-driving vehicles (TRUCKS and drones in PLANES with auto: true) can be bought, and find and carry
   // their own jobs; and rescuers set off for breakdowns on their own
   auto: { level: 8, price: 30000 },
 };
@@ -324,6 +324,9 @@ export const HQ = {
 // sometimes a police car for a crash; a tug for a boat, plus a fireboat for fuel; a helper engine
 // for a train. Each only once it's in the shop. Or a roadside service fixes it after calloutTime
 // (game time), for calloutBase plus `callout` of the vehicle's price.
+// prototypes (models with prototype: true) are still being tested: on top of their wear, each leg
+// they have `glitch` more chance of breaking down, even brand new (planes never break down)
+export const PROTOTYPE = { glitch: 0.15 };
 export const BREAKDOWN = {
   chance: 0.25,
   crash: 0.25,

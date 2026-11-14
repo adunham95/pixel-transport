@@ -156,7 +156,10 @@ export const ENGINES = {
     price: 9000,
     maxCars: 0,
     superload: true,
-    beacons: [[3.8, -1.7], [3.8, 1.7]],
+    beacons: [
+      [3.8, -1.7],
+      [3.8, 1.7],
+    ],
     speed: 4,
     run: 0.2,
     pips: 1,
@@ -180,7 +183,10 @@ export const ENGINES = {
     price: 3500,
     maxCars: 0,
     escort: "helper",
-    beacons: [[2.9, -1.5], [2.9, 1.5]],
+    beacons: [
+      [2.9, -1.5],
+      [2.9, 1.5],
+    ],
     speed: 6,
     run: 0.1,
     pips: 2,
@@ -203,7 +209,10 @@ export const ENGINES = {
     price: 1500,
     maxCars: 0,
     escort: "inspect",
-    beacons: [[0.05, -0.9], [0.05, 0.9]],
+    beacons: [
+      [0.05, -0.9],
+      [0.05, 0.9],
+    ],
     speed: 8,
     run: 0.04,
     pips: 3,
@@ -282,7 +291,14 @@ ENGINES.royal = {
     <g fill="#d9a92c"><rect x="-15.6" y="-1.65" width="8.4" height="0.3"/><rect x="-15.6" y="1.35" width="8.4" height="0.3"/><rect x="-6" y="-1.65" width="8.4" height="0.3"/><rect x="-6" y="1.35" width="8.4" height="0.3"/></g>
     <g fill="#5c1620">${[-14.2, -12, -9.8, -4.6, -2.4, -0.2].map((x) => `<rect x="${x}" y="-0.35" width="1" height="0.7" rx="0.2"/>`).join("")}</g>
     <rect x="3.6" y="-1.4" width="2.8" height="2.8" fill="#3a3a3a"/>
-    <g fill="#55525a">${[[4.1, -0.8], [5.3, -0.3], [4.4, 0.6], [5.8, 0.8]].map(([x, y]) => `<rect x="${x}" y="${y}" width="0.5" height="0.5"/>`).join("")}</g>
+    <g fill="#55525a">${[
+      [4.1, -0.8],
+      [5.3, -0.3],
+      [4.4, 0.6],
+      [5.8, 0.8],
+    ]
+      .map(([x, y]) => `<rect x="${x}" y="${y}" width="0.5" height="0.5"/>`)
+      .join("")}</g>
     <rect x="7.2" y="-2.1" width="2.6" height="4.2" fill="#7a1f2b"/>
     <rect x="7.2" y="-2.1" width="2.6" height="0.6" fill="#5c1620"/>
     <rect x="9.8" y="-1.3" width="5.8" height="2.6" fill="#3a363d"/>
@@ -496,7 +512,14 @@ export const PLANES = {
     trim: "#d6453a",
     art: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-6 -6 12 12">
       <circle cx="0" cy="0" r="5.2" fill="#f2c14e" stroke="rgba(18,24,38,0.9)" stroke-width="0.8"/>
-      <g fill="#d6453a">${[0, 1, 2, 3, 4, 5].map((i) => { const a = (i * 60 * Math.PI) / 180, b = a + Math.PI / 6, f = (n) => n.toFixed(2); return `<path d="M0 0L${f(Math.cos(a) * 5.2)} ${f(Math.sin(a) * 5.2)}A5.2 5.2 0 0 1 ${f(Math.cos(b) * 5.2)} ${f(Math.sin(b) * 5.2)}Z"/>`; }).join("")}</g>
+      <g fill="#d6453a">${[0, 1, 2, 3, 4, 5]
+        .map((i) => {
+          const a = (i * 60 * Math.PI) / 180,
+            b = a + Math.PI / 6,
+            f = (n) => n.toFixed(2);
+          return `<path d="M0 0L${f(Math.cos(a) * 5.2)} ${f(Math.sin(a) * 5.2)}A5.2 5.2 0 0 1 ${f(Math.cos(b) * 5.2)} ${f(Math.sin(b) * 5.2)}Z"/>`;
+        })
+        .join("")}</g>
       <circle cx="-1.4" cy="-1.6" r="1.6" fill="rgba(255,255,255,0.3)"/>
       <circle cx="0" cy="0" r="1.1" fill="#f4f6f8" stroke="rgba(18,24,38,0.6)" stroke-width="0.3"/>
     </svg>`,
@@ -1097,7 +1120,9 @@ PLANES.stormbirdcargo = {
   cargo: 10,
   color: "#8a949e",
   trim: "#f2c14e",
-  art: PLANES.stormbird.art.replaceAll("#f4f6f8", "#8a949e").replaceAll("#d6453a", "#f2c14e"),
+  art: PLANES.stormbird.art
+    .replaceAll("#f4f6f8", "#8a949e")
+    .replaceAll("#d6453a", "#f2c14e"),
 };
 PLANES.humpbackcargo = {
   ...PLANES.humpback,
@@ -1108,7 +1133,12 @@ PLANES.humpbackcargo = {
   cargo: 32,
   trim: "#e08a2c",
   // no cabin windows on a freighter
-  art: PLANES.humpback.art.replace(/<rect x="5\.6" y="-1\.35"[^>]*\/>\s*<g fill="#8aa0b8">.*?<\/g>/s, "").replaceAll("#2a6fd6", "#e08a2c"),
+  art: PLANES.humpback.art
+    .replace(
+      /<rect x="5\.6" y="-1\.35"[^>]*\/>\s*<g fill="#8aa0b8">.*?<\/g>/s,
+      "",
+    )
+    .replaceAll("#2a6fd6", "#e08a2c"),
 };
 
 // boats are slow but cheap to run; cap is how many of each job type fit on board (missing types are 0).
@@ -1223,7 +1253,10 @@ export const BOATS = {
     cap: {},
     maxCars: 3,
     helps: "tug",
-    convoyBeacons: [[-0.8, -1.1], [-0.8, 1.1]],
+    convoyBeacons: [
+      [-0.8, -1.1],
+      [-0.8, 1.1],
+    ],
     speed: 3.5,
     run: 0.04,
     pips: 1,
@@ -1358,7 +1391,17 @@ export const BOATS = {
       <path d="M-19.5 0.85L-3 -3.8" fill="none" stroke="#ffd23f" stroke-width="0.25" stroke-dasharray="1.1 0.7"/>
       <g fill="none" stroke="#9aa3ac" stroke-width="0.25"><path d="M5 -1.5L18.6 -0.9"/><path d="M5 0.9L18.6 0.5"/><path d="M-9.2 -2.4L-1.4 -4.5"/><path d="M-7.4 -1.3L0.4 -3.4"/></g>
       <g fill="#8a949e"><rect x="4.2" y="-2" width="0.5" height="1.1"/><rect x="4.2" y="0.4" width="0.5" height="1.1"/></g>
-      <g fill="#c9ced4" stroke="rgba(18,24,38,0.7)" stroke-width="0.15">${[[-17.6, 1.9], [-15.4, 2], [-13.2, 2.1], [15.2, -1.9]].map(([x, y]) => `<path d="M${x + 1} ${y}L${x - 0.6} ${y - 0.75}L${x - 0.3} ${y}L${x - 0.6} ${y + 0.75}Z"/>`).join("")}</g>
+      <g fill="#c9ced4" stroke="rgba(18,24,38,0.7)" stroke-width="0.15">${[
+        [-17.6, 1.9],
+        [-15.4, 2],
+        [-13.2, 2.1],
+        [15.2, -1.9],
+      ]
+        .map(
+          ([x, y]) =>
+            `<path d="M${x + 1} ${y}L${x - 0.6} ${y - 0.75}L${x - 0.3} ${y}L${x - 0.6} ${y + 0.75}Z"/>`,
+        )
+        .join("")}</g>
       <rect x="1.4" y="1.9" width="5.6" height="1.9" rx="0.4" fill="#8a949e" stroke="rgba(18,24,38,0.9)" stroke-width="0.4"/>
       <rect x="2" y="2.3" width="3.4" height="1.1" rx="0.3" fill="#6f7682"/>
       <circle cx="3.4" cy="2.85" r="0.45" fill="#c9ced4" stroke="#5b6470" stroke-width="0.15"/>
@@ -1400,7 +1443,10 @@ export const BOATS = {
     price: 12000,
     cap: {},
     superload: true,
-    beacons: [[7, -2.1], [7, 2.1]],
+    beacons: [
+      [7, -2.1],
+      [7, 2.1],
+    ],
     deckAt: -1.6,
     speed: 3,
     run: 0.12,
@@ -1423,7 +1469,10 @@ export const BOATS = {
     price: 1200,
     cap: {},
     escort: "pilotboat",
-    beacons: [[-0.4, -0.7], [-0.4, 0.7]],
+    beacons: [
+      [-0.4, -0.7],
+      [-0.4, 0.7],
+    ],
     speed: 7,
     run: 0.03,
     pips: 3,
@@ -1441,7 +1490,10 @@ export const BOATS = {
     price: 3500,
     cap: {},
     escort: "fireboat",
-    beacons: [[-2, -1], [-2, 1]],
+    beacons: [
+      [-2, -1],
+      [-2, 1],
+    ],
     beaconColors: ["255,50,40", "255,240,220"],
     speed: 5,
     run: 0.06,
@@ -1559,7 +1611,19 @@ BOATS.megaship = {
     <g fill="#dfe4ea" stroke="rgba(18,24,38,0.45)" stroke-width="0.3"><rect x="-21.5" y="-4.6" width="36" height="3.1" rx="0.6"/><rect x="-21.5" y="1.5" width="36" height="3.1" rx="0.6"/></g>
     <g fill="#5d8cc6">${[-20, -16, -12, -8, -4, 0, 4, 8, 12].map((x) => `<rect x="${x}" y="-3.3" width="2.6" height="0.35"/><rect x="${x}" y="2.95" width="2.6" height="0.35"/>`).join("")}</g>
     <rect x="-14" y="-1.5" width="22" height="3" fill="#2f9a5a"/>
-    <g fill="#3fb36b">${[[-12.6, -0.5], [-10.4, 0.6], [-8, -0.4], [-5.6, 0.5], [-3.2, -0.5], [-0.8, 0.5], [1.6, -0.4], [4, 0.5], [6.4, -0.3]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r="0.75"/>`).join("")}</g>
+    <g fill="#3fb36b">${[
+      [-12.6, -0.5],
+      [-10.4, 0.6],
+      [-8, -0.4],
+      [-5.6, 0.5],
+      [-3.2, -0.5],
+      [-0.8, 0.5],
+      [1.6, -0.4],
+      [4, 0.5],
+      [6.4, -0.3],
+    ]
+      .map(([x, y]) => `<circle cx="${x}" cy="${y}" r="0.75"/>`)
+      .join("")}</g>
     <rect x="-23.6" y="-1.5" width="6.4" height="3" rx="1.2" fill="#5ab4e6" stroke="#f4f6f8" stroke-width="0.4"/>
     <g fill="#5ab4e6" stroke="#f4f6f8" stroke-width="0.35"><rect x="9.4" y="-1.4" width="2.4" height="2.8" rx="0.6"/><rect x="12.4" y="-1.1" width="1.8" height="2.2" rx="0.5"/></g>
     <path d="M9.6 -4.4C12 -5 12.6 -2.4 10.8 -2.2C9.4 -2 9.8 -0.6 11.6 -1" fill="none" stroke="#f2c14e" stroke-width="0.4" stroke-linecap="round"/>
@@ -1777,7 +1841,7 @@ export const TRUCKS = {
     // "stadium" headlights joined by a light bar across the nose
     name: "Electric Adventure Truck",
     short: "Adventure Truck",
-    level: 4,
+    level: 1,
     price: 2200,
     cap: { cargo: 3 },
     maxCars: 0,
@@ -1944,7 +2008,10 @@ export const TRUCKS = {
     superload: true,
     maxCars: 0,
     hitch: 0.5,
-    beacons: [[1.6, -1.6], [1.6, 1.6]],
+    beacons: [
+      [1.6, -1.6],
+      [1.6, 1.6],
+    ],
     speed: 5.5,
     run: 0.1,
     deck: 3,
@@ -1968,7 +2035,10 @@ export const TRUCKS = {
     cap: {},
     escort: "tow",
     maxCars: 0,
-    beacons: [[0.9, -1.1], [0.9, 1.1]],
+    beacons: [
+      [0.9, -1.1],
+      [0.9, 1.1],
+    ],
     speed: 6.5,
     run: 0.03,
     deck: 1,
@@ -2119,7 +2189,15 @@ export const TRUCKS = {
       <g fill="#5ff0d8"><rect x="3.65" y="-1" width="0.3" height="0.35" rx="0.1"/><rect x="3.65" y="0.65" width="0.3" height="0.35" rx="0.1"/></g>
       <path d="M-4 -1.55H1.4V1.55H-4L-3.6 0Z" fill="#dfe4ea" stroke="rgba(18,24,38,0.9)" stroke-width="0.6" stroke-linejoin="round"/>
       <path d="M-3.2 -1.1H1V1.1H-3.2Q-3.5 0 -3.2 -1.1Z" fill="#8b7355"/>
-      <g fill="#a68b62">${[[-2.5, -0.5], [-1.5, 0.4], [-0.6, -0.3], [0.3, 0.5], [-2, 0.6]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r="0.28"/>`).join("")}</g>
+      <g fill="#a68b62">${[
+        [-2.5, -0.5],
+        [-1.5, 0.4],
+        [-0.6, -0.3],
+        [0.3, 0.5],
+        [-2, 0.6],
+      ]
+        .map(([x, y]) => `<circle cx="${x}" cy="${y}" r="0.28"/>`)
+        .join("")}</g>
       <rect x="1.1" y="-1.55" width="0.3" height="3.1" fill="#2fb8a8"/>
     </svg>`,
   },
@@ -2155,7 +2233,10 @@ export const TRUCKS = {
     cap: {},
     escort: "pilot",
     maxCars: 0,
-    beacons: [[-0.2, -0.7], [-0.2, 0.7]],
+    beacons: [
+      [-0.2, -0.7],
+      [-0.2, 0.7],
+    ],
     speed: 8,
     run: 0.03,
     deck: 1,
@@ -2177,7 +2258,10 @@ export const TRUCKS = {
     cap: {},
     escort: "police",
     maxCars: 0,
-    beacons: [[-0.2, -0.6], [-0.2, 0.6]],
+    beacons: [
+      [-0.2, -0.6],
+      [-0.2, 0.6],
+    ],
     beaconColors: ["255,50,40", "60,120,255"],
     speed: 9,
     run: 0.04,
@@ -2201,7 +2285,10 @@ export const TRUCKS = {
     cap: {},
     escort: "pusher",
     maxCars: 0,
-    beacons: [[0.3, -1.3], [0.3, 1.3]],
+    beacons: [
+      [0.3, -1.3],
+      [0.3, 1.3],
+    ],
     speed: 6,
     run: 0.08,
     deck: 2,
@@ -2224,7 +2311,10 @@ export const TRUCKS = {
     cap: {},
     escort: "bucket",
     maxCars: 0,
-    beacons: [[1.2, -1.1], [1.2, 1.1]],
+    beacons: [
+      [1.2, -1.1],
+      [1.2, 1.1],
+    ],
     speed: 6.5,
     run: 0.06,
     deck: 2,
@@ -2248,7 +2338,10 @@ export const TRUCKS = {
     cap: {},
     escort: "fire",
     maxCars: 0,
-    beacons: [[1.7, -1.1], [1.7, 1.1]],
+    beacons: [
+      [1.7, -1.1],
+      [1.7, 1.1],
+    ],
     beaconColors: ["255,50,40", "255,240,220"],
     speed: 7,
     run: 0.06,
@@ -2335,7 +2428,10 @@ export const TRUCKS = {
     maxCars: 2,
     hitch: -1.1,
     pulls: ["lowboy"],
-    beacons: [[0.9, -1.25], [0.9, 1.25]],
+    beacons: [
+      [0.9, -1.25],
+      [0.9, 1.25],
+    ],
     speed: 6.5,
     run: 0.07,
     deck: 2,
@@ -2554,9 +2650,11 @@ export const TRAILERS = {
 // the bare modular deck every superload rides on, L sub pixels long, with a gooseneck at the front
 // and wheels down both sides
 function deck(L) {
-  const x0 = -L / 2 + 0.3, w = L - 1.4;
+  const x0 = -L / 2 + 0.3,
+    w = L - 1.4;
   let wheels = "";
-  for (let x = x0 + 0.4; x < x0 + w - 0.6; x += 1.1) wheels += `<rect x="${x.toFixed(2)}" y="-1.6" width="0.7" height="0.4" rx="0.1"/><rect x="${x.toFixed(2)}" y="1.2" width="0.7" height="0.4" rx="0.1"/>`;
+  for (let x = x0 + 0.4; x < x0 + w - 0.6; x += 1.1)
+    wheels += `<rect x="${x.toFixed(2)}" y="-1.6" width="0.7" height="0.4" rx="0.1"/><rect x="${x.toFixed(2)}" y="1.2" width="0.7" height="0.4" rx="0.1"/>`;
   return `<g fill="#23262b">${wheels}</g>
       <rect x="${x0}" y="-1.25" width="${w}" height="2.5" rx="0.2" fill="#4a4f57" stroke="rgba(18,24,38,0.9)" stroke-width="0.4"/>
       <rect x="${L / 2 - 1.2}" y="-0.8" width="0.9" height="1.6" rx="0.2" fill="#3a3f47" stroke="rgba(18,24,38,0.9)" stroke-width="0.3"/>`;
@@ -2577,17 +2675,27 @@ function schnabel(L) {
 // narrows quickly to a point near the tip: half its width a fraction t along is spruceHalf(w, t).
 const spruceHalf = (w, t) => w * Math.pow(Math.max(0, 1 - t), 0.6);
 function spruce(x0, x1, w, tiers) {
-  const top = [], bottom = [], at = (t) => (x0 + (x1 - x0) * t).toFixed(2);
+  const top = [],
+    bottom = [],
+    at = (t) => (x0 + (x1 - x0) * t).toFixed(2);
   for (let i = 0; i < tiers; i++) {
-    const ta = i / tiers, tb = (i + 0.55) / tiers;
-    const wa = spruceHalf(w, ta).toFixed(2), wb = (spruceHalf(w, tb) * 0.8).toFixed(2);
+    const ta = i / tiers,
+      tb = (i + 0.55) / tiers;
+    const wa = spruceHalf(w, ta).toFixed(2),
+      wb = (spruceHalf(w, tb) * 0.8).toFixed(2);
     top.push(`${at(ta)} -${wa}`, `${at(tb)} -${wb}`);
     bottom.unshift(`${at(tb)} ${wb}`, `${at(ta)} ${wa}`);
   }
   return `M${x0} 0L${top.join("L")}L${x1} 0L${bottom.join("L")}Z`;
 }
 // burlap bands binding the branches, a fraction t along a spruce from x0 to x1
-const spruceBands = (x0, x1, w, ts) => ts.map((t) => { const h = spruceHalf(w, t) * 0.82; return `<rect x="${(x0 + (x1 - x0) * t - 0.19).toFixed(2)}" y="${(-h).toFixed(2)}" width="0.38" height="${(2 * h).toFixed(2)}" rx="0.1"/>`; }).join("");
+const spruceBands = (x0, x1, w, ts) =>
+  ts
+    .map((t) => {
+      const h = spruceHalf(w, t) * 0.82;
+      return `<rect x="${(x0 + (x1 - x0) * t - 0.19).toFixed(2)}" y="${(-h).toFixed(2)}" width="0.38" height="${(2 * h).toFixed(2)}" rx="0.1"/>`;
+    })
+    .join("");
 
 // a superload doesn't need a trailer bought for it: it comes on its own, drawn with the load on
 // board, and hitches up to whatever carries it (TRUCKS, ENGINES or BOATS with superload: true).
@@ -2739,7 +2847,13 @@ export const SUPERLOAD_TRAILERS = {
     art: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-6 -2.4 12 4.8">
       <g fill="none" stroke="#f2c14e" stroke-width="0.45" stroke-linejoin="round">
         <path d="M-5.6 -2L5 -1.2M-5.6 2L5 1.2M-5.6 -2V2M5 -1.2V1.2"/>
-        ${[-5.6, -3, -0.4, 2.2].map((x, i, a) => { const n = a[i + 1] ?? 5, f = (v) => (-2 + ((v + 5.6) / 10.6) * 0.8).toFixed(2); return `<path d="M${x} ${f(x)}L${n} ${-f(n)}M${x} ${-f(x)}L${n} ${f(n)}"/>`; }).join("")}
+        ${[-5.6, -3, -0.4, 2.2]
+          .map((x, i, a) => {
+            const n = a[i + 1] ?? 5,
+              f = (v) => (-2 + ((v + 5.6) / 10.6) * 0.8).toFixed(2);
+            return `<path d="M${x} ${f(x)}L${n} ${-f(n)}M${x} ${-f(x)}L${n} ${f(n)}"/>`;
+          })
+          .join("")}
       </g>
       <g fill="#d9a92c" stroke="rgba(18,24,38,0.9)" stroke-width="0.2"><circle cx="-5.6" cy="-2" r="0.35"/><circle cx="-5.6" cy="2" r="0.35"/><circle cx="5" cy="-1.2" r="0.3"/><circle cx="5" cy="1.2" r="0.3"/></g>
     </svg>`,
@@ -2783,4 +2897,225 @@ export const SUPERLOAD_TRAILERS = {
       <rect x="3.1" y="-2" width="0.4" height="1.3" fill="#9fd0ff"/>
     </svg>`,
   },
+};
+
+// ---------- prototypes ----------
+// one-off test models, one or two of each kind: fun and quick, but prototype: true means they're
+// still being tested, so they break down now and then even when new (see PROTOTYPE in data.js).
+// Each wears black and white test checks (checks() below) and keeps them in company colors.
+// checks over a w by h block from x, y, in s sized squares
+const checks = (x, y, w, h, s) => {
+  const out = [];
+  for (let i = 0; i * s < w - 1e-6; i++) for (let j = 0; j * s < h - 1e-6; j++)
+    if ((i + j) % 2 === 0) out.push(`<rect x="${+(x + i * s).toFixed(2)}" y="${+(y + j * s).toFixed(2)}" width="${s}" height="${s}"/>`);
+  return `<g fill="#1b1e24">${out.join("")}</g>`;
+};
+
+TRUCKS.jetcar = {
+  // a rocket on wheels: a needle nose, a bubble canopy and a jet that's always lit
+  name: "Jet Car",
+  level: 7,
+  price: 9000,
+  cap: { pax: 2 },
+  prototype: true,
+  factoryPaint: true,
+  maxCars: 0,
+  speed: 11,
+  run: 0.09,
+  deck: 1,
+  pips: 5,
+  art: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-4.4 -1.6 8.8 3.2">
+    <g fill="#23262b"><rect x="1.5" y="-1.5" width="0.7" height="0.28" rx="0.1"/><rect x="1.5" y="1.22" width="0.7" height="0.28" rx="0.1"/><rect x="-2.3" y="-1.55" width="0.85" height="0.32" rx="0.1"/><rect x="-2.3" y="1.23" width="0.85" height="0.32" rx="0.1"/></g>
+    <path d="M-3.6 0L-4.35 -0.32L-4.1 0L-4.35 0.32Z" fill="#ffd23f"/>
+    <path d="M-3.6 -0.22L-4.05 0L-3.6 0.22Z" fill="#fff3a8"/>
+    <path d="M-3.3 -1.2L-3.75 -1.5L-2.3 -1.2ZM-3.3 1.2L-3.75 1.5L-2.3 1.2Z" fill="#d6453a" stroke="rgba(18,24,38,0.9)" stroke-width="0.15"/>
+    <path d="M-3 -1.2H0.6L4.2 -0.2V0.2L0.6 1.2H-3Q-3.3 1.2 -3.3 0.9V-0.9Q-3.3 -1.2 -3 -1.2Z" fill="#f4f6f8" stroke="rgba(18,24,38,0.9)" stroke-width="0.45" stroke-linejoin="round"/>
+    ${checks(-2.9, -0.9, 2.4, 1.8, 0.3)}
+    <rect x="-3.6" y="-0.4" width="0.4" height="0.8" fill="#4a4f57"/>
+    <ellipse cx="0.95" cy="0" rx="0.8" ry="0.48" fill="#23344f"/>
+    <ellipse cx="1.15" cy="-0.15" rx="0.35" ry="0.14" fill="rgba(170,215,255,0.8)"/>
+    <path d="M2.2 -0.62L3.4 -0.3V0.3L2.2 0.62L2.6 0Z" fill="#d6453a"/>
+  </svg>`,
+};
+
+TRUCKS.hover = {
+  // a hovercraft lorry: a rubber skirt all round, twin fans at the back, and it skims straight
+  // across the water between ports, much quicker than a Duck Boat swims
+  name: "Hover Hauler",
+  short: "Hover",
+  level: 8,
+  price: 7500,
+  cap: { cargo: 4 },
+  prototype: true,
+  factoryPaint: true,
+  amphibious: true,
+  maxCars: 0,
+  speed: 6.5,
+  swim: 6,
+  run: 0.07,
+  deck: 2,
+  pips: 3,
+  art: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-4.4 -2.2 8.8 4.4">
+    <rect x="-4" y="-2" width="8" height="4" rx="1.5" fill="#2b2f36" stroke="rgba(18,24,38,0.9)" stroke-width="0.4"/>
+    <rect x="-3.5" y="-1.55" width="7" height="3.1" rx="0.9" fill="#f2c14e"/>
+    ${checks(-1.8, -1.2, 2.4, 0.6, 0.3)}
+    ${checks(-1.8, 0.6, 2.4, 0.6, 0.3)}
+    <rect x="-1.8" y="-0.6" width="2.4" height="1.2" rx="0.15" fill="#c4952a"/>
+    <g fill="#a8801a"><rect x="-1.6" y="-0.45" width="0.9" height="0.9" rx="0.1"/><rect x="-0.5" y="-0.45" width="0.9" height="0.9" rx="0.1"/></g>
+    <rect x="0.9" y="-1.2" width="2.1" height="2.4" rx="0.45" fill="#f4f6f8" stroke="rgba(18,24,38,0.9)" stroke-width="0.3"/>
+    <rect x="2.35" y="-0.95" width="0.45" height="1.9" rx="0.15" fill="#9fd0ff"/>
+    <g stroke="rgba(18,24,38,0.9)" stroke-width="0.25"><circle cx="-2.9" cy="-0.75" r="0.62" fill="#3a3f47"/><circle cx="-2.9" cy="0.75" r="0.62" fill="#3a3f47"/></g>
+    <g stroke="#9aa1a9" stroke-width="0.14"><path d="M-3.3 -0.75H-2.5M-2.9 -1.15V-0.35M-3.3 0.75H-2.5M-2.9 0.35V1.15"/></g>
+  </svg>`,
+};
+
+ENGINES.turbine = {
+  // an experimental railcar with two jet engines on its roof: one fast coach that pulls nothing
+  name: "Turbine Railcar",
+  short: "Turbine",
+  level: 8,
+  price: 8000,
+  cap: { pax: 6, cargo: 2 },
+  prototype: true,
+  factoryPaint: true,
+  maxCars: 0,
+  speed: 15,
+  run: 0.2,
+  pips: 4,
+  color: "#f4f6f8",
+  trim: "#d6453a",
+  art: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-6 -2.6 12 5.2">
+    <path d="M-5 -2H3Q5.6 -1.8 5.8 0Q5.6 1.8 3 2H-5Q-5.6 2 -5.6 1.4V-1.4Q-5.6 -2 -5 -2Z" fill="#f4f6f8" stroke="rgba(18,24,38,0.9)" stroke-width="0.8" stroke-linejoin="round"/>
+    ${checks(-1.4, -1.6, 3.2, 3.2, 0.4)}
+    <rect x="-5.2" y="-0.2" width="10.4" height="0.4" fill="#d6453a"/>
+    <path d="M3.6 -1.55Q5.1 -1.2 5.2 0Q5.1 1.2 3.6 1.55L3.9 0.9Q4.5 0.7 4.5 0Q4.5 -0.7 3.9 -0.9Z" fill="#23344f"/>
+    <g fill="#6d7680" stroke="rgba(18,24,38,0.9)" stroke-width="0.25"><rect x="-5.3" y="-1.55" width="3" height="1.05" rx="0.5"/><rect x="-5.3" y="0.5" width="3" height="1.05" rx="0.5"/></g>
+    <g fill="#2b2f36"><rect x="-5.5" y="-1.3" width="0.4" height="0.55" rx="0.1"/><rect x="-5.5" y="0.75" width="0.4" height="0.55" rx="0.1"/></g>
+    <g fill="#c9ced4"><circle cx="-2.55" cy="-1.02" r="0.3"/><circle cx="-2.55" cy="1.02" r="0.3"/></g>
+  </svg>`,
+};
+
+PLANES.flyingwing = {
+  // no tail and no fuselage, just one big swept wing with a sawtooth trailing edge
+  name: "Flying Wing",
+  short: "Wing",
+  level: 9,
+  price: 15000,
+  pax: 8,
+  cargo: 8,
+  range: 360,
+  speed: 14,
+  fuel: 0.7,
+  pips: 4,
+  prototype: true,
+  factoryPaint: true,
+  color: "#e8ebef",
+  trim: "#f28c28",
+  art: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-10 -10 20 20">
+    <path d="M6.5 0L-2 -9.2L-4.6 -9.2L-3.2 -5.6L-5 -3.4L-3.6 -1.5L-4.6 0L-3.6 1.5L-5 3.4L-3.2 5.6L-4.6 9.2L-2 9.2Z" fill="#e8ebef" stroke="rgba(18,24,38,0.9)" stroke-width="0.7" stroke-linejoin="round"/>
+    <path d="M5.2 0L-0.6 -6.2L-1.6 -4.6L-1.6 4.6L-0.6 6.2Z" fill="#d4d8de"/>
+    ${checks(-3, -7.4, 1.2, 1.6, 0.4)}
+    ${checks(-3, 5.8, 1.2, 1.6, 0.4)}
+    <g fill="#f28c28"><path d="M-2 -9.2L-4.6 -9.2L-4.2 -8.2L-2.9 -8.2Z"/><path d="M-2 9.2L-4.6 9.2L-4.2 8.2L-2.9 8.2Z"/></g>
+    <ellipse cx="1.2" cy="0" rx="3.4" ry="1.3" fill="#f4f6f8" stroke="rgba(18,24,38,0.6)" stroke-width="0.3"/>
+    <path d="M3.4 -0.6Q4.6 0 3.4 0.6Q3 0 3.4 -0.6Z" fill="#23344f"/>
+    <g fill="#4a4f57"><rect x="-3.6" y="-2.4" width="1.6" height="0.7" rx="0.3"/><rect x="-3.6" y="1.7" width="1.6" height="0.7" rx="0.3"/></g>
+    <rect x="-1.8" y="-0.2" width="4.6" height="0.4" fill="#f28c28"/>
+  </svg>`,
+};
+
+BOATS.foil = {
+  // a hydrofoil up on its foils: the hull rides clear of the water, so it's the quickest thing afloat
+  name: "Foil Skimmer",
+  short: "Skimmer",
+  level: 8,
+  price: 6000,
+  cap: { pax: 6, mail: 2 },
+  prototype: true,
+  factoryPaint: true,
+  speed: 9,
+  run: 0.1,
+  pips: 4,
+  art: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-6.5 -2.6 13 5.2">
+    <g fill="#3a3f47"><rect x="2.4" y="-2.5" width="0.5" height="5" rx="0.2"/><rect x="-4.6" y="-2.3" width="0.5" height="4.6" rx="0.2"/></g>
+    <path d="M-5.6 -1.8L2.4 -1.8Q6.2 -1.3 6.4 0Q6.2 1.3 2.4 1.8L-5.6 1.8Q-6 1.8 -6 1.4L-6 -1.4Q-6 -1.8 -5.6 -1.8Z" fill="#f4f6f8" stroke="rgba(18,24,38,0.9)" stroke-width="0.55" stroke-linejoin="round"/>
+    ${checks(2.6, -0.9, 1.6, 1.8, 0.45)}
+    <rect x="-5.6" y="-0.2" width="11.2" height="0.4" fill="#2a6fd6"/>
+    <rect x="-3.4" y="-1.2" width="5.4" height="2.4" rx="0.6" fill="#23344f" stroke="rgba(18,24,38,0.9)" stroke-width="0.3"/>
+    <g fill="#5d7fa8">${[-2.9, -1.9, -0.9, 0.1, 1.1].map((x) => `<rect x="${x}" y="-1" width="0.6" height="0.35" rx="0.1"/><rect x="${x}" y="0.65" width="0.6" height="0.35" rx="0.1"/>`).join("")}</g>
+    <rect x="-5.9" y="-0.9" width="0.9" height="1.8" rx="0.2" fill="#c9ced4" stroke="rgba(18,24,38,0.9)" stroke-width="0.2"/>
+  </svg>`,
+};
+
+PLANES.sonicboom = {
+  // a supersonic airliner still in testing: a needle fuselage, a curved delta wing and four engines
+  // tucked under the back of it. Far faster than any other plane that carries ordinary passengers,
+  // and thirsty with it
+  name: "Sonic Boom",
+  short: "Boom",
+  level: 10,
+  price: 45000,
+  pax: 12,
+  cargo: 2,
+  range: 520,
+  speed: 26,
+  fuel: 1.5,
+  pips: 5,
+  prototype: true,
+  factoryPaint: true,
+  color: "#f4f6f8",
+  trim: "#1f3f7a",
+  art: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-15 -9 30 18">
+    <path d="M4 -1.1C-1 -1.6 -5.5 -4.5 -8.6 -7.6L-11.6 -7.6Q-11 -4 -12 -1.1ZM4 1.1C-1 1.6 -5.5 4.5 -8.6 7.6L-11.6 7.6Q-11 4 -12 1.1ZM-13.4 -0.9Q-14 0 -13.4 0.9L8.6 1.1L14.6 0.12L14.6 -0.12L8.6 -1.1Z" fill="none" stroke="rgba(18,24,38,0.9)" stroke-width="1.2" stroke-linejoin="round"/>
+    <path d="M4 -1.1C-1 -1.6 -5.5 -4.5 -8.6 -7.6L-11.6 -7.6Q-11 -4 -12 -1.1ZM4 1.1C-1 1.6 -5.5 4.5 -8.6 7.6L-11.6 7.6Q-11 4 -12 1.1Z" fill="#e3e5e8"/>
+    ${checks(-11.4, -7.4, 2.4, 1.2, 0.6)}
+    ${checks(-11.4, 6.2, 2.4, 1.2, 0.6)}
+    <g fill="#7d8693" stroke="rgba(18,24,38,0.9)" stroke-width="0.35"><rect x="-12.6" y="-4.9" width="3.8" height="1.3" rx="0.5"/><rect x="-12.8" y="-3" width="3.8" height="1.3" rx="0.5"/><rect x="-12.8" y="1.7" width="3.8" height="1.3" rx="0.5"/><rect x="-12.6" y="3.6" width="3.8" height="1.3" rx="0.5"/></g>
+    <g fill="#2d2a2e"><rect x="-12.9" y="-4.6" width="0.4" height="0.7"/><rect x="-13.1" y="-2.7" width="0.4" height="0.7"/><rect x="-13.1" y="2" width="0.4" height="0.7"/><rect x="-12.9" y="3.9" width="0.4" height="0.7"/></g>
+    <path d="M-13.4 -0.9Q-14 0 -13.4 0.9L8.6 1.1L14.6 0.12L14.6 -0.12L8.6 -1.1Z" fill="#f4f6f8"/>
+    <rect x="-12.4" y="-0.8" width="20" height="0.35" fill="rgba(255,255,255,0.7)"/>
+    <rect x="-11" y="-0.22" width="17" height="0.44" fill="#1f3f7a"/>
+    <g fill="#5d7fa8">${[-7, -5, -3, -1, 1, 3].map((x) => `<rect x="${x}" y="-0.75" width="0.5" height="0.25"/><rect x="${x}" y="0.5" width="0.5" height="0.25"/>`).join("")}</g>
+    <path d="M8.4 -0.7L10.4 -0.4L10.4 0.4L8.4 0.7Z" fill="#23344f"/>
+    <rect x="8.8" y="-0.5" width="0.6" height="0.32" fill="rgba(170,215,255,0.85)"/>
+  </svg>`,
+};
+
+// ---------- drones ----------
+// self-flying delivery: a little quadcopter that lands at any town like a helicopter (vtol) and,
+// with the HQ's auto dispatch, finds and flies its own cargo and mail (auto, as in TRUCKS). Teal
+// lamps like the self-driving trucks, kept through any paint.
+PLANES.drone = {
+  name: "Delivery Drone",
+  short: "Drone",
+  level: 8,
+  price: 2500,
+  pax: 0,
+  cargo: 2,
+  hold: { mail: 2 },
+  range: 90,
+  speed: 11,
+  fuel: 0.12,
+  pips: 3,
+  deckSpace: 1,
+  vtol: true,
+  auto: true,
+  color: "#eef1f4",
+  trim: "#2fb8a8",
+  rotors: [
+    [2.3, -2.3, 1.45],
+    [2.3, 2.3, 1.45],
+    [-2.3, -2.3, 1.45],
+    [-2.3, 2.3, 1.45],
+  ],
+  art: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-4 -4 8 8">
+    <path d="M-2.3 -2.3L2.3 2.3M-2.3 2.3L2.3 -2.3" stroke="rgba(18,24,38,0.9)" stroke-width="0.9" stroke-linecap="round"/>
+    <path d="M-2.3 -2.3L2.3 2.3M-2.3 2.3L2.3 -2.3" stroke="#c9ced4" stroke-width="0.45" stroke-linecap="round"/>
+    <g fill="#3a3f47" stroke="rgba(18,24,38,0.9)" stroke-width="0.2"><circle cx="2.3" cy="-2.3" r="0.45"/><circle cx="2.3" cy="2.3" r="0.45"/><circle cx="-2.3" cy="-2.3" r="0.45"/><circle cx="-2.3" cy="2.3" r="0.45"/></g>
+    <rect x="-1.3" y="-1.1" width="2.6" height="2.2" rx="0.6" fill="#eef1f4" stroke="rgba(18,24,38,0.9)" stroke-width="0.4"/>
+    <rect x="-0.9" y="-0.7" width="1.3" height="1.4" rx="0.15" fill="#c9a26b" stroke="#8b6a3e" stroke-width="0.12"/>
+    <path d="M-0.25 -0.7V0.7" stroke="#8b6a3e" stroke-width="0.12"/>
+    <rect x="0.6" y="-0.75" width="0.45" height="1.5" rx="0.15" fill="#2fb8a8"/>
+    <g fill="#5ff0d8"><circle cx="1.15" cy="-0.5" r="0.18"/><circle cx="1.15" cy="0.5" r="0.18"/></g>
+  </svg>`,
 };

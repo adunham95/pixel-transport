@@ -1,4 +1,4 @@
-import { SCALE, CITIES, RAILS, ROADS, ROAD_OFF, LANE, roadSide, ENGINES, CARS, PLANES, BOATS, BARGES, TRUCKS, TRAILERS, LEVELS, RATES, SPEED, CITY_PRICE, START_CITIES, JOB_TYPES, MAGLEV_LINES, HQ, WEAR, MAIL, WIDE, CONTAINER, SECURE, GROWTH, SIZE_NAME, DEPOT, TYPE_LABEL, CONTRACTS, SUPERLOAD, ESCORT_LABEL, BREAKDOWN, CELEB, TOURISTS, PROJECTS, CONTINENTS, LUCKY, WEATHER, USED } from './data.js';
+import { SCALE, CITIES, RAILS, ROADS, ROAD_OFF, LANE, roadSide, ENGINES, CARS, PLANES, BOATS, BARGES, TRUCKS, TRAILERS, LEVELS, RATES, SPEED, CITY_PRICE, START_CITIES, JOB_TYPES, MAGLEV_LINES, HQ, WEAR, MAIL, WIDE, CONTAINER, SECURE, GROWTH, SIZE_NAME, DEPOT, TYPE_LABEL, CONTRACTS, SUPERLOAD, ESCORT_LABEL, BREAKDOWN, PROTOTYPE, CELEB, TOURISTS, PROJECTS, CONTINENTS, LUCKY, WEATHER, USED } from './data.js';
 import { seaLane } from '../map/sea.js';
 
 const KEY = 'pixel-transport-save-v1';
@@ -610,7 +610,7 @@ function rescueNeeds(v) {
 
 // as a leg starts, decide whether it breaks down on the way, and how far along
 function rollBreakdown(v) {
-  if (v.trip.rescue != null || Math.random() >= wear(v) * BREAKDOWN.chance) return;
+  if (v.trip.rescue != null || Math.random() >= (wear(v) + (spec(v).prototype ? PROTOTYPE.glitch : 0)) * BREAKDOWN.chance) return;
   const need = rescueNeeds(v);
   if (need) v.trip.breakAt = { at: 0.25 + Math.random() * 0.5, need };
 }
@@ -1315,9 +1315,9 @@ function tickWeather(now) {
 function makeUsed(now) {
   const opts = [];
   for (const [kind, specs] of Object.entries(SPECS)) for (const [model, s] of Object.entries(specs)) {
-    // no escorts, superload carriers, self-driving, celebrity or show-off models: they're special orders
+    // no escorts, superload carriers, self-driving, prototype, celebrity or show-off models: they're special orders
     if (s.level <= game.level || s.level > game.level + USED.ahead) continue;
-    if (s.escort || s.superload || s.auto || s.celebrity || s.cap?.tour || s.hold?.tour || isCarrier(model)) continue;
+    if (s.escort || s.superload || s.auto || s.prototype || s.celebrity || s.cap?.tour || s.hold?.tour || isCarrier(model)) continue;
     const towns = CITIES.filter((c) => isOpen(c.id) && !c.anchor && canBase(kind, model, c));
     if (towns.length) opts.push({ kind, model, towns });
   }
@@ -1785,12 +1785,12 @@ function loopTakes(j, at, R, v = null, lead = 0) {
 
 // for a self-driving vehicle with a job it can't drive all the way: the town to take it to for your
 // repeating routes to carry it on, the one needing the fewest rides from there and then the nearest
-// to from. Null if a route already takes it from where it is, or none can be driven to (they keep to
-// the roads).
+// to from. Null if a route already takes it from where it is, or none can be driven to (trucks keep to
+// the roads; drones fly there in one hop).
 function feedStop(v, j, R, from = v.city) {
   if (R[from] != null) return null;
   let best = null;
-  for (const id in R) if (R[id] > 0 && isOpen(id) && roadPath(from, id) && (best === null || R[id] < R[best] || (R[id] === R[best] && dist(from, id) < dist(from, best)))) best = id;
+  for (const id in R) if (R[id] > 0 && isOpen(id) && (v.kind === 'plane' ? leg(v, from, id) : roadPath(from, id)) && (best === null || R[id] < R[best] || (R[id] === R[best] && dist(from, id) < dist(from, best)))) best = id;
   return best;
 }
 
@@ -2176,6 +2176,7 @@ export function buyPlane(model) {
   const c = cityById[game.selected], p = PLANES[model];
   if (!shopHere(c)) return;
   if (!canBase('plane', model, c)) { toast(`${c.name} has no airport${p.seaplane ? ' or port' : ''}. Pick another city first.`, 'bad'); return; }
+  if (p.auto && !game.hqAuto) { toast(`A ${p.name} needs auto dispatch at your HQ`, 'bad'); return; }
   if (!spend(p.price, p.level, p.name)) return;
   const v = newVehicle(game, 'plane', model, c.id);
   game.vehicles.push(v);

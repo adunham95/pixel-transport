@@ -22,7 +22,7 @@
         <span class="pv"><Sprite kind={v.kind} model={v.model} cars={consistOf(v)} scale={3} paint={paintOf(v)} /></span>
         <span class="grow">
           <b>{v.name} <span class="chev">›</span></b>
-          <small>{KIND[v.kind]} · {spec(v).name}{info.stops ? ` · ${info.stops + 1} stops` : ''}</small>
+          <small>{KIND[v.kind]} · {spec(v).name}{spec(v).auto ? (v.kind === 'plane' ? ' · Self-flying' : ' · Self-driving') : ''}{spec(v).prototype ? ' · Prototype' : ''}{info.stops ? ` · ${info.stops + 1} stops` : ''}</small>
           <LoadBadges {v} />
         </span>
       </button>

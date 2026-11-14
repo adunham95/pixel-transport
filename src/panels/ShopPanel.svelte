@@ -4,6 +4,7 @@
   import ProjectCard from '../ui/ProjectCard.svelte';
   import Sprite from '../ui/Sprite.svelte';
   import Icon from '../ui/Icon.svelte';
+  import Traits from '../ui/Traits.svelte';
   import NavHeader from '../ui/NavHeader.svelte';
   import { fly } from '../ui/motion.js';
 
@@ -49,7 +50,9 @@
     if (s.maglev) out.push('Maglev lines only');
     if (s.harbor) out.push('Ports with a station only');
     if (s.amphibious) out.push('Swims between ports');
-    if (s.auto) out.push(game.hqAuto ? 'Drives itself, finding its own jobs' : 'Drives itself. Needs auto dispatch at your HQ');
+    const self = kind === 'plane' ? 'Flies itself' : 'Drives itself';
+    if (s.auto) out.push(game.hqAuto ? `${self}, finding its own jobs` : `${self}. Needs auto dispatch at your HQ`);
+    if (s.prototype) out.push(kind === 'plane' ? 'A prototype: one of a kind, in its test checks' : 'A prototype: quick, but it breaks down now and then, even when new');
     if (s.celebrity) out.push('Celebrities ride in it');
     if (s.escort === 'tow') out.push('Goes out to trucks that break down');
     if (s.noFerry) out.push('Too long for car ferries');
@@ -105,6 +108,7 @@
   <NavHeader title={s.name} sub="{kindOf(kind).one} · level {s.level}" back={kindOf(kind).label} onback={() => (ui.shopModel = null)} />
   <div class="hero">
     <span class="pv big"><Sprite {kind} model={k} cars={demo(kind, s)} scale={5} paint={paintFor(kind, k)} /></span>
+    {#if s.auto || s.prototype}<span class="traits"><Traits {s} {kind} /></span>{/if}
     {@render holds(kind, s)}
   </div>
 
@@ -204,7 +208,7 @@
         <button class="rowlink" onclick={() => (ui.shopModel = { kind: tab.id, k })}>
           <span class="pv wide"><Sprite kind={tab.id} model={k} cars={demo(tab.id, s)} scale={4} paint={paintFor(tab.id, k)} /></span>
           <span class="grow">
-            <b>{s.name}</b>
+            <b>{s.name}<Traits {s} kind={tab.id} /></b>
             {@render holds(tab.id, s)}
             <small>Speed {@render pips(s.pips)}{s.range ? ` · ${Math.round(s.range * MI)} mi` : ''}</small>
           </span>
@@ -287,6 +291,8 @@
   .hero { display: flex; flex-direction: column; align-items: center; gap: 8px; margin: 2px 0 14px; }
   .pv.big { width: auto; min-width: 160px; max-width: 100%; height: 96px; padding: 0 18px; border-radius: 18px; }
   .hero .holds { justify-content: center; }
+  .traits { display: flex; flex-wrap: wrap; justify-content: center; gap: 5px; }
+  .model .grow b { flex-wrap: wrap; row-gap: 3px; }
   .val { display: inline-flex; align-items: center; gap: 4px; font-weight: 600; font-variant-numeric: tabular-nums; }
   .note { font-size: 14px; color: var(--ink); }
 </style>

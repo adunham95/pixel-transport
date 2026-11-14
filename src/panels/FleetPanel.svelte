@@ -4,6 +4,7 @@
   import Sprite from '../ui/Sprite.svelte';
   import LoadBadges from '../ui/LoadBadges.svelte';
   import Icon from '../ui/Icon.svelte';
+  import Traits from '../ui/Traits.svelte';
   import NavHeader from '../ui/NavHeader.svelte';
   import { slide, fly, flip } from '../ui/motion.js';
   const LEADS = { train: ENGINES, truck: TRUCKS, boat: BOATS };
@@ -26,6 +27,7 @@
     ['moving', 'Moving', (v) => !!v.trip],
     ['loop', 'Repeating', (v) => !!v.loop],
     ['service', 'Needs service', (v) => wear(v) >= 0.3],
+    ['auto', 'Autonomous', (v) => !!spec(v).auto],
   ];
   const idle = $derived(idleVehicles());
   const broken = $derived(brokenVehicles());
@@ -53,6 +55,8 @@
     if (isIdle(v)) return { text: 'Idle', c: 'warn' };
     if (v.trip) return { text: escortee(v) || v.trip.rescue != null ? 'Helping' : 'In transit', c: 'info' };
     if (!v.city) return { text: escortee(v) ? 'Escorting' : 'Aboard', c: 'info' };
+    // a self-driving vehicle parked in town is only waiting for its next job to turn up
+    if (spec(v).auto && game.hqAuto) return { text: 'Finding jobs', c: 'info' };
     return { text: 'Parked', c: '' };
   }
   // where a vehicle is when it isn't moving: parked in town, riding a car ferry or cargo plane, or in a convoy
@@ -80,6 +84,7 @@
     <div class="hstat">
       <span class="status {st.c}">{st.text}</span>
       {#if wr >= 0.3}<span class="status warn"><Icon name="wrench" size={11} />Service</span>{/if}
+      <Traits s={spec(v)} kind={v.kind} />
       {#if v.kind === 'plane'}<span class="status">Range {Math.round(PLANES[v.model].range * MI)} mi</span>{/if}
     </div>
     <small class="hwhere">{whereNow(v)}</small>
@@ -192,6 +197,8 @@
         Carries one superload at a time, from a contract. Take on one in the Contracts tab, then park its escorts alongside to set off.
       {:else if spec(v).escort}
         Goes along with superload convoys as a {ESCORT_LABEL[spec(v).escort]}. Park it where a superload is waiting.
+      {:else if spec(v).auto}
+        {v.kind === 'plane' ? 'Flies' : 'Drives'} itself. {game.hqAuto ? `It finds jobs it can carry, ${v.kind === 'plane' ? 'flies' : 'drives'} out to pick them up and delivers them, handing on anything it can’t take all the way to your repeating routes.` : 'Buy auto dispatch at your HQ and it’ll find and carry its own jobs.'}
       {:else if v.kind === 'truck'}
         Drives the roads between mainland towns. Bigger trucks and buses are in the Shop.
       {:else if deckRoom(v)}
@@ -304,7 +311,7 @@
       <button class="row vrow" animate:flip onclick={() => (ui.focusVehicle = v.id)}>
         <span class="pv"><Sprite kind={v.kind} model={v.model} cars={consistOf(v)} scale={3} paint={paintOf(v)} /></span>
         <span class="grow">
-          <b><span class="vname">{v.name}</span><span class="status {st.c}">{st.text}</span>{#if wear(v) >= 0.3}<span class="status warn"><Icon name="wrench" size={11} />Service</span>{/if}</b>
+          <b><span class="vname">{v.name}</span><span class="status {st.c}">{st.text}</span><Traits s={spec(v)} kind={v.kind} />{#if wear(v) >= 0.3}<span class="status warn"><Icon name="wrench" size={11} />Service</span>{/if}</b>
           <small>{whereNow(v)}</small>
           {#if v.trip && !v.broken}<span class="prog trip"><i style:width="{tripInfo(v, clock.now).progress * 100}%"></i></span>{/if}
           <LoadBadges {v} />

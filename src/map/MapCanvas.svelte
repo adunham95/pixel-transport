@@ -3,7 +3,7 @@
   import { game, ui, cityById, leg, planLegs, toggleStop, selectCity, posAt, tripProgress, gameNow, isOpen, fx, darkness, isCarrier, carrierAt, townSize, escortsOf, consistOf, paintOf, landmarkAt, projectProgress, routeById, routeIds, addRouteStop } from '../game/game.svelte.js';
   import { CITIES, ENGINES, PLANES, CARS, TRUCKS, BOATS, W, H, PROJECTS, ROAD_OFF, roadSide } from '../game/data.js';
   import { buildTerrain, makeWaterPattern, R, bresenham } from './terrain.js';
-  import { drawArt, trainUnits, paintOrder, artSize, loadArt } from './sprites.js';
+  import { drawArt, trainUnits, paintOrder, artSize, loadArt, wingtips } from './sprites.js';
   import { dockOf } from './sea.js';
   import { reduced } from '../ui/motion.js';
 
@@ -494,12 +494,14 @@
       const s = artSize('plane', model), p = PLANES[model];
       // a balloon just has its burner, flaring now and then
       if (p.balloon) { const k = reduced || now % 2400 < 600 ? 0.6 : 0.3; glow(x, y, 7, '255,170,60', k); lamp([x, y], '255,200,120'); return; }
-      lamp(onArt(x, y, ang, 0, -s.h * 0.44), '255,70,60');
-      lamp(onArt(x, y, ang, 0, s.h * 0.44), '80,255,120');
+      // at its real wingtips, found from its art, or straight out from the middle until that's drawn
+      const tips = wingtips(model) ?? { left: [0, -s.h * 0.44], right: [0, s.h * 0.44] };
+      lamp(onArt(x, y, ang, ...tips.left), '255,70,60');
+      lamp(onArt(x, y, ang, ...tips.right), '80,255,120');
       const t = now % 1300;
       if (reduced || t < 70 || (t > 180 && t < 250)) { const tail = onArt(x, y, ang, -s.w * 0.44, 0); lamp(tail, '255,255,255'); glow(tail[0], tail[1], 7, '255,255,255', 0.35); }
-      // helicopters also carry a slow red beacon
-      if (p.rotors && (reduced || now % 1000 < 450)) { const c = onArt(x, y, ang, 0, 0); lamp(c, '255,60,50'); glow(c[0], c[1], 6, '255,60,50', 0.4); }
+      // helicopters also carry a slow red beacon (drones have their teal one instead, see autoBeacon)
+      if (p.rotors && !p.auto && (reduced || now % 1000 < 450)) { const c = onArt(x, y, ang, 0, 0); lamp(c, '255,60,50'); glow(c[0], c[1], 6, '255,60,50', 0.4); }
     }
     // red and green at the bow, white on the mast and stern, a glow from the cabin
     function boatLights(x, y, ang, model) {
@@ -514,6 +516,14 @@
     }
     // trains: a headlight, lit passenger windows, a red lamp on the last car, maglevs glowing underneath.
     // trucks and buses: headlights (teal on self-driving ones), and tail lights on the back of each trailer (or the truck itself)
+    // a self-flying plane (a drone) pulses a teal beacon from its middle, day and night: the teal of
+    // the self-driving trucks' lamps
+    function autoBeacon(x, y, now, later) {
+      const k = reduced ? 0.8 : 0.55 + 0.45 * Math.sin(now / 260);
+      const draw = () => { glow(x, y, 7, '95,240,216', 0.45 * k); lamp([x, y], '95,240,216', k); };
+      draw();
+      later?.(draw);
+    }
     // oversize rigs, superload carriers and escorts flash their beacons in turn, day and night: amber
     // unless they say otherwise. A tug only lights its convoy beacons while it's escorting.
     function beacons(v, p, now, later) {
@@ -710,6 +720,7 @@
         big(x + 2 + lift * 0.4, y + 3 + lift * 0.8, () => drawArt(b, 0, 0, p.ang, 'plane', v.model, { shadow: true }));
         big(x, y - lift, () => drawArt(b, 0, 0, p.ang, 'plane', v.model, { spin: now / 45, paint: paintOf(v) }));
         if (dk) lights.push(() => planeLights(x, y - lift, p.ang, v.model, now));
+        if (PLANES[v.model].auto) autoBeacon(x, y - lift, now, dk ? (f) => lights.push(f) : null);
         hits.push({ id: v.id, x, y: y - lift });
         if (marked(v)) marker(x, y - lift - 18);
       }

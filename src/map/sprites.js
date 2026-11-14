@@ -77,6 +77,39 @@ export function repaint(spec, paint) {
   });
 }
 
+// where a plane's wingtips are, in its art's sub pixel units from its center: the middle of its
+// outermost painted row on each side, a little in from the outline. Worked out from the drawn art
+// the first time it's asked for, so swept and delta wings light up at their real tips. null until
+// the art is drawn, or if the browser won't let it be read.
+export function wingtips(model) {
+  const e = entry(PLANES[model]);
+  if (!e.img) return null;
+  if (e.tips === undefined) {
+    try { e.tips = findTips(e); } catch { e.tips = null; }
+  }
+  return e.tips;
+}
+function findTips(e) {
+  const { width: W, height: H } = e.img, px = e.img.getContext('2d').getImageData(0, 0, W, H).data;
+  const solid = (x, y) => px[(y * W + x) * 4 + 3] > 200;
+  const cols = (y) => { const xs = []; for (let x = 0; x < W; x++) if (solid(x, y)) xs.push(x); return xs; };
+  const inset = Math.round(RES * 0.6);
+  const tip = (from, step) => {
+    let y = from;
+    while (y >= 0 && y < H && !cols(y).length) y += step;
+    if (y < 0 || y >= H) return null;
+    y = Math.max(0, Math.min(H - 1, y + step * inset));
+    const xs = cols(y);
+    if (!xs.length) return null;
+    // the first solid run along it, so a drone's lights sit on one rotor hub, not between two
+    let end = 0;
+    while (end + 1 < xs.length && xs[end + 1] === xs[end] + 1) end++;
+    return [(xs[0] + xs[end]) / 2 / RES - e.w / 2, (y + 0.5) / RES - e.h / 2];
+  };
+  const left = tip(0, 1), right = tip(H - 1, -1);
+  return left && right ? { left, right } : null;
+}
+
 function rasterize(e, svg) {
   const img = new Image();
   // give the svg a real pixel size so every browser rasterizes it crisply

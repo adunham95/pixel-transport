@@ -56,6 +56,10 @@
     <path d="m9 6 6 6-6 6" />
   {:else if name === 'speed'}
     <path d="M4 17a8 8 0 1 1 16 0" /><path d="m12 17 4-5" />
+  {:else if name === 'auto'}
+    <circle cx="12" cy="12" r="8.5" /><circle cx="12" cy="12" r="2" /><path d="M3.8 10.5h6.4M13.8 10.5h6.4M12 14v6.5" />
+  {:else if name === 'proto'}
+    <path d="M9 3h6M10 3v6l-5.5 9.5A1.7 1.7 0 0 0 6 21h12a1.7 1.7 0 0 0 1.5-2.5L14 9V3" /><path d="M7.5 15h9" />
   {:else if name === 'pin'}
     <path d="M12 21s-6.5-6-6.5-11a6.5 6.5 0 0 1 13 0c0 5-6.5 11-6.5 11z" /><circle cx="12" cy="10" r="2.3" />
   {:else if name === 'back'}
