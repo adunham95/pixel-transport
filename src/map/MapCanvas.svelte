@@ -73,10 +73,11 @@
       canIn = at < levels.length - 1;
       canOut = at > 0;
     }
-    // step the zoom, keeping whatever is in the middle of the visible map where it is
-    zoomBy = (d) => {
+    // step the zoom, keeping whatever is at canvas pixel ax, ay where it is: the middle of the
+    // visible map unless a pinch or trackpad says otherwise
+    zoomBy = (d, ax = canvas.width / 2, ay = (canvas.height - sheetPx * dpr) / 2) => {
       if (!bw || at + d < 0 || at + d >= levels.length) return;
-      const old = scale, mx = camX + bw / 2, my = camY + visibleH() / 2;
+      const old = scale, mx = camX + ax / old, my = camY + ay / old;
       const tc = target && { x: target.x + bw / 2, y: target.y + visibleH() / 2 };
       // hold on to the old view so it can grow or shrink away over the new one
       snap.width = canvas.width; snap.height = canvas.height;
@@ -85,9 +86,9 @@
       zoomStep = at - baseAt;
       try { localStorage.setItem(ZOOM_KEY, String(zoomStep)); } catch {}
       applyScale();
-      camX = mx - bw / 2; camY = my - visibleH() / 2; vx = vy = 0;
+      camX = mx - ax / scale; camY = my - ay / scale; vx = vy = 0;
       if (tc) target = { x: tc.x - bw / 2, y: tc.y - visibleH() / 2 };
-      zoomFx = { k: scale / old, t: Date.now() };
+      zoomFx = { k: scale / old, t: Date.now(), ox: ax, oy: ay };
     };
     const ro = new ResizeObserver(resize);
     ro.observe(canvas);
@@ -834,7 +835,7 @@
         if (a >= 1 || reduced) zoomFx = null;
         else {
           const e = 1 - (1 - a) ** 3, k = 1 + (zoomFx.k - 1) * e;
-          const ox = canvas.width / 2, oy = (canvas.height - sheetPx * dpr) / 2;
+          const { ox, oy } = zoomFx;
           ctx.globalAlpha = 1 - e;
           ctx.drawImage(snap, ox - ox * k, oy - oy * k, snap.width * k, snap.height * k);
           ctx.globalAlpha = 1;
@@ -874,12 +875,53 @@
       ui.track = ui.follow = null;
       if (best) selectCity(best.id);
     }
+    // ---------- pinch to zoom ----------
+    // with two fingers down the map pans with the point between them, and steps a zoom level in or out,
+    // about that point, each time they spread or close by most of the way to the next level. Levels
+    // stay whole multiples so the pixels stay square; the hysteresis (STEP) stops it flickering
+    // between two levels at the boundary.
+    const fingers = new Map(); // pointerId -> { x, y } in client pixels
+    let pinch = null; // { ref: finger distance the current level started at, mx, my }
+    const STEP = 0.6;
+    const spread = () => { const [a, c] = [...fingers.values()]; return { d: Math.hypot(a.x - c.x, a.y - c.y), mx: (a.x + c.x) / 2, my: (a.y + c.y) / 2 }; };
+    const onCanvas = (cx, cy) => { const r = canvas.getBoundingClientRect(); return [(cx - r.left) * dpr, (cy - r.top) * dpr]; };
+    function pinchMove() {
+      const { d, mx, my } = spread();
+      camX -= ((mx - pinch.mx) * dpr) / scale;
+      camY -= ((my - pinch.my) * dpr) / scale;
+      pinch.mx = mx; pinch.my = my;
+      const r = d / pinch.ref, up = levels[at + 1] / scale, dn = levels[at - 1] / scale;
+      if (at < levels.length - 1 && r >= up ** STEP) { pinch.ref *= up; zoomBy(1, ...onCanvas(mx, my)); }
+      else if (at > 0 && r <= dn ** STEP) { pinch.ref *= dn; zoomBy(-1, ...onCanvas(mx, my)); }
+    }
+    function lift(e) {
+      fingers.delete(e.pointerId);
+      if (pinch && fingers.size < 2) {
+        pinch = null;
+        // the finger left behind carries on panning, but never counts as a tap
+        const [f] = fingers.values();
+        drag = f ? { x0: f.x, y0: f.y, x: f.x, y: f.y, t: performance.now(), moved: 99 } : null;
+        return true;
+      }
+      return false;
+    }
+
     function down(e) {
       canvas.setPointerCapture(e.pointerId);
-      drag = { x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY, t: performance.now(), moved: 0 };
+      fingers.set(e.pointerId, { x: e.clientX, y: e.clientY });
       vx = vy = 0; target = null;
+      if (fingers.size === 2) {
+        const { d, mx, my } = spread();
+        pinch = { ref: Math.max(1, d), mx, my };
+        drag = null; ui.follow = null;
+        return;
+      }
+      if (fingers.size > 2) return;
+      drag = { x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY, t: performance.now(), moved: 0 };
     }
     function move(e) {
+      if (fingers.has(e.pointerId)) fingers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (pinch) { if (fingers.size >= 2) pinchMove(); return; }
       if (!drag) return;
       const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
       drag.x = e.clientX; drag.y = e.clientY;
@@ -896,14 +938,22 @@
       }
     }
     function up(e) {
+      if (lift(e)) return;
       if (!drag) return;
       if (drag.moved < 8) { vx = vy = 0; tap(e); }
       if (performance.now() - drag.t > 80) vx = vy = 0;
       drag = null;
     }
+    // a trackpad pinch arrives as ctrl + wheel: step a level each time enough of it has built up
+    let wheelZoom = 0;
     function wheel(e) {
       e.preventDefault();
       ui.follow = null; target = null;
+      if (e.ctrlKey) {
+        wheelZoom -= e.deltaY;
+        if (Math.abs(wheelZoom) >= 40) { zoomBy(Math.sign(wheelZoom), ...onCanvas(e.clientX, e.clientY)); wheelZoom = 0; }
+        return;
+      }
       // shift + wheel pans sideways on mice without a horizontal wheel
       const [dx, dy] = e.shiftKey && !e.deltaX ? [e.deltaY, 0] : [e.deltaX, e.deltaY];
       camX += (dx * dpr) / scale;
@@ -912,7 +962,7 @@
     canvas.addEventListener('pointerdown', down);
     canvas.addEventListener('pointermove', move);
     canvas.addEventListener('pointerup', up);
-    canvas.addEventListener('pointercancel', () => (drag = null));
+    canvas.addEventListener('pointercancel', (e) => { lift(e); drag = null; });
     canvas.addEventListener('wheel', wheel, { passive: false });
     function key(e) {
       if (e.ctrlKey || e.metaKey || e.altKey || e.target.closest?.('input, textarea')) return;
