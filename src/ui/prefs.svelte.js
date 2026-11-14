@@ -23,3 +23,11 @@ export function setTheme(t) {
 
 // set before the app mounts, so a chosen theme doesn't flash the other one first
 apply();
+
+// planning a one-off route: park at each stop until sent on, rather than driving straight through
+const HOLD_KEY = 'pixel-transport-hold-stops';
+prefs.holdStops = (() => { try { return localStorage.getItem(HOLD_KEY) === '1'; } catch { return false; } })();
+export function setHoldStops(on) {
+  prefs.holdStops = on;
+  try { localStorage.setItem(HOLD_KEY, on ? '1' : '0'); } catch {}
+}

@@ -1,5 +1,5 @@
 <script>
-  import { game, ui, cityById, capacity, endRoute, addCar, removeCar, canRemoveCar, upgradeEngine, upgradeCost, canRefit, sellVehicle, sellValue, openLoad, followVehicle, etaText, fmt, stopRepeating, spec, tailSpecs, tailName, aboard, carrierOf, deckUsed, deckRoom, deckFor, finances, clock, wear, service, serviceCost, sendToService, canSendService, depotFor, escortee, consistOf, paintOf, paintFor, isIdle, idleVehicles, quickSend, quickSendAll, startQueue, toast, brokenVehicles, sendHelp, callRoadside, calloutCost, stillNeeded, escortText, renameVehicle, escortKind, assignRoute, routeById, tripInfo } from '../game/game.svelte.js';
+  import { game, ui, cityById, capacity, endRoute, addCar, removeCar, canRemoveCar, upgradeEngine, upgradeCost, canRefit, sellVehicle, sellValue, openLoad, followVehicle, etaText, fmt, stopRepeating, spec, tailSpecs, tailName, aboard, carrierOf, deckUsed, deckRoom, deckFor, finances, clock, wear, service, serviceCost, sendToService, canSendService, depotFor, escortee, consistOf, paintOf, paintFor, isIdle, idleVehicles, quickSend, quickSendAll, startQueue, toast, brokenVehicles, sendHelp, callRoadside, calloutCost, stillNeeded, escortText, renameVehicle, escortKind, assignRoute, routeById, tripInfo, continueRoute, abandonRoute } from '../game/game.svelte.js';
   import { ENGINES, TRUCKS, BOATS, PLANES, MI, JOB_TYPES, ESCORT_LABEL } from '../game/data.js';
   import Sprite from '../ui/Sprite.svelte';
   import LoadBadges from '../ui/LoadBadges.svelte';
@@ -61,13 +61,13 @@
   }
   // where a vehicle is when it isn't moving: parked in town, riding a car ferry or cargo plane, or in a convoy
   function where(v) {
-    if (v.city) return v.loop ? `Repeating, waiting for jobs at ${cityById[v.city].name}` : `Parked at ${cityById[v.city].name}`;
+    if (v.city) return v.loop ? `Repeating, waiting for jobs at ${cityById[v.city].name}` : v.held ? `Stopped at ${cityById[v.city].name}, next ${cityById[v.held.stops[0]].name}` : `Parked at ${cityById[v.city].name}`;
     const e = escortee(v);
     if (e) return `Escorting ${e.name} to ${cityById[e.trip.to].name}`;
     const f = carrierOf(v);
     return f.trip ? `On ${f.name}, to ${cityById[f.trip.to].name}` : `On ${f.name} at ${cityById[f.city].name}`;
   }
-  const whereNow = (v) => v.trip ? `To ${cityById[v.trip.to].name}, ${etaText(v)} left${v.next?.length ? `, then ${v.next.length} more stop${v.next.length > 1 ? 's' : ''}` : ''}` : where(v);
+  const whereNow = (v) => v.trip ? `To ${cityById[v.trip.to].name}, ${etaText(v)} left${v.next?.length ? `, then ${v.next.length} more stop${v.next.length > 1 ? 's' : ''}` : ''}${v.held ? `, stopping there (${v.held.stops.length} more after)` : ''}` : where(v);
 </script>
 
 {#if cur}
@@ -241,18 +241,20 @@
   </div>
 
   <!-- things that end what it's doing, or let it go, kept apart from everyday actions -->
-  {#if v.loop || v.city || (v.trip && v.next?.length && !v.loop)}
+  {#if v.loop || v.city || v.held || (v.trip && v.next?.length && !v.loop)}
     <div class="group quiet">
       {#if v.loop}<button class="row tbtn" onclick={() => stopRepeating(v)}>Stop repeating</button>{/if}
-      {#if !v.city && v.trip && v.next?.length && !v.loop}<button class="row tbtn" onclick={() => endRoute(v)}>End route at {cityById[v.trip.to].name}</button>{/if}
+      {#if v.held}<button class="row tbtn" onclick={() => abandonRoute(v)}>Abandon route at {cityById[v.city ?? v.trip.to].name}</button>{/if}
+      {#if !v.held && !v.city && v.trip && v.next?.length && !v.loop}<button class="row tbtn" onclick={() => endRoute(v)}>End route at {cityById[v.trip.to].name}</button>{/if}
       {#if v.city}<button class="row tbtn bad" disabled={v.cargo.length > 0 || aboard(v).length > 0 || game.vehicles.length <= 1} onclick={() => sellVehicle(v)}>Sell for ${fmt(sellValue(v))}</button>{/if}
     </div>
   {/if}
 
   <div class="footer">
     {#if v.city}
+      {#if v.held}<button class="btn primary" onclick={() => continueRoute(v)}>Continue to {cityById[v.held.stops[0]].name}</button>{/if}
       {#if isIdle(v)}<button class="btn primary" onclick={() => quickSend(v) || toast(`Nothing at ${cityById[v.city].name} that ${v.name} can take`)}>Quick send</button>{/if}
-      <button class="btn" class:primary={!isIdle(v)} onclick={() => openLoad(v)}>{escortKind(v) ? 'Move' : 'Load'} at {cityById[v.city].name}</button>
+      <button class="btn" class:primary={!isIdle(v) && !v.held} onclick={() => openLoad(v)}>{escortKind(v) ? 'Move' : 'Load'} at {cityById[v.city].name}</button>
     {:else if escortee(v)}
       <button class="btn primary" onclick={() => followVehicle(escortee(v))}>Follow {escortee(v).name}</button>
     {:else if !v.trip}

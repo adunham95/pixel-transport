@@ -585,6 +585,11 @@ function arrive(v, at) {
   }
   closeLap(v, at);
   if (ui.track === v.id) ui.track = null;
+  // partway along a route that stops at each town: wait here to be sent on (any service waits till the end)
+  if (v.held) {
+    toast(`${v.name} stopped at ${name}${n ? `, delivered ${n} +$${fmt(total)}` : ''}. Continue to ${cityById[v.held.stops[0]].name} or abandon the route.`, n ? 'good' : 'info');
+    return;
+  }
   if (n) toast(`${v.name} delivered ${n} at ${name}. +$${fmt(total)}`, 'good');
   else if (!v.serviceDue) toast(`${v.name} arrived at ${name}`);
   if (v.serviceDue) serviceOffRoute(v, at);
@@ -729,7 +734,7 @@ const outlasts = (j, at, when) => j.from !== at || j.contract != null || j.proje
 function tickAuto(now) {
   if (!game.hqAuto) return;
   for (const v of game.vehicles) {
-    if (!spec(v).auto || !v.city || v.trip || v.loop || now < (v.autoWait ?? 0)) continue;
+    if (!spec(v).auto || !v.city || v.trip || v.loop || v.held || now < (v.autoWait ?? 0)) continue;
     const was = quiet;
     quiet = true;
     try {
@@ -1466,7 +1471,7 @@ export function openLoad(v) {
 // parked in town with nothing to do: not repeating, not an escort, which only moves with a convoy
 // or to a breakdown, not a superload carrier or aircraft carrier, which never take everyday jobs,
 // and not self-driving with auto dispatch on, which finds its own work
-export const isIdle = (v) => !!v.city && !v.trip && !v.loop && !escortKind(v) && !spec(v).superload && !isCarrier(v.model) && !(spec(v).auto && game.hqAuto);
+export const isIdle = (v) => !!v.city && !v.trip && !v.loop && !v.held && !escortKind(v) && !spec(v).superload && !isCarrier(v.model) && !(spec(v).auto && game.hqAuto);
 export const idleVehicles = () => game.vehicles.filter(isIdle);
 
 // load the best paying jobs it can deliver and set off on the nearest-first route, all in one go.
@@ -1562,11 +1567,14 @@ export function loopStops(v, stops) {
 // started and goes round again; lap is for those later laps, which set off at a given time quietly.
 // escort: take along the optional escort parked here (see optionalEscort); on later laps it just
 // comes if it's still free. relay: a repeating route also carries jobs headed off the loop part of
-// the way (see relayStop)
-export function dispatch(v, stops, { repeat = false, lap = null, escort = false, relay = false, route = null } = {}) {
+// the way (see relayStop). hold: a one-off route that parks at each stop until it's sent on (see
+// continueRoute), paying each leg's fuel as it sets off; the stops still to go wait in v.held
+export function dispatch(v, stops, { repeat = false, lap = null, escort = false, relay = false, route = null, hold = false } = {}) {
   if (route) { repeat = true; stops = routeStops(route, v.city); }
   if (repeat && !game.repeatRoutes) { toast('Build an HQ to unlock repeating routes', 'bad'); return false; }
   if (repeat && !route) stops = loopStops(v, stops);
+  let held = null;
+  if (hold && !repeat && stops.length > 1) { held = stops.slice(1); stops = stops.slice(0, 1); }
   // a carrier takes the planes that need it along, and waits for any still flying in to land
   let stow = [];
   if (v.kind === 'boat' && isCarrier(v.model) && v.city) {
@@ -1620,8 +1628,10 @@ export function dispatch(v, stops, { repeat = false, lap = null, escort = false,
   if (route) v.loop = { route: route.id, stops };
   else if (repeat) v.loop = { stops, ...(escort && { escort }), ...(relay && { relay }) };
   else if (lap == null) delete v.loop;
+  if (held) v.held = { stops: held, ...(escort && { escort }) };
+  else delete v.held;
   v.city = null;
-  if (lap == null) toast(route ? `${v.name} is running ${route.name}. Fuel $${fmt(cost)} a lap` : repeat ? `${v.name} is running a ${legs.length} stop loop. Fuel $${fmt(cost)} a lap` : rest.length ? `${v.name} left on a ${legs.length} stop route. Fuel $${fmt(cost)}` : `${v.name} left for ${cityById[first.to].name}. Fuel $${cost}`);
+  if (lap == null) toast(held ? `${v.name} left for ${cityById[first.to].name}, ${held.length} more stop${held.length > 1 ? 's' : ''} after. Fuel $${fmt(cost)}` : route ? `${v.name} is running ${route.name}. Fuel $${fmt(cost)} a lap` : repeat ? `${v.name} is running a ${legs.length} stop loop. Fuel $${fmt(cost)} a lap` : rest.length ? `${v.name} left on a ${legs.length} stop route. Fuel $${fmt(cost)}` : `${v.name} left for ${cityById[first.to].name}. Fuel $${cost}`);
   return true;
 }
 
@@ -2164,6 +2174,7 @@ export function stopRepeating(v) {
 
 // drop the rest of the route after the current leg, refunding fuel for legs not flown or driven
 export function endRoute(v) {
+  if (v.held) { delete v.held; if (!v.next?.length) { toast(`${v.name} will end its route at ${cityById[v.trip.to].name}`); return; } }
   if (!v.next?.length) return;
   const refund = v.next.reduce((s, l) => s + l.cost, 0);
   v.miles -= v.next.reduce((s, l) => s + l.len, 0);
@@ -2174,6 +2185,20 @@ export function endRoute(v) {
   const st = lapStats(v);
   if (st) st.fuel -= refund;
   toast(`${v.name} will stop at ${cityById[v.trip.to].name}. Refunded $${fmt(refund)}`);
+}
+
+// a vehicle parked partway along a route that stops at each town: set off for the next stop, or
+// give up the rest of the route and stay here
+export function continueRoute(v) {
+  if (!v.held || !v.city || v.trip) return false;
+  return dispatch(v, v.held.stops, { hold: true, escort: !!v.held.escort });
+}
+export function abandonRoute(v) {
+  if (!v.held) return;
+  if (v.trip) { endRoute(v); return; }
+  delete v.held;
+  toast(`${v.name} abandoned its route at ${cityById[v.city].name}`);
+  if (v.serviceDue) serviceOffRoute(v, null);
 }
 
 function spend(price, level, label) {
@@ -2359,6 +2384,7 @@ export function driveOn(f, t) {
   t.aboard = f.id;
   t.city = null;
   delete t.loop;
+  delete t.held;
   if (ui.activeVehicle === t.id) ui.activeVehicle = f.id;
 }
 

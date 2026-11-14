@@ -1,5 +1,6 @@
 <script>
-  import { game, ui, cityById, capacity, used, loadJob, unloadJob, autoLoad, destinations, dispatch, route, canReach, planLegs, autoPlan, toggleStop, fmt, fmtTime, aboard, canBoard, fitsAboard, deckFor, deckSize, deckUsed, deckRoom, driveOn, driveOff, wear, fetcher, convoyNeeds, pickEscorts, escortText, consistOf, optionalEscort, paintOf, spec, nextInQueue, queueLeft, escortAs, escortKind, superloadCarrier, SUPER_KIND, viaBoost } from '../game/game.svelte.js';
+  import { game, ui, cityById, capacity, used, loadJob, unloadJob, autoLoad, destinations, dispatch, route, canReach, planLegs, autoPlan, toggleStop, fmt, fmtTime, aboard, canBoard, fitsAboard, deckFor, deckSize, deckUsed, deckRoom, driveOn, driveOff, wear, fetcher, convoyNeeds, pickEscorts, escortText, consistOf, optionalEscort, paintOf, spec, nextInQueue, queueLeft, escortAs, escortKind, superloadCarrier, SUPER_KIND, viaBoost, continueRoute, abandonRoute } from '../game/game.svelte.js';
+  import { prefs, setHoldStops } from '../ui/prefs.svelte.js';
   import Icon from '../ui/Icon.svelte';
   import Sprite from '../ui/Sprite.svelte';
   import JobRow from '../ui/JobRow.svelte';
@@ -34,6 +35,12 @@
   const escFuel = $derived([...convoy.picked, ...riding].reduce((s, x) => s + planLegs(x, stops).reduce((a, l) => a + (l?.cost ?? 0), 0), 0));
   const total = $derived(legs.reduce((s, l) => ({ cost: s.cost + (l?.cost ?? 0), time: s.time + (l?.time ?? 0) }), { cost: escFuel, time: 0 }));
   const broken = $derived(legs.some((l) => !l));
+  // stopping at each town pays for one leg at a time, so only the first is due now
+  const holding = $derived(prefs.holdStops && ui.plan.length > 1);
+  const due = $derived(holding ? (legs[0]?.cost ?? 0) + [...convoy.picked, ...riding].reduce((s, x) => s + (planLegs(x, [stops[0]])[0]?.cost ?? 0), 0) : total.cost);
+  // parked partway along a route that stops at each town: where it goes next, and its fuel there
+  const heldNext = $derived(v.held ? v.held.stops[0] : null);
+  const heldLeg = $derived(heldNext ? planLegs(v, [heldNext])[0] : null);
   // what this route makes: drop off pay against fuel
   const pay = $derived(drops.reduce((s, d) => s + d.pay, 0));
   // what gets dropped where: cargo leaves at the first planned stop that matches
@@ -111,9 +118,13 @@
     if (first) { first = false; return; }
     headEl?.closest('.body')?.scrollTo(0, 0);
   });
+  function carryOn() {
+    if (!continueRoute(v)) return;
+    ui.activeVehicle = null;
+  }
   function leave() { ui.activeVehicle = null; ui.picking = false; ui.plan = []; ui.queue = null; }
   function go() {
-    if (!dispatch(v, ui.plan, { escort: riding.length > 0 })) return;
+    if (!dispatch(v, ui.plan, { escort: riding.length > 0, hold: prefs.holdStops })) return;
     ui.picking = false; ui.activeVehicle = null; ui.plan = [];
     nextInQueue();
   }
@@ -208,6 +219,10 @@
       <span class="grow"><b>{ESCORT_LABEL[optKind][0].toUpperCase() + ESCORT_LABEL[optKind].slice(1)} escort</b><small>{sidekick ? `${sidekick.name} rides along in convoy. Valuables pay +${Math.round(SECURE.escortBonus * 100)}%.` : `Park a ${ESCORT_LABEL[optKind]} at ${city.name} to bring one along. Valuables pay +${Math.round(SECURE.escortBonus * 100)}% with it.`}</small></span>
     </label>
   {/if}
+  <label class="row repeat">
+    <input type="checkbox" checked={prefs.holdStops} onchange={(e) => setHoldStops(e.currentTarget.checked)} />
+    <span class="grow"><b>Stop at each town</b><small>Waits at every stop so you can load and unload, then Continue or Abandon. Fuel is paid one leg at a time.</small></span>
+  </label>
   <div class="row repeat off">
     <span class="grow"><b>Repeating routes</b><small>{game.repeatRoutes ? 'To send it round the same loop on its own, set up a route in the Routes tab and assign it there.' : game.level < HQ.level ? `Build an HQ from level ${HQ.level} to set up routes vehicles run on their own.` : 'Build an HQ in any town, from its town page, to set up routes vehicles run on their own.'}</small></span>
   </div>
@@ -221,8 +236,8 @@
   {/if}
   <div class="footer">
     {#if unrouted}<button class="btn" onclick={plan}>Route cargo</button>{/if}
-    <button class="btn primary" disabled={!ui.plan.length || broken || game.coins < total.cost || convoy.missing.length > 0} onclick={go}>
-      {!ui.plan.length ? 'Go' : `Go ${fmtTime(total.time)}, $${fmt(total.cost)}`}
+    <button class="btn primary" disabled={!ui.plan.length || broken || game.coins < due || convoy.missing.length > 0} onclick={go}>
+      {!ui.plan.length ? 'Go' : holding ? `Go to ${cityById[ui.plan[0]].name}, $${fmt(due)}` : `Go ${fmtTime(total.time)}, $${fmt(total.cost)}`}
     </button>
   </div>
 {:else}
@@ -270,6 +285,23 @@
   {/each}
   </div>
   {#if !waiting.length}<p class="muted">No jobs waiting. New ones turn up every few seconds.</p>{/if}
+  {#if v.held}
+    <div class="held">
+      <span class="grow"><b>Stopped on a route</b><small>Load or drop off here first if you like.</small></span>
+      <ol class="pills" aria-label="Stops still to go">
+        <li class="pill here">{city.name}</li>
+        {#each v.held.stops as id, i}
+          {@const n = v.cargo.filter((j) => j.to === id).length}
+          <li class="arrow" aria-hidden="true">›</li>
+          <li class="pill" class:next={i === 0}>{cityById[id].name}{#if n}<em>{n}</em>{/if}</li>
+        {/each}
+      </ol>
+      <div class="chips">
+        <button class="btn small ghost" onclick={() => abandonRoute(v)}>Abandon route</button>
+        <button class="btn small primary" disabled={!heldLeg || game.coins < (heldLeg?.cost ?? 0)} onclick={carryOn}>{heldLeg ? `Continue to ${cityById[heldNext].name}, $${fmt(heldLeg.cost)}` : `Can’t reach ${cityById[heldNext].name}`}</button>
+      </div>
+    </div>
+  {/if}
   <div class="footer">
     <button class="btn" onclick={() => autoLoad(v, only)}>Auto load{only ? ` ${TYPE_LABEL[only].toLowerCase()}` : ''}</button>
     {#if v.cargo.length}<button class="btn" onclick={plan}>Route cargo</button>{/if}
@@ -279,6 +311,15 @@
 
 <style>
   .repeat { cursor: pointer; }
+  .held { display: flex; flex-direction: column; gap: 8px; margin: 10px 0; padding: 10px 12px; background: var(--panel-3); border-radius: var(--r); border-left: 3px solid var(--accent); }
+  .held .grow { display: flex; flex-direction: column; }
+  .held .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .pills { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin: 0; padding: 0; list-style: none; }
+  .pill { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 999px; background: var(--panel-2, var(--panel)); color: var(--ink-soft); }
+  .pill.here { background: transparent; border: 1px dashed var(--ink-soft); font-weight: 500; }
+  .pill.next { background: var(--accent-soft); color: var(--ink); }
+  .pill em { font-style: normal; font-size: 11px; min-width: 16px; padding: 0 4px; border-radius: 999px; text-align: center; background: var(--accent); color: var(--accent-ink); }
+  .arrow { color: var(--ink-soft); font-size: 14px; }
   .fchips .ti { display: flex; }
   .fchips button.on .ti { color: inherit; }
   .loadhead { margin: 0 0 10px; }

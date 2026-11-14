@@ -117,7 +117,7 @@
   {#each here as v (v.id)}
     <button class="row vrow" animate:flip transition:slide={{ duration: 200 }} onclick={() => { ui.activeVehicle = v.id; ui.plan = []; ui.picking = !!escortKind(v); }}>
       <span class="pv"><Sprite kind={v.kind} model={v.model} cars={consistOf(v)} scale={3} paint={paintOf(v)} /></span>
-      <span class="grow"><b>{v.name}</b><small>{escortKind(v) ? 'Escort. Tap to move it' : v.loop ? 'Repeating, waiting for jobs' : v.cargo.length ? `${v.cargo.length} on board` : 'Empty. Tap to load'}</small></span>
+      <span class="grow"><b>{v.name}</b><small>{escortKind(v) ? 'Escort. Tap to move it' : v.loop ? 'Repeating, waiting for jobs' : v.held ? `Stopped on a route, next ${cityById[v.held.stops[0]].name}` : v.cargo.length ? `${v.cargo.length} on board` : 'Empty. Tap to load'}</small></span>
       <span class="go"><Icon name="chevron" size={18} /></span>
     </button>
   {/each}
