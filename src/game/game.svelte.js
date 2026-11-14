@@ -721,7 +721,11 @@ export const brokenVehicles = () => game.vehicles.filter((v) => v.broken);
 // off; with none here, it drives empty to the nearest town with passengers waiting that no other
 // self-driving vehicle is already headed to, going first to towns with passengers left there
 // partway through their trip. Passengers it can't drive all the way it takes to where your
-// repeating routes pick them up (see feedStop). With nowhere to go it checks again in a while.
+// repeating routes pick them up (see feedStop). It only drives out for jobs that will still be
+// waiting when it gets there. With nowhere to go it checks again in a while.
+// will a job waiting at a town still be there at a given time (game time)? Ones left there partway
+// through their trip, or held for a contract or megaproject, never go stale (see step)
+const outlasts = (j, at, when) => j.from !== at || j.contract != null || j.project != null || (j.at ?? when) + jobTtl(j) > when;
 function tickAuto(now) {
   if (!game.hqAuto) return;
   for (const v of game.vehicles) {
@@ -737,7 +741,7 @@ function tickAuto(now) {
       const taken = fetching(), rides = routing();
       const wants = (c) => {
         const lead = leg(v, v.city, c.id)?.time ?? Infinity;
-        return (j) => carries(v, j) && !taken.has(j.id) && !loopTakes(j, c.id, rides(j), v, lead) && (canReach(v, j.to) || !!feedStop(v, j, rides(j), c.id));
+        return (j) => carries(v, j) && !taken.has(j.id) && outlasts(j, c.id, now + lead * 1000) && !loopTakes(j, c.id, rides(j), v, lead) && (canReach(v, j.to) || !!feedStop(v, j, rides(j), c.id));
       };
       const best = CITIES.filter((c) => c.id !== v.city && !headed.has(c.id) && isOpen(c.id) && game.jobs[c.id].some(wants(c)))
         .map((c) => ({ c, l: leg(v, v.city, c.id), relay: game.jobs[c.id].some((j) => j.from !== c.id && wants(c)(j)) })).filter((o) => o.l)
