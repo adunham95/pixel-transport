@@ -1,6 +1,6 @@
 <script>
-  import { game, ui, cityById, etaText, fmtTime, clock, followVehicle, isOpen, connections, unlockPrice, unlockCity, carrierAt, fmt, townSize, sizeName, growthOf, buyDepot, fetcher, consistOf, paintOf, buildHQ, hqPrice, mixOf, projectTowns, landmarkAt, cantHost, escortKind, rescueAt, rescueStatus, rolesText, sendRescue, rescueCandidates, sendToRescue } from '../game/game.svelte.js';
-  import { CITY_PRICE, DEPOT, HQ, TYPE_LABEL, PROJECTS, CONTINENTS, RESCUE } from '../game/data.js';
+  import { game, ui, cityById, etaText, fmtTime, clock, followVehicle, isOpen, connections, unlockPrice, unlockCity, carrierAt, fmt, townSize, sizeName, growthOf, buyDepot, fetcher, consistOf, paintOf, buildHQ, hqPrice, mixOf, projectTowns, landmarkAt, cantHost, escortKind, rescueAt, rescueStatus, rolesText, sendRescue, rescueCandidates, sendToRescue, buyLine, lineTowns, onLine, lineFits, lineProblem, assignLine } from '../game/game.svelte.js';
+  import { CITY_PRICE, DEPOT, HQ, TYPE_LABEL, PROJECTS, CONTINENTS, RESCUE, LINES } from '../game/data.js';
   import ProjectCard from '../ui/ProjectCard.svelte';
   import Icon from '../ui/Icon.svelte';
   import Sprite from '../ui/Sprite.svelte';
@@ -60,6 +60,7 @@
       {#if !c.anchor && isOpen(c.id)}<span class="tag hub">{sizeName(c.id)}</span>{/if}
       {#if game.hq === c.id}<span class="tag hub">HQ</span>{/if}
       {#if game.depots[c.id]}<span class="tag">Depot</span>{/if}
+      {#each Object.entries(LINES) as [kind, L] (kind)}{#if game.lines[kind][c.id]}<span class="tag">{L.name}</span>{/if}{/each}
       {#if carrierAt(c.id)}<span class="tag hub">{c.anchor || !c.air ? 'Carrier landing strip' : 'Carrier in port'}</span>{/if}
       {#each knownFor as t (t)}<span class="tag known t-{t}" title="Turns up more {t === 'celeb' ? 'celebrities' : TYPE_LABEL[t].toLowerCase()} than most towns"><Icon name={t} size={12} />{t === 'celeb' ? 'Celebrities' : TYPE_LABEL[t]}</span>{/each}
     </div>
@@ -123,6 +124,25 @@
           <button class="btn small" disabled={game.level < DEPOT.level || game.coins < DEPOT.price} onclick={() => buyDepot(c.id)}>{game.level < DEPOT.level ? `Lv ${DEPOT.level}` : `$${fmt(DEPOT.price)}`}</button>
         {/if}
       </div>
+      {#if c.road}
+        {#each Object.entries(LINES) as [kind, L] (kind)}
+          {@const what = kind === 'bus' ? 'passengers' : 'mail'}
+          <div class="gline depot">
+            {#if game.lines[kind][c.id]}
+              {@const n = lineTowns(kind).length}
+              {@const runs = onLine(kind).length}
+              {@const free = here.filter((v) => !v.loop?.line && lineFits(v, kind) && !lineProblem(v, kind))}
+              <small><b>{L.name}.</b> {n < 2 ? `Build another ${L.name.toLowerCase()} in a town nearby to start a ${L.line.toLowerCase()}.` : `${n} on the ${L.line.toLowerCase()}, ${runs} vehicle${runs === 1 ? '' : 's'} running it, picking up ${what} between them.`}</small>
+              {#each free.slice(0, 3) as v (v.id)}
+                <button class="btn small" title="Run {v.name} round every {L.name.toLowerCase()} it can drive to" onclick={() => assignLine(v, kind)}>Put {v.name} on</button>
+              {/each}
+            {:else}
+              <small>Build a {L.name.toLowerCase()}: road vehicles you put on the {L.line.toLowerCase()} loop round every {L.name.toLowerCase()}, picking up {what}. No HQ needed.</small>
+              <button class="btn small" disabled={game.level < L.level || game.coins < L.price} onclick={() => buyLine(kind, c.id)}>{game.level < L.level ? `Lv ${L.level}` : `$${fmt(L.price)}`}</button>
+            {/if}
+          </div>
+        {/each}
+      {/if}
       {#if !game.hq}
         <div class="gline depot">
           <small>Build your HQ here: unlocks repeating routes and company colors, and sells perks. You only get one.</small>

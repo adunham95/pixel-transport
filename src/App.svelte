@@ -64,7 +64,7 @@
       else if (ui.sendJob != null && Object.values(game.jobs).some((js) => js.some((j) => j.id === ui.sendJob))) d += 1;
       else if (ui.hqPage && game.hq === game.selected) d += 1;
     } else if (ui.tab === 'fleet' && ui.focusVehicle != null && game.vehicles.some((v) => v.id === ui.focusVehicle)) d += 1;
-    else if (ui.tab === 'routes' && ui.routeEdit != null && game.routes.some((r) => r.id === ui.routeEdit)) d += 1;
+    else if (ui.tab === 'routes' && ui.routeEdit != null && (game.routes.some((r) => r.id === ui.routeEdit) || String(ui.routeEdit).startsWith('line:'))) d += 1;
     else if (ui.tab === 'shop' && ui.shopModel) d += 1;
     return d;
   }

@@ -153,6 +153,27 @@
       for (let k = 0; k < 3; k++) rect('#5b6470', x + 1, y + 1 + k, 4, 1 - (k % 2) * 0.5);
     }
 
+    // a bus stop: a little shelter with a blue sign on a pole
+    function busStop(x, y) {
+      rect('#1d2433', x - 1, y - 4, 3, 9);
+      rect('#1d2433', x + 2, y, 6, 5);
+      rect('#c9ced4', x, y - 1, 1, 6);
+      rect('#2a6fd6', x - 0.5, y - 3, 2, 2);
+      rect('#5b6470', x + 2, y, 6, 1);
+      rect('#9fd3e6', x + 3, y + 1, 4, 3);
+    }
+
+    // a post office: a red-roofed counter with a post box out front
+    function postOffice(x, y) {
+      rect('#1d2433', x - 1, y - 1, 9, 7);
+      rect('#d6453a', x, y, 7, 2);
+      rect('#f2e6c8', x, y + 2, 7, 3);
+      rect('#4a4f57', x + 3, y + 3, 1, 2);
+      rect('#2a6fd6', x + 1, y + 3, 1, 1);
+      rect('#1d2433', x + 8, y + 1, 3, 5);
+      rect('#d6453a', x + 8.5, y + 1.5, 2, 3.5);
+    }
+
     // a flag in company colors flying over the HQ's town
     function hqFlag(x, y, now) {
       const paint = game.livery ?? { body: '#d6453a', accent: '#f4f6f8' }, wave = Math.floor(now / 400) % 2;
@@ -336,6 +357,8 @@
       const x = c.x * R, y = c.y * R;
       if (isOpen(c.id)) landmark(c, x, y, now);
       if (game.depots[c.id]) depot(c.island ? x - 13 : x + 5, c.island ? y - 2 : y + 4);
+      if (game.lines?.bus?.[c.id]) busStop(x + 14, y - 3);
+      if (game.lines?.post?.[c.id]) postOffice(x - 22, y - 1);
       if (game.hq === c.id) hqFlag(c.island ? x - 9 : x - 11, c.island ? y - 12 : y - 13, now);
       if (c.air) {
         rect('#2c3038', x - 14, y + 7, 28, 8);

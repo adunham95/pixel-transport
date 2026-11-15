@@ -458,6 +458,13 @@ export const SIZE_NAME = ["Village", "Town", "City", "Big city", "Metropolis"];
 // a depot at a town: servicing there costs `service` of the usual, and vehicles parked
 // there slowly lose their age, `repair` world units of it each game minute
 export const DEPOT = { level: 3, price: 3000, service: 0.5, repair: 150 };
+// bus stops and post offices: built in towns with roads. A road vehicle that carries `type` put on
+// the line runs a repeating loop round every one of them it can drive to, nearest first, starting
+// and ending at its home stop. Easier than a route, and needs no HQ.
+export const LINES = {
+  bus: { name: "Bus Stop", line: "Bus line", type: "pax", level: 4, price: 500 },
+  post: { name: "Post Office", line: "Mail line", type: "mail", level: 4, price: 500 },
+};
 // contracts: deliver n jobs of one type to one town before time runs out, for a bonus on top of
 // what the jobs pay. Up to `offers` wait on the board, each for offerTtl, a new one turning up
 // every `every`, and up to `active` can be taken on at once. size is the [min, max] jobs for
