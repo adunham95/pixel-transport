@@ -3240,7 +3240,8 @@ BOATS.autofreighter = {
 // late game show-offs rather than workhorses.
 
 PLANES.thunderbird1 = {
-  // the fast response rocket: a silver needle with a red nose, swing wings and a blue band. It
+  // the fast response rocket: a silver cylinder with a red nose cone, swept wings with pale blue
+  // tips, and a chunky ribbed engine block at the back with stubby fins. It
   // takes off and lands straight up (vtol), so it can set down at any town, and it's the fastest
   // thing that carries passengers, but only two of them
   name: "Thunderbird 1",
@@ -3256,24 +3257,27 @@ PLANES.thunderbird1 = {
   vtol: true,
   factoryPaint: true,
   color: "#c9ced6",
-  trim: "#d6453a",
-  art: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-11 -8 22 16">
-    <path d="M0.4 -1L-3.8 -6.2L-5.4 -6.2L-3.2 -1ZM0.4 1L-3.8 6.2L-5.4 6.2L-3.2 1ZM-6.6 -0.8L-8.8 -3.2L-9.6 -3.2L-8.8 -0.8ZM-6.6 0.8L-8.8 3.2L-9.6 3.2L-8.8 0.8ZM-9.8 -1.1H5Q9 -1 10.6 0Q9 1 5 1.1H-9.8Q-10.2 0 -9.8 -1.1Z" fill="none" stroke="rgba(18,24,38,0.9)" stroke-width="1.2" stroke-linejoin="round"/>
-    <path d="M0.4 -1L-3.8 -6.2L-5.4 -6.2L-3.2 -1ZM0.4 1L-3.8 6.2L-5.4 6.2L-3.2 1ZM-6.6 -0.8L-8.8 -3.2L-9.6 -3.2L-8.8 -0.8ZM-6.6 0.8L-8.8 3.2L-9.6 3.2L-8.8 0.8Z" fill="#aeb4bd"/>
-    <g fill="#2a5db0"><path d="M-3.8 -6.2L-5.4 -6.2L-5 -5.4L-3.2 -5.4Z"/><path d="M-3.8 6.2L-5.4 6.2L-5 5.4L-3.2 5.4Z"/></g>
-    <path d="M-9.8 -1.1H5Q9 -1 10.6 0Q9 1 5 1.1H-9.8Q-10.2 0 -9.8 -1.1Z" fill="#c9ced6"/>
-    <rect x="-9" y="-0.95" width="15" height="0.4" fill="rgba(255,255,255,0.6)"/>
-    <rect x="-9.6" y="-0.2" width="16" height="0.4" fill="#2a5db0"/>
-    <path d="M6.6 -0.95Q9 -0.85 10.6 0Q9 0.85 6.6 0.95Z" fill="#d6453a"/>
-    <rect x="3.6" y="-0.6" width="1.6" height="1.2" rx="0.45" fill="#23344f"/>
-    <rect x="4.3" y="-0.45" width="0.6" height="0.35" fill="rgba(170,215,255,0.85)"/>
-    <g fill="#3a3f47"><rect x="-10.6" y="-0.7" width="0.7" height="1.4" rx="0.2"/></g>
-    <path d="M-10.6 -0.4L-11 0L-10.6 0.4Z" fill="#ffd23f"/>
+  trim: "#e0522e",
+  art: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-12 -8 24 16">
+    <path d="M1 -0.9L-3.6 -6.8L-5.4 -6.8L-2.6 -1ZM1 0.9L-3.6 6.8L-5.4 6.8L-2.6 1ZM-9.2 -1.6L-10.6 -3L-11.6 -3L-10.8 -1.6ZM-9.2 1.6L-10.6 3L-11.6 3L-10.8 1.6ZM-10.8 -1.8H-6.4L-5.6 -1.25H6.6Q9.2 -1 11.4 0Q9.2 1 6.6 1.25H-5.6L-6.4 1.8H-10.8Z" fill="none" stroke="rgba(18,24,38,0.9)" stroke-width="1.2" stroke-linejoin="round"/>
+    <path d="M1 -0.9L-3.6 -6.8L-5.4 -6.8L-2.6 -1ZM1 0.9L-3.6 6.8L-5.4 6.8L-2.6 1Z" fill="#b9bec6"/>
+    <g fill="#8fd0ef"><path d="M-3.6 -6.8L-5.4 -6.8L-5.1 -6L-3 -6Z"/><path d="M-3.6 6.8L-5.4 6.8L-5.1 6L-3 6Z"/></g>
+    <g fill="#9ea6b2"><path d="M-9.2 -1.6L-10.6 -3L-11.6 -3L-10.8 -1.6Z"/><path d="M-9.2 1.6L-10.6 3L-11.6 3L-10.8 1.6Z"/></g>
+    <path d="M-5.6 -1.25H6.6Q9.2 -1 11.4 0Q9.2 1 6.6 1.25H-5.6Z" fill="#c9ced6"/>
+    <rect x="-5.4" y="-1.05" width="12" height="0.45" fill="rgba(255,255,255,0.6)"/>
+    <rect x="-10.8" y="-1.8" width="4.6" height="3.6" rx="0.3" fill="#a9b3c2" stroke="rgba(18,24,38,0.9)" stroke-width="0.3"/>
+    <g fill="#8a94a4"><rect x="-10.4" y="-1.4" width="0.5" height="2.8"/><rect x="-9.5" y="-1.4" width="0.5" height="2.8"/><rect x="-8.6" y="-1.4" width="0.5" height="2.8"/></g>
+    <rect x="-7.6" y="-0.7" width="1" height="1.4" rx="0.15" fill="#f4f6f8"/>
+    <g fill="#23262b"><rect x="4.4" y="-1.2" width="0.3" height="2.4"/><rect x="5" y="-1.2" width="0.3" height="2.4"/></g>
+    <g fill="#5d6675"><rect x="-4.6" y="-0.12" width="8" height="0.24"/></g>
+    <path d="M7.4 -1.1Q9.4 -0.9 11.4 0Q9.4 0.9 7.4 1.1Z" fill="#e0522e"/>
+    <path d="M-10.8 -0.5L-11.6 0L-10.8 0.5Z" fill="#ffd23f"/>
   </svg>`,
 };
 
 PLANES.thunderbird2 = {
-  // the big green heavy lifter: a fat body, wings swept forward at the back, red legs, and a pod
+  // the big green heavy lifter: a fat teardrop body, stubby wings with yellow stripes, two fins
+  // splayed back to the engine block and its red nozzles, and a pod
   // in its belly with room for two trucks to drive aboard (deck). It lands anywhere (vtol), and
   // the pod takes the heavy stuff too: bulk and fuel
   name: "Thunderbird 2",
@@ -3290,26 +3294,26 @@ PLANES.thunderbird2 = {
   pips: 5,
   vtol: true,
   factoryPaint: true,
-  color: "#3f8f3a",
-  trim: "#f2c14e",
-  art: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-14 -12 28 24">
-    <path d="M-6.4 -2.6L-1.4 -10.6L1 -10.6L-2.2 -2.6ZM-6.4 2.6L-1.4 10.6L1 10.6L-2.2 2.6ZM-9.4 -1.6L-11.8 -4.4L-12.9 -4.4L-12 -1.6ZM-9.4 1.6L-11.8 4.4L-12.9 4.4L-12 1.6ZM-12.2 -3.1H6Q12 -3 13 0Q12 3 6 3.1H-12.2Q-12.8 0 -12.2 -3.1Z" fill="none" stroke="rgba(18,24,38,0.9)" stroke-width="1.2" stroke-linejoin="round"/>
-    <path d="M-6.4 -2.6L-1.4 -10.6L1 -10.6L-2.2 -2.6ZM-6.4 2.6L-1.4 10.6L1 10.6L-2.2 2.6ZM-9.4 -1.6L-11.8 -4.4L-12.9 -4.4L-12 -1.6ZM-9.4 1.6L-11.8 4.4L-12.9 4.4L-12 1.6Z" fill="#357a31"/>
-    <g fill="#d6453a"><rect x="-1.6" y="-10.6" width="2.4" height="0.8"/><rect x="-1.6" y="9.8" width="2.4" height="0.8"/></g>
-    <path d="M-12.2 -3.1H6Q12 -3 13 0Q12 3 6 3.1H-12.2Q-12.8 0 -12.2 -3.1Z" fill="#3f8f3a"/>
-    <rect x="-11.6" y="-2.8" width="20" height="0.5" fill="rgba(255,255,255,0.25)"/>
-    <rect x="-7" y="-2.2" width="9" height="4.4" rx="0.4" fill="#5aa84f" stroke="rgba(18,24,38,0.8)" stroke-width="0.35"/>
-    <g fill="#f2c14e"><path d="M-6.4 -1.6L-5.4 -1.6L-4.2 0L-5.4 1.6L-6.4 1.6L-5.2 0Z"/><path d="M-4.2 -1.6L-3.2 -1.6L-2 0L-3.2 1.6L-4.2 1.6L-3 0Z"/></g>
-    <g fill="#d6453a"><rect x="-9" y="-3.5" width="1.4" height="0.55" rx="0.15"/><rect x="-9" y="2.95" width="1.4" height="0.55" rx="0.15"/><rect x="4" y="-3.5" width="1.4" height="0.55" rx="0.15"/><rect x="4" y="2.95" width="1.4" height="0.55" rx="0.15"/></g>
-    <g fill="#4a4f57"><rect x="-13.2" y="-2.2" width="1.2" height="1.6" rx="0.3"/><rect x="-13.2" y="0.6" width="1.2" height="1.6" rx="0.3"/></g>
-    <path d="M9.6 -1.9Q12 -1.1 12.3 0Q12 1.1 9.6 1.9Q10.4 0 9.6 -1.9Z" fill="#23344f"/>
-    <rect x="10.2" y="-1.2" width="0.7" height="0.5" fill="rgba(170,215,255,0.85)"/>
+  color: "#5b7f37",
+  trim: "#f2d12e",
+  art: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-14 -11 28 22">
+    <path d="M0.6 -4.4L1.6 -9.6L-1.2 -9.6L-3.4 -4.4ZM0.6 4.4L1.6 9.6L-1.2 9.6L-3.4 4.4ZM-6.4 -3.6L-10.6 -5.3L-10.6 -3.4ZM-6.4 3.6L-10.6 5.3L-10.6 3.4Z" fill="#5b7f37" stroke="rgba(18,24,38,0.9)" stroke-width="1" stroke-linejoin="round"/>
+    <g fill="#f2d12e"><rect x="-1" y="-9.2" width="2.4" height="0.3"/><rect x="-0.9" y="-8.6" width="2.3" height="0.3"/><rect x="-1" y="8.9" width="2.4" height="0.3"/><rect x="-0.9" y="8.3" width="2.3" height="0.3"/></g>
+    <rect x="-12" y="-5.6" width="2" height="11.2" rx="0.3" fill="#4a6b2c" stroke="rgba(18,24,38,0.9)" stroke-width="0.6"/>
+    <g fill="#d63a2a" stroke="rgba(18,24,38,0.9)" stroke-width="0.3"><rect x="-13" y="-4" width="1.1" height="2.4" rx="0.3"/><rect x="-13" y="1.6" width="1.1" height="2.4" rx="0.3"/></g>
+    <path d="M12.4 0C12.4 -2.6 9 -5 3.6 -5.2L-6.6 -4.4Q-9.4 -3.6 -9.4 0Q-9.4 3.6 -6.6 4.4L3.6 5.2C9 5 12.4 2.6 12.4 0Z" fill="#5b7f37" stroke="rgba(18,24,38,0.9)" stroke-width="1.1" stroke-linejoin="round"/>
+    <path d="M3.2 -4.9L-6.4 -4.1Q-8.8 -3.4 -8.8 0Q-8.8 3.4 -6.4 4.1L3.2 4.9Z" fill="#6f9445"/>
+    <rect x="3" y="-4.95" width="0.45" height="9.9" fill="#f2d12e"/>
+    <g stroke="#4a6b2c" stroke-width="0.25"><path d="M1.4 -4.6V4.6"/><path d="M-0.6 -4.5V4.5"/><path d="M-2.6 -4.4V4.4"/><path d="M-4.6 -4.2V4.2"/><path d="M-6.6 -3.9V3.9"/></g>
+    <g fill="#9aa1a9" stroke="rgba(18,24,38,0.9)" stroke-width="0.2"><circle cx="-1.2" cy="-3.8" r="0.45"/><circle cx="-1.2" cy="3.8" r="0.45"/></g>
+    <g fill="#23262b"><rect x="10.2" y="-0.75" width="0.3" height="0.4" rx="0.1"/><rect x="10.2" y="0.35" width="0.3" height="0.4" rx="0.1"/><rect x="10.8" y="-0.75" width="0.3" height="0.4" rx="0.1"/><rect x="10.8" y="0.35" width="0.3" height="0.4" rx="0.1"/><rect x="11.4" y="-0.75" width="0.3" height="0.4" rx="0.1"/><rect x="11.4" y="0.35" width="0.3" height="0.4" rx="0.1"/></g>
+    <rect x="5" y="-2.6" width="4.6" height="0.25" fill="rgba(255,255,255,0.2)"/>
   </svg>`,
 };
 
 BOATS.thunderbird4 = {
-  // the little yellow rescue sub: a round hull, a big bubble window at the bow, a searchlight and
-  // a propeller. Quick for its size, with room for a couple of people and a little cargo
+  // the little yellow rescue sub: a bubble canopy and a red band on the nose, a floodlight frame
+  // out front, two side pods with red bands, and a red drive tube with a ribbed nozzle at the back. Quick for its size, with room for a couple of people and a little cargo
   name: "Thunderbird 4",
   short: "TB4",
   level: 9,
@@ -3319,15 +3323,21 @@ BOATS.thunderbird4 = {
   speed: 7.5,
   run: 0.05,
   pips: 3,
-  art: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-4.6 -2 9.2 4">
-    <rect x="-4.5" y="-0.6" width="0.6" height="1.2" rx="0.15" fill="#3a3f47"/>
-    <g fill="#d9a92c" stroke="rgba(18,24,38,0.9)" stroke-width="0.2"><path d="M-3.2 -1.3L-3.9 -1.85L-2.2 -1.4Z"/><path d="M-3.2 1.3L-3.9 1.85L-2.2 1.4Z"/></g>
-    <rect x="-3.9" y="-1.45" width="7.6" height="2.9" rx="1.45" fill="#f2c94c" stroke="rgba(18,24,38,0.9)" stroke-width="0.5"/>
-    <rect x="-3" y="-0.15" width="3.8" height="0.3" fill="#c4952a"/>
-    <rect x="-2.6" y="-0.9" width="1.8" height="0.5" rx="0.2" fill="#e0b43a"/>
-    <ellipse cx="2.1" cy="0" rx="0.95" ry="0.95" fill="#23344f"/>
-    <ellipse cx="2.35" cy="-0.35" rx="0.4" ry="0.22" fill="rgba(170,215,255,0.8)"/>
-    <rect x="3.55" y="-0.3" width="0.3" height="0.6" rx="0.1" fill="#fff3a8"/>
+  art: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-5.8 -2.4 11.6 4.8">
+    <rect x="-5.6" y="-0.55" width="1.2" height="1.1" rx="0.2" fill="#f4d02c" stroke="rgba(18,24,38,0.9)" stroke-width="0.25"/>
+    <g fill="#d9b11f"><rect x="-5.35" y="-0.55" width="0.15" height="1.1"/><rect x="-5.05" y="-0.55" width="0.15" height="1.1"/><rect x="-4.75" y="-0.55" width="0.15" height="1.1"/></g>
+    <rect x="-4.5" y="-0.35" width="2.6" height="0.7" fill="#d63a2a" stroke="rgba(18,24,38,0.9)" stroke-width="0.2"/>
+    <g stroke="rgba(18,24,38,0.9)" stroke-width="0.35"><rect x="-3.4" y="-2.1" width="3.8" height="1.2" rx="0.6" fill="#f4d02c"/><rect x="-3.4" y="0.9" width="3.8" height="1.2" rx="0.6" fill="#f4d02c"/></g>
+    <g fill="#d63a2a"><rect x="-0.9" y="-2.05" width="0.45" height="1.1"/><rect x="-0.9" y="0.95" width="0.45" height="1.1"/></g>
+    <g fill="#3a3f47"><rect x="-3.55" y="-1.85" width="0.3" height="0.7"/><rect x="-3.55" y="1.15" width="0.3" height="0.7"/></g>
+    <path d="M-2.4 -1H2.2Q4 -1 4 0Q4 1 2.2 1H-2.4Z" fill="#f4d02c" stroke="rgba(18,24,38,0.9)" stroke-width="0.45" stroke-linejoin="round"/>
+    <rect x="-3.2" y="-0.14" width="2.6" height="0.28" fill="#d9b11f" stroke="rgba(18,24,38,0.9)" stroke-width="0.12"/>
+    <rect x="2.55" y="-1" width="0.4" height="2" fill="#d63a2a"/>
+    <ellipse cx="1.2" cy="0" rx="0.95" ry="0.8" fill="#23344f"/>
+    <ellipse cx="1.4" cy="-0.3" rx="0.45" ry="0.22" fill="rgba(170,215,255,0.8)"/>
+    <path d="M3.5 -0.6L4.6 -0.9M3.5 0.6L4.6 0.9" stroke="#d9b11f" stroke-width="0.25"/>
+    <rect x="4.5" y="-1.2" width="0.6" height="2.4" rx="0.15" fill="#f4d02c" stroke="rgba(18,24,38,0.9)" stroke-width="0.25"/>
+    <rect x="4.7" y="-0.95" width="0.25" height="1.9" fill="#fff8d0"/>
   </svg>`,
 };
 
