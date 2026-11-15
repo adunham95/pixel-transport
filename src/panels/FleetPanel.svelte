@@ -253,7 +253,7 @@
   <div class="footer">
     {#if v.city}
       {#if v.held}<button class="btn primary" onclick={() => continueRoute(v)}>Continue to {cityById[v.held.stops[0]].name}</button>{/if}
-      {#if isIdle(v)}<button class="btn primary" onclick={() => quickSend(v) || toast(`Nothing at ${cityById[v.city].name} that ${v.name} can take`)}>Quick send</button>{/if}
+      {#if isIdle(v) && !v.held}<button class="btn primary" onclick={() => quickSend(v) || toast(`Nothing at ${cityById[v.city].name} that ${v.name} can take`)}>Quick send</button>{/if}
       <button class="btn" class:primary={!isIdle(v) && !v.held} onclick={() => openLoad(v)}>{escortKind(v) ? 'Move' : 'Load'} at {cityById[v.city].name}</button>
     {:else if escortee(v)}
       <button class="btn primary" onclick={() => followVehicle(escortee(v))}>Follow {escortee(v).name}</button>

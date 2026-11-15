@@ -131,7 +131,7 @@
 </script>
 
 <!-- planning a route goes back to loading; loading goes back to the town (escorts skip loading) -->
-<NavHeader title={v.name} sub={ui.picking ? `Plan a route from ${city.name}` : `Loading at ${city.name}`}
+<NavHeader title={v.name} sub={ui.picking ? `Plan a route from ${city.name}` : v.held ? `Loading at ${city.name} › ${v.held.stops.map((id) => cityById[id].name).join(' › ')}` : `Loading at ${city.name}`}
   back={ui.picking && !escortKind(v) ? 'Load' : city.name}
   onback={ui.picking ? back : leave} />
 {#if ui.queue}
@@ -298,19 +298,22 @@
       </ol>
       <div class="chips">
         <button class="btn small ghost" onclick={() => abandonRoute(v)}>Abandon route</button>
-        <button class="btn small primary" disabled={!heldLeg || game.coins < (heldLeg?.cost ?? 0)} onclick={carryOn}>{heldLeg ? `Continue to ${cityById[heldNext].name}, $${fmt(heldLeg.cost)}` : `Can’t reach ${cityById[heldNext].name}`}</button>
       </div>
     </div>
   {/if}
-  <div class="footer">
+  <!-- stopped on a route: carrying on is the main thing to do, on its own row above the rest -->
+  <div class="footer" class:held-foot={v.held}>
+    {#if v.held}<button class="btn primary next" disabled={!heldLeg || game.coins < (heldLeg?.cost ?? 0)} onclick={carryOn}>{heldLeg ? `Continue to ${cityById[heldNext].name}, $${fmt(heldLeg.cost)}` : `Can’t reach ${cityById[heldNext].name}`}</button>{/if}
     <button class="btn" onclick={() => autoLoad(v, only)}>Auto load{only ? ` ${TYPE_LABEL[only].toLowerCase()}` : ''}</button>
     {#if v.cargo.length}<button class="btn" onclick={plan}>Route cargo</button>{/if}
-    <button class="btn primary" onclick={() => { ui.plan = []; ui.picking = true; }}>Plan route</button>
+    <button class="btn" class:primary={!v.held} onclick={() => { ui.plan = []; ui.picking = true; }}>Plan route</button>
   </div>
 {/if}
 
 <style>
   .repeat { cursor: pointer; }
+  .held-foot { flex-wrap: wrap; }
+  .held-foot .next { flex-basis: 100%; }
   .held { display: flex; flex-direction: column; gap: 8px; margin: 10px 0; padding: 10px 12px; background: var(--panel-3); border-radius: var(--r); border-left: 3px solid var(--accent); }
   .held .grow { display: flex; flex-direction: column; }
   .held .chips { display: flex; flex-wrap: wrap; gap: 6px; }

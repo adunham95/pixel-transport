@@ -1471,14 +1471,16 @@ export function openLoad(v) {
 
 // parked in town with nothing to do: not repeating, not an escort, which only moves with a convoy
 // or to a breakdown, not a superload carrier or aircraft carrier, which never take everyday jobs,
-// and not self-driving with auto dispatch on, which finds its own work
-export const isIdle = (v) => !!v.city && !v.trip && !v.loop && !v.held && !escortKind(v) && !spec(v).superload && !isCarrier(v.model) && !(spec(v).auto && game.hqAuto);
+// and not self-driving with auto dispatch on, which finds its own work. One stopped partway along
+// a route (v.held) counts too: it's waiting on you to Continue it
+export const isIdle = (v) => !!v.city && !v.trip && !v.loop && !escortKind(v) && !spec(v).superload && !isCarrier(v.model) && !(spec(v).auto && game.hqAuto);
 export const idleVehicles = () => game.vehicles.filter(isIdle);
 
 // load the best paying jobs it can deliver and set off on the nearest-first route, all in one go.
-// False if there was nothing to take, or it couldn't leave. Superload carriers wait for their convoy.
+// False if there was nothing to take, or it couldn't leave. Superload carriers wait for their convoy,
+// and one stopped on a route waits to be continued.
 export function quickSend(v) {
-  if (!isIdle(v) || spec(v).superload || spec(v).auto) return false;
+  if (!isIdle(v) || v.held || spec(v).superload || spec(v).auto) return false;
   const was = quiet;
   quiet = true;
   try {
@@ -1488,7 +1490,7 @@ export function quickSend(v) {
   } finally { quiet = was; }
 }
 export function quickSendAll() {
-  const idle = idleVehicles(), sent = idle.filter(quickSend).length, stuck = idle.length - sent;
+  const idle = idleVehicles().filter((v) => !v.held), sent = idle.filter(quickSend).length, stuck = idle.length - sent;
   toast(sent ? `Sent ${sent} vehicle${sent > 1 ? 's' : ''}${stuck ? `. ${stuck} had nothing to take` : ''}` : 'Nothing for the idle vehicles to take right now', sent ? 'good' : 'info');
 }
 
@@ -2578,7 +2580,8 @@ function scanProblems(now) {
     if (!v.held || !v.city || v.idleAt == null || now - v.idleAt < INBOX.held) continue;
     add({ key: `held:${v.id}`, sev: 'info', icon: 'pause', title: `${v.name} is waiting at ${name(v.city)}`, text: `Stopped on its route. Next ${name(v.held.stops[0])}`, go: { tab: 'city', city: v.city, load: v.id }, act: { label: 'Continue', kind: 'continue', id: v.id } });
   }
-  const idle = game.vehicles.filter((v) => isIdle(v) && v.idleAt != null && now - v.idleAt >= INBOX.idle);
+  // one stopped on a route has its own problem above
+  const idle = game.vehicles.filter((v) => isIdle(v) && !v.held && v.idleAt != null && now - v.idleAt >= INBOX.idle);
   if (idle.length >= 3) add({ key: `idle:${idle.map((v) => v.id).sort().join(',')}`, sev: 'info', icon: 'clock', title: `${idle.length} vehicles sitting idle`, text: idle.slice(0, 3).map((v) => v.name).join(', ') + (idle.length > 3 ? ` and ${idle.length - 3} more` : ''), go: { tab: 'fleet', status: 'idle' }, act: { label: 'Send all', kind: 'sendAll' } });
   else for (const v of idle) add({ key: `idle:${v.id}`, sev: 'info', icon: 'clock', title: `${v.name} is idle`, text: `Parked at ${name(v.city)} for ${fmtTime((now - v.idleAt) / 1000)}`, go: { tab: 'fleet', vehicle: v.id }, act: { label: 'Quick send', kind: 'send', id: v.id } });
   // a dismissed problem comes back once it's cleared up and turned up again
@@ -2591,7 +2594,7 @@ function scanProblems(now) {
 // every so often, what's in the inbox
 function tickInbox(now) {
   for (const v of game.vehicles) {
-    if ((isIdle(v) || (v.held && v.city && !v.trip))) v.idleAt ??= now;
+    if (isIdle(v)) v.idleAt ??= now;
     else if (v.idleAt != null) delete v.idleAt;
   }
   if (now - scannedAt < INBOX.every && now >= scannedAt) return;
