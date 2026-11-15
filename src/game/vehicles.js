@@ -2579,6 +2579,24 @@ export const TRAILERS = {
       <g fill="#c9ced4"><rect x="-2.2" y="-1.3" width="0.25" height="2.6"/><rect x="-0.6" y="-1.3" width="0.25" height="2.6"/><rect x="1" y="-1.3" width="0.25" height="2.6"/></g>
     </svg>`,
   },
+  mail: {
+    // a blue box trailer with the mail stripe, for the Semi from level 2
+    name: "Mail trailer",
+    short: "Mail",
+    level: 2,
+    price: 200,
+    holds: "mail",
+    cap: 4,
+    deck: 2,
+    color: "#2a6fd6",
+    art: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-4 -1.9 8 3.8">
+      <rect x="-3.7" y="-1.6" width="7.4" height="3.2" rx="0.3" fill="#2a6fd6" stroke="rgba(18,24,38,0.9)" stroke-width="0.6"/>
+      <rect x="-3.4" y="-1.3" width="6.8" height="0.4" fill="#5d8fe0"/>
+      <rect x="-3.4" y="-0.35" width="6.8" height="0.7" fill="#f4f6f8"/>
+      <rect x="-3.4" y="-0.1" width="6.8" height="0.2" fill="#d6453a"/>
+      <g fill="#1d4f9c"><rect x="-2.2" y="0.5" width="0.25" height="0.8"/><rect x="-0.6" y="0.5" width="0.25" height="0.8"/><rect x="1" y="0.5" width="0.25" height="0.8"/></g>
+    </svg>`,
+  },
   dump: {
     name: "Dump trailer",
     short: "Dump",

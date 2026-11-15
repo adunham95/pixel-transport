@@ -1,5 +1,5 @@
 <script>
-  import { game, ui, cityById, isOpen, spec, consistOf, paintOf, createRoute, deleteRoute, routeIds, renameRoute, addRouteStop, removeRouteStop, moveRouteStop, STOP_MODES, stopMode, setStopMode, routeModes, routeProblem, routeVehicles, assignRoute, stopRepeating, selectCity, routeReport, resetRouteStats, requestService, setRoutePaused, setAutoService, wear, fmt, fmtTime, clock } from '../game/game.svelte.js';
+  import { game, ui, cityById, isOpen, spec, consistOf, paintOf, createRoute, deleteRoute, routeIds, renameRoute, addRouteStop, removeRouteStop, moveRouteStop, STOP_MODES, stopMode, setStopMode, routeModes, routeProblem, routeVehicles, assignRoute, stopRepeating, selectCity, routeReport, resetRouteStats, requestService, setRoutePaused, setAutoService, setRouteBack, wear, fmt, fmtTime, clock } from '../game/game.svelte.js';
   import { CITIES, HQ } from '../game/data.js';
   import Sprite from '../ui/Sprite.svelte';
   import Icon from '../ui/Icon.svelte';
@@ -20,6 +20,8 @@
     return v.trip ? `To ${cityById[v.trip.to].name}` : '';
   }
   const chain = (r) => { const ids = routeIds(r); return ids.length ? ids.map((id) => cityById[id].name).join(' → ') + (ids.length > 1 ? ' ↻' : '') : 'No stops yet'; };
+  // the stops it goes back through, last to first, on a route with back set
+  const backThrough = (r) => r.back ? routeIds({ ...r, back: false }).slice(1, -1).reverse() : [];
   // the last stop is the same town as the first, so it's skipped until another stop goes after it
   const loopsBack = (r, i) => i > 0 && i === r.stops.length - 1 && r.stops[i].city === r.stops[0].city;
   const visits = (r, id) => r.stops.filter((s) => s.city === id).length;
@@ -67,6 +69,10 @@
       <input class="switch" type="checkbox" checked={!r.paused} onchange={(e) => setRoutePaused(r, !e.currentTarget.checked)} />
     </label>
     <label class="row">
+      <span class="grow"><b>Go back through the stops</b><small>{r.back ? 'At the last stop it turns round and visits them in reverse' : 'From the last stop it heads straight back to the first'}</small></span>
+      <input class="switch" type="checkbox" checked={!!r.back} onchange={(e) => setRouteBack(r, e.currentTarget.checked)} />
+    </label>
+    <label class="row">
       <span class="grow"><b>Service worn vehicles</b><small>At the end of a lap, at a depot if cheaper</small></span>
       <input class="switch" type="checkbox" checked={!!r.autoService} onchange={(e) => setAutoService(r, e.currentTarget.checked)} />
     </label>
@@ -96,7 +102,7 @@
         </li>
       {/each}
       {#if routeIds(r).length > 1}
-        <li class="row back"><span class="num">↻</span><span class="grow"><small>Back to {cityById[r.stops[0].city].name}, then round again</small></span></li>
+        <li class="row back"><span class="num">↻</span><span class="grow"><small>{backThrough(r).length ? `Back through ${backThrough(r).map((id) => cityById[id].name).join(', ')} to ${cityById[r.stops[0].city].name}, then round again` : `Back to ${cityById[r.stops[0].city].name}, then round again`}</small></span></li>
       {/if}
     </ol>
   {/if}

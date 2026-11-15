@@ -1,5 +1,5 @@
 <script>
-  import { game, ui, cityById, capacity, endRoute, addCar, removeCar, canRemoveCar, upgradeEngine, upgradeCost, canRefit, sellVehicle, sellValue, openLoad, followVehicle, etaText, fmt, stopRepeating, spec, tailSpecs, tailName, aboard, carrierOf, deckUsed, deckRoom, deckFor, finances, clock, wear, service, serviceCost, sendToService, canSendService, depotFor, escortee, consistOf, paintOf, paintFor, isIdle, idleVehicles, quickSend, quickSendAll, startQueue, toast, brokenVehicles, sendHelp, callRoadside, calloutCost, stillNeeded, escortText, renameVehicle, escortKind, assignRoute, routeById, tripInfo, continueRoute, abandonRoute } from '../game/game.svelte.js';
+  import { game, ui, cityById, capacity, endRoute, addCar, removeCar, canRemoveCar, upgradeEngine, upgradeCost, canRefit, sellVehicle, sellValue, openLoad, followVehicle, etaText, fmt, stopRepeating, spec, tailSpecs, tailName, aboard, carrierOf, deckUsed, deckRoom, deckFor, finances, clock, wear, service, serviceCost, sendToService, canSendService, depotFor, escortee, consistOf, paintOf, paintFor, isIdle, idleVehicles, quickSend, quickSendAll, startQueue, toast, brokenVehicles, sendHelp, callRoadside, calloutCost, stillNeeded, escortText, renameVehicle, escortKind, assignRoute, routeById, tripInfo, fmtShort, continueRoute, abandonRoute } from '../game/game.svelte.js';
   import { ENGINES, TRUCKS, BOATS, PLANES, MI, JOB_TYPES, ESCORT_LABEL } from '../game/data.js';
   import Sprite from '../ui/Sprite.svelte';
   import LoadBadges from '../ui/LoadBadges.svelte';
@@ -10,7 +10,7 @@
   const LEADS = { train: ENGINES, truck: TRUCKS, boat: BOATS };
   // is the upgrade list dropped down on the vehicle screen
   let upgrading = $state(false);
-  const money = (n) => `${n < 0 ? '−' : ''}$${fmt(Math.abs(n))}`;
+  const money = (n) => `${n < 0 ? '−' : ''}$${fmtShort(Math.abs(n))}`;
   // the whole fleet's takings, for the summary up top
   const books = $derived(game.vehicles.map((v) => finances(v, clock.now)));
   const bookOf = $derived(Object.fromEntries(game.vehicles.map((v, i) => [v.id, books[i]])));

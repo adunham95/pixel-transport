@@ -120,7 +120,8 @@
   });
   function carryOn() {
     if (!continueRoute(v)) return;
-    ui.activeVehicle = null;
+    ui.picking = false; ui.activeVehicle = null; ui.plan = [];
+    nextInQueue();
   }
   function leave() { ui.activeVehicle = null; ui.picking = false; ui.plan = []; ui.queue = null; }
   function go() {

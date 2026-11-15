@@ -106,6 +106,7 @@
       return;
     }
     if (ui.tab === t && ui.sheetOpen && !wide) { ui.sheetOpen = false; return; }
+    if (t === 'fleet' && ui.tab !== 'fleet') Object.assign(ui, { focusVehicle: null, fleetStatus: null, fleetKind: null, fleetFind: '' });
     ui.tab = t;
     ui.sheetOpen = true;
   }

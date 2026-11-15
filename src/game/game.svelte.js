@@ -457,6 +457,16 @@ export function toast(text, kind = 'info') {
 }
 
 export const fmt = (n) => Math.round(n).toLocaleString('en-US');
+// money shortened for tight spots: 950, 3.1K, 31K, 1.2M, 4.5B
+export function fmtShort(n) {
+  const a = Math.abs(n);
+  // from just under a million it's 1M, not 1000K
+  for (const [d, u] of [[1e9, 'B'], [1e6, 'M'], [1e3, 'K']]) if (a >= d * (u === 'K' ? 1 : 0.9995)) {
+    const x = a / d;
+    return `${n < 0 ? '-' : ''}${x < 10 ? +x.toFixed(1) : Math.round(x)}${u}`;
+  }
+  return fmt(n);
+}
 export function fmtTime(s) {
   s = Math.max(0, Math.ceil(s));
   if (s < 60) return `${s}s`;
@@ -1877,9 +1887,11 @@ function runLoop(v, at) {
 
 // the towns a route stops at in order. A town can come up more than once, just not twice in a
 // row: a repeat straight after itself, or a last stop that's the same as the first, is skipped.
+// A route with back set goes back through its stops the other way: A, B, C, D, C, B, then A again.
 export function routeIds(r) {
   const ids = r.stops.map((s) => s.city).filter((id, i, a) => i === 0 || id !== a[i - 1]);
   while (ids.length > 1 && ids[0] === ids[ids.length - 1]) ids.pop();
+  if (r.back && ids.length > 2) ids.push(...ids.slice(1, -1).reverse());
   return ids;
 }
 
@@ -2072,6 +2084,9 @@ export function setRoutePaused(r, paused) {
 }
 
 export function setAutoService(r, on) { r.autoService = on; }
+
+// vehicles on it pick this up at the start of their next lap (see runLoop)
+export function setRouteBack(r, on) { r.back = on; }
 
 export function resetRouteStats(r) {
   r.stats = newStats();
