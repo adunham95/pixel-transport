@@ -1,6 +1,6 @@
 <script>
-  import { game, ui, cityById, capacity, endRoute, addCar, removeCar, canRemoveCar, upgradeEngine, upgradeCost, canRefit, sellVehicle, sellValue, openLoad, followVehicle, etaText, fmt, stopRepeating, spec, tailSpecs, tailName, aboard, carrierOf, deckUsed, deckRoom, deckFor, finances, clock, wear, service, serviceCost, sendToService, canSendService, depotFor, escortee, consistOf, paintOf, paintFor, isIdle, idleVehicles, quickSend, quickSendAll, startQueue, toast, brokenVehicles, sendHelp, callRoadside, calloutCost, stillNeeded, escortText, renameVehicle, escortKind, assignRoute, routeById, tripInfo, fmtShort, continueRoute, abandonRoute } from '../game/game.svelte.js';
-  import { ENGINES, TRUCKS, BOATS, PLANES, MI, JOB_TYPES, ESCORT_LABEL } from '../game/data.js';
+  import { game, ui, cityById, capacity, endRoute, addCar, removeCar, canRemoveCar, upgradeEngine, upgradeCost, canRefit, sellVehicle, sellValue, openLoad, followVehicle, etaText, fmt, stopRepeating, spec, tailSpecs, tailName, aboard, carrierOf, deckUsed, deckRoom, deckFor, finances, clock, wear, service, serviceCost, sendToService, canSendService, depotFor, escortee, consistOf, paintOf, paintFor, isIdle, idleVehicles, quickSend, quickSendAll, startQueue, toast, brokenVehicles, sendHelp, callRoadside, calloutCost, stillNeeded, escortText, renameVehicle, escortKind, assignRoute, routeById, tripInfo, fmtShort, rescuesFor, sendToRescue, continueRoute, abandonRoute } from '../game/game.svelte.js';
+  import { ENGINES, TRUCKS, BOATS, PLANES, MI, JOB_TYPES, ESCORT_LABEL, RESCUE } from '../game/data.js';
   import Sprite from '../ui/Sprite.svelte';
   import LoadBadges from '../ui/LoadBadges.svelte';
   import Icon from '../ui/Icon.svelte';
@@ -239,6 +239,15 @@
       </label>
     {/if}
   </div>
+
+  <!-- rescues it could help with right now -->
+  {#each rescuesFor(v) as inc (inc.id)}
+    <div class="alert bad">
+      <span class="ai"><Icon name="alert" size={18} /></span>
+      <span class="grow"><b>{RESCUE.kinds[inc.kind].name} at {cityById[inc.city].name}</b><small>{v.name} can help. Pays ${fmt(RESCUE.kinds[inc.kind].pay)} once everyone needed is there.</small></span>
+      <div class="btns"><button class="btn small primary" onclick={() => sendToRescue(v, inc)}>Send to {cityById[inc.city].name}</button></div>
+    </div>
+  {/each}
 
   <!-- things that end what it's doing, or let it go, kept apart from everyday actions -->
   {#if v.loop || v.city || v.held || (v.trip && v.next?.length && !v.loop)}

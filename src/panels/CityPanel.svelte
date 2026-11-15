@@ -1,6 +1,6 @@
 <script>
-  import { game, ui, cityById, etaText, fmtTime, clock, followVehicle, isOpen, connections, unlockPrice, unlockCity, carrierAt, fmt, townSize, sizeName, growthOf, buyDepot, fetcher, consistOf, paintOf, buildHQ, hqPrice, mixOf, projectTowns, landmarkAt, cantHost, escortKind } from '../game/game.svelte.js';
-  import { CITY_PRICE, DEPOT, HQ, TYPE_LABEL, PROJECTS, CONTINENTS } from '../game/data.js';
+  import { game, ui, cityById, etaText, fmtTime, clock, followVehicle, isOpen, connections, unlockPrice, unlockCity, carrierAt, fmt, townSize, sizeName, growthOf, buyDepot, fetcher, consistOf, paintOf, buildHQ, hqPrice, mixOf, projectTowns, landmarkAt, cantHost, escortKind, rescueAt, rescueStatus, rolesText, sendRescue, rescueCandidates, sendToRescue } from '../game/game.svelte.js';
+  import { CITY_PRICE, DEPOT, HQ, TYPE_LABEL, PROJECTS, CONTINENTS, RESCUE } from '../game/data.js';
   import ProjectCard from '../ui/ProjectCard.svelte';
   import Icon from '../ui/Icon.svelte';
   import Sprite from '../ui/Sprite.svelte';
@@ -24,6 +24,10 @@
     return [{ v, at: t, later: i + 1, pick: v.next[i].pick != null }];
   }).sort((a, b) => a.at - b.at));
   const jobs = $derived([...(game.jobs[c.id] ?? [])].sort((a, b) => b.pay - a.pay));
+  // a rescue going on here, and who's covering it
+  const rescue = $derived(rescueAt(c.id));
+  const rst = $derived(rescue ? rescueStatus(rescue) : null);
+  let showAllCands = $state(false);
   const active = $derived(game.vehicles.find((v) => v.id === ui.activeVehicle && v.city === c.id));
   const sending = $derived(jobs.find((j) => j.id === ui.sendJob && !fetcher(j)));
   // megaprojects here: the ones started (a bridge ending here, the landmark going up here), and
@@ -72,6 +76,37 @@
       <button class="btn primary" disabled={game.coins < unlockPrice(c)} onclick={() => unlockCity(c.id)}>Unlock for ${fmt(unlockPrice(c))}</button>
     </div>
   {:else}
+  {#if rescue && rst}
+    {@const k = RESCUE.kinds[rescue.kind]}
+    <div class="alert bad rescue">
+      <span class="ai"><Icon name="alert" size={18} /></span>
+      <span class="grow">
+        <b>{k.name}</b>
+        <small>Needs {rolesText(k.needs)} parked here. {fmtTime((rescue.until - clock.now) / 1000)} left. Pays ${fmt(k.pay)}.</small>
+        {#if rst.here.length || rst.coming.length}<small>{rst.here.length ? `Here: ${rst.here.map((v) => v.name).join(', ')}. ` : ''}{rst.coming.length ? `On the way: ${rst.coming.map((v) => v.name).join(', ')}.` : ''}</small>{/if}
+        {#if k.needs.includes('air')}<small>A rescue aircraft is a helicopter or any plane that lands anywhere.</small>{/if}
+      </span>
+      {#if rst.missing.length}
+        {@const cands = rescueCandidates(rescue)}
+        {#if cands.length}
+          <div class="btns"><button class="btn small primary" onclick={() => sendRescue(rescue)}>Send the nearest</button></div>
+          <ul class="cands">
+            {#each cands.slice(0, showAllCands ? cands.length : 4) as o (o.v.id)}
+              {@const late = clock.now + o.l.time * 1000 > rescue.until}
+              <li class:late>
+                <span class="pv"><Sprite kind={o.v.kind} model={o.v.model} cars={consistOf(o.v)} scale={2} paint={paintOf(o.v)} /></span>
+                <span class="grow"><b>{o.v.name}</b><small>{late ? 'Too far to make it in time · ' : ''}As {RESCUE.roles[o.role][0]} · from {cityById[o.v.city].name} · {fmtTime(o.l.time)} · ${fmt(o.l.cost)}{o.v.cargo.length ? ` · ${o.v.cargo.length} on board` : ''}</small></span>
+                <button class="btn small" disabled={game.coins < o.l.cost} onclick={() => sendToRescue(o.v, rescue)}>Send</button>
+              </li>
+            {/each}
+          </ul>
+          {#if cands.length > 4}<button class="link more" onclick={() => (showAllCands = !showAllCands)}>{showAllCands ? 'Fewer' : `All ${cands.length} that can go`}</button>{/if}
+        {:else}
+          <small class="none">Nothing free can get here right now. Park {rolesText(rst.missing)} somewhere it can drive, sail or fly from, or take one off its route.</small>
+        {/if}
+      {/if}
+    </div>
+  {/if}
   {#if !c.anchor}
     {@const gr = growthOf(c.id)}
     <div class="grow-card">
@@ -163,6 +198,21 @@
 
 <style>
   .region { display: inline-flex; align-items: center; gap: 4px; margin: -4px 0 2px; font-size: 13px; color: var(--ink-soft); }
+  .rescue { margin-top: 10px; }
+  .rescue .grow { display: flex; flex-direction: column; gap: 2px; }
+  /* min-width 0 all the way down, so a long line wraps inside the card rather than pushing Send off it */
+  .cands { flex: 1 0 100%; min-width: 0; margin: 0; padding: 0 0 0 28px; list-style: none; display: flex; flex-direction: column; gap: 4px; }
+  .cands li { display: flex; align-items: center; gap: 8px; min-width: 0; padding: 6px 8px; border-radius: 10px; background: var(--panel); }
+  .cands li .btn { flex: none; }
+  .cands .pv { flex: none; display: grid; place-items: center; width: 40px; height: 28px; overflow: hidden; }
+  .cands .grow { flex: 1; min-width: 0; }
+  .cands b { font-size: 13px; }
+  .cands .late { opacity: .6; }
+  .cands .late small { color: var(--bad); }
+  .cands b { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .cands small { font-size: 12px; line-height: 1.35; overflow-wrap: anywhere; }
+  .rescue .more { padding-left: 28px; font-size: 13px; }
+  .rescue .none { flex: 1 0 100%; padding-left: 28px; color: var(--ink-soft); }
   .grow-card { margin-top: 10px; padding: 10px 12px; background: var(--panel-3); border-radius: var(--r); display: flex; flex-direction: column; gap: 6px; }
   .gline { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
   .gline small { color: var(--ink-soft); font-size: 12px; }

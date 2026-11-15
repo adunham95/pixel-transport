@@ -729,6 +729,12 @@
         if (marked(v)) marker(x, y - lift - 18);
       }
       for (const w of game.weather ?? []) drawWeather(w, gnow, now);
+      // a blinking warning sign over a town with a rescue going on (see RESCUE in data.js)
+      for (const inc of game.rescues ?? []) {
+        const c = cityById[inc.city], x = c.x * R, y = c.y * R - 14;
+        hazard(x, y, now);
+        if (dk) lights.push(() => lamp([x, y - 2], '255,90,60', 0.9));
+      }
       if (dk) {
         b.globalCompositeOperation = 'multiply';
         b.fillStyle = tint(dk); b.fillRect(cx, cy, bw, bh);

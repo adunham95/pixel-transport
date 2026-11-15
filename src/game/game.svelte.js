@@ -1,4 +1,4 @@
-import { SCALE, CITIES, RAILS, ROADS, ROAD_OFF, LANE, roadSide, ENGINES, CARS, PLANES, BOATS, BARGES, TRUCKS, TRAILERS, LEVELS, RATES, SPEED, CITY_PRICE, START_CITIES, JOB_TYPES, MAGLEV_LINES, HQ, WEAR, MAIL, WIDE, CONTAINER, SECURE, GROWTH, SIZE_NAME, DEPOT, TYPE_LABEL, CONTRACTS, SUPERLOAD, ESCORT_LABEL, BREAKDOWN, PROTOTYPE, CELEB, TOURISTS, PROJECTS, CONTINENTS, LUCKY, WEATHER, USED } from './data.js';
+import { SCALE, CITIES, RAILS, ROADS, ROAD_OFF, LANE, roadSide, ENGINES, CARS, PLANES, BOATS, BARGES, TRUCKS, TRAILERS, LEVELS, RATES, SPEED, CITY_PRICE, START_CITIES, JOB_TYPES, MAGLEV_LINES, HQ, WEAR, MAIL, WIDE, CONTAINER, SECURE, GROWTH, SIZE_NAME, DEPOT, TYPE_LABEL, CONTRACTS, SUPERLOAD, ESCORT_LABEL, BREAKDOWN, PROTOTYPE, CELEB, TOURISTS, PROJECTS, CONTINENTS, LUCKY, WEATHER, USED, RESCUE } from './data.js';
 import { seaLane } from '../map/sea.js';
 
 const KEY = 'pixel-transport-save-v1';
@@ -350,7 +350,7 @@ function newVehicle(g, kind, model, city, cars) {
 
 function fresh() {
   const now = Date.now();
-  const g = { v: 1, coins: 600, xp: 0, level: 1, nextId: 1, selected: 'frost', vehicles: [], jobs: {}, spawnAt: {}, growth: {}, depots: {}, hqContracts: 0, hqSuperloads: 0, contracts: { offers: [], active: [], nextAt: 0 }, projects: {}, routes: [], scale: SCALE, saved: now };
+  const g = { v: 1, coins: 600, xp: 0, level: 1, nextId: 1, selected: 'frost', vehicles: [], jobs: {}, spawnAt: {}, growth: {}, depots: {}, hqContracts: 0, hqSuperloads: 0, contracts: { offers: [], active: [], nextAt: 0 }, projects: {}, routes: [], rescues: [], scale: SCALE, saved: now };
   g.unlocked = Object.fromEntries(START_CITIES.map((id) => [id, true]));
   g.vehicles.push(newVehicle(g, 'train', 'puffer', 'frost', ['pax', 'box']));
   g.vehicles.push(newVehicle(g, 'plane', 'sparrow', 'frost'));
@@ -386,6 +386,7 @@ function load() {
     g.contracts ??= { offers: [], active: [], nextAt: 0 };
     g.projects ??= {};
     g.routes ??= [];
+    g.rescues ??= [];
     // saves from before the map was spread out: stretch anything on the move, and the weather, to match
     const k = SCALE / (g.scale ?? 1);
     if (k !== 1) {
@@ -729,6 +730,208 @@ export function callRoadside(v) {
   toast(`The roadside service is on its way to ${v.name}`, 'good');
 }
 export const brokenVehicles = () => game.vehicles.filter((v) => v.broken);
+
+// ---------- rescues ----------
+// see RESCUE in data.js. Each one is { id, kind, city, until (game time), boosted (Thunderbird 1
+// has been) }; a vehicle sent to one by sendRescue carries its id in v.respond until it gets there.
+
+// which vehicles can do each job at a rescue: escorts by their kind (a tugboat only when it's
+// empty), an aircraft that lands anywhere (not a balloon or a drone), and Thunderbird 4 for a sub
+const RESCUE_ROLE = {
+  tow: (v) => escortAs(v) === 'tow',
+  police: (v) => escortAs(v) === 'police',
+  fire: (v) => escortAs(v) === 'fire',
+  tug: (v) => escortAs(v) === 'tug',
+  fireboat: (v) => escortAs(v) === 'fireboat',
+  air: (v) => v.kind === 'plane' && !!PLANES[v.model].vtol && !PLANES[v.model].balloon && !PLANES[v.model].auto,
+  sub: (v) => v.model === 'thunderbird4',
+};
+// Thunderbird 2 brings gear in its pod for anything but a sub
+const standsIn = (v) => v.model === 'thunderbird2';
+const fills = (v, role) => RESCUE_ROLE[role](v) || (role !== 'sub' && standsIn(v));
+// match responders to the roles needed, each vehicle once: the ones built for a role first, so a
+// Thunderbird 2 is kept for whatever's left. Returns the vehicles used and the roles still missing.
+function matchRoles(needs, pool) {
+  const left = [...pool], got = [], missing = [];
+  for (const r of needs) {
+    const i = left.findIndex((v) => RESCUE_ROLE[r](v) && !standsIn(v));
+    if (i >= 0) got.push(left.splice(i, 1)[0]); else missing.push(r);
+  }
+  for (const r of [...missing]) {
+    const i = left.findIndex((v) => fills(v, r));
+    if (i >= 0) { got.push(left.splice(i, 1)[0]); missing.splice(missing.indexOf(r), 1); }
+  }
+  return { got, missing };
+}
+// "a tow truck and 2 rescue aircraft"
+export function rolesText(roles) {
+  const n = {};
+  for (const r of roles) n[r] = (n[r] ?? 0) + 1;
+  const parts = Object.entries(n).map(([r, k]) => (k > 1 ? `${k} ${RESCUE.roles[r][1]}` : `a ${RESCUE.roles[r][0]}`));
+  return parts.length > 1 ? `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]}` : parts[0] ?? '';
+}
+// parked at a town and free to help: not running a route, broken down or riding aboard something
+const onScene = (id) => game.vehicles.filter((v) => v.city === id && !v.trip && !v.loop && v.aboard == null && !v.broken);
+// could this vehicle ever go out on a rescue: not a superload or an aircraft carrier, nothing aboard
+// that needs a convoy, and not riding aboard another vehicle
+const canRespond = (v) => !spec(v).superload && !isCarrier(v.model) && v.aboard == null && !v.cargo.some((j) => j.escort) && Object.keys(RESCUE_ROLE).some((r) => fills(v, r));
+// where a vehicle is, or will be once this leg is done
+const whereAt = (v) => v.city ?? v.trip?.to ?? null;
+
+export const rescueAt = (id) => (game.rescues ?? []).find((r) => r.city === id) ?? null;
+// what a rescue still needs: who's there already, who's on the way, and the roles nobody covers yet
+export function rescueStatus(inc) {
+  const k = RESCUE.kinds[inc.kind], here = onScene(inc.city);
+  const coming = game.vehicles.filter((v) => v.respond === inc.id && v.trip);
+  const now = matchRoles(k.needs, here), all = matchRoles(k.needs, [...here, ...coming]);
+  return { here: now.got, coming: all.got.filter((v) => !now.got.includes(v)), missing: all.missing };
+}
+
+// parked and free to go out on a rescue now: not on a route, stopped partway along one, broken
+// down, or already answering a rescue
+const freeToRespond = (v) => !!v.city && !v.trip && !v.loop && !v.held && !v.broken && v.respond == null && canRespond(v);
+// the role a vehicle would cover at a rescue, of the ones still missing: one it's built for first
+const roleFor = (v, missing) => missing.find((r) => RESCUE_ROLE[r](v)) ?? missing.find((r) => fills(v, r)) ?? null;
+
+// every vehicle that could set off for a rescue now to cover a role nobody's covering yet, with
+// that role and its leg there: ones built for the job before a Thunderbird 2, empty ones first,
+// then the nearest
+export function rescueCandidates(inc) {
+  const { missing } = rescueStatus(inc);
+  if (!missing.length) return [];
+  return game.vehicles
+    .filter((v) => freeToRespond(v) && v.city !== inc.city)
+    .map((v) => ({ v, role: roleFor(v, missing), l: leg(v, v.city, inc.city) }))
+    .filter((o) => o.role && o.l)
+    .sort((a, b) => standsIn(a.v) - standsIn(b.v) || (a.v.cargo.length > 0) - (b.v.cargo.length > 0) || a.l.len - b.l.len);
+}
+
+// the rescues a vehicle could go to now, for its own page
+export function rescuesFor(v) {
+  if (!freeToRespond(v)) return [];
+  return (game.rescues ?? []).filter((inc) => inc.city !== v.city && roleFor(v, rescueStatus(inc).missing) && leg(v, v.city, inc.city));
+}
+
+// send this vehicle to a rescue. False if it can't go.
+export function sendToRescue(v, inc, { silent = false } = {}) {
+  const k = RESCUE.kinds[inc.kind], town = cityById[inc.city].name;
+  if (!freeToRespond(v) || !roleFor(v, rescueStatus(inc).missing)) { if (!silent) toast(`${v.name} can’t help with the ${k.name.toLowerCase()} at ${town}`, 'bad'); return false; }
+  const l = leg(v, v.city, inc.city);
+  if (!l) { if (!silent) toast(`${v.name} can’t get to ${town}`, 'bad'); return false; }
+  if (game.coins < l.cost) { if (!silent) toast(`You need $${fmt(l.cost)} for ${v.name}’s fuel to ${town}`, 'bad'); return false; }
+  const was = quiet;
+  quiet = true;
+  let ok = false;
+  try { ok = dispatch(v, [inc.city]); } finally { quiet = was; }
+  if (!ok) return false;
+  v.respond = inc.id;
+  if (!silent) toast(`${v.name} is on its way to the ${k.name.toLowerCase()} at ${town}, ${fmtTime(l.time)}`, 'good');
+  return true;
+}
+
+// send the best free vehicle for each role nobody's covering yet. Returns how many set off.
+export function sendRescue(inc) {
+  let sent = 0;
+  for (let n = rescueStatus(inc).missing.length; n > 0; n--) {
+    const o = rescueCandidates(inc).find((o) => game.coins >= o.l.cost);
+    if (!o || !sendToRescue(o.v, inc, { silent: true })) break;
+    sent++;
+  }
+  const town = cityById[inc.city].name, left = rescueStatus(inc).missing;
+  if (sent) toast(`Sent ${sent} to the ${RESCUE.kinds[inc.kind].name.toLowerCase()} at ${town}${left.length ? `. Nothing free can bring ${rolesText(left)}` : ''}`, 'good');
+  else if (left.length) toast(`Nothing free can bring ${rolesText(left)} to ${town}`, 'bad');
+  return sent;
+}
+
+// can the fleet cover a rescue of this kind at this town: every role by a vehicle there already
+// or able to get there
+function coverable(k, c) {
+  const pool = game.vehicles.filter((v) => canRespond(v) && whereAt(v) && (whereAt(v) === c.id || !!baseLeg(v, whereAt(v), c.id)));
+  return !matchRoles(k.needs, pool).missing.length;
+}
+// how long a rescue of this kind at this town gets: RESCUE.ttl, or longer when the fleet is far
+// away, so the nearest vehicle for each role it needs can make it with time to spare (rescueSlack)
+function rescueTime(k, c) {
+  let slowest = 0;
+  for (const r of new Set(k.needs)) {
+    // timed by the vehicles built for the role; a Thunderbird 2 only when nothing else can do it,
+    // since it can't be in two places at once
+    const own = game.vehicles.some((v) => whereAt(v) && canRespond(v) && RESCUE_ROLE[r](v) && !standsIn(v));
+    let best = Infinity;
+    for (const v of game.vehicles) {
+      const at = whereAt(v);
+      if (!at || !canRespond(v) || !(own ? RESCUE_ROLE[r](v) && !standsIn(v) : fills(v, r))) continue;
+      const l = at === c.id ? { time: 0 } : baseLeg(v, at, c.id);
+      // still on a leg: count what's left of it too
+      if (l) best = Math.min(best, l.time + (v.trip ? Math.max(0, tripEnd(v) - gameNow()) / 1000 : 0));
+    }
+    if (best < Infinity) slowest = Math.max(slowest, best);
+  }
+  return Math.max(RESCUE.ttl, Math.ceil((slowest * RESCUE.slack * 1000 + 60000) / 30000) * 30000);
+}
+const shuffle = (a) => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+const rescueGap = () => RESCUE.every[0] + Math.random() * (RESCUE.every[1] - RESCUE.every[0]);
+
+// dev: start a rescue (that kind, or any that fits) at the selected town, in place of any there,
+// whatever the level and whether the fleet could cover it
+export function devRescue(kind = null) {
+  const c = cityById[game.selected], now = gameNow();
+  if (!isOpen(c.id) || c.anchor) { toast(`${c.name} needs to be an open town`, 'bad'); return; }
+  const fits = ([, k]) => k.where === 'any' || (k.where === 'road' ? c.road : c.port);
+  const ok = Object.entries(RESCUE.kinds).filter(fits).filter(([id]) => !kind || id === kind);
+  if (!ok.length) { toast(`No ${kind ? RESCUE.kinds[kind].name.toLowerCase() : 'rescue'} at ${c.name}: it has no ${RESCUE.kinds[kind]?.where === 'port' ? 'port' : 'roads'}`, 'bad'); return; }
+  const [id, k] = ok[Math.floor(Math.random() * ok.length)];
+  const ttl = rescueTime(k, c);
+  game.rescues = [...(game.rescues ?? []).filter((r) => r.city !== c.id), { id: game.nextId++, kind: id, city: c.id, until: now + ttl }];
+  toast(`${k.name} at ${c.name}! It needs ${rolesText(k.needs)} there within ${fmtTime(ttl / 1000)}.`, 'bad');
+}
+export function devClearRescues() {
+  for (const v of game.vehicles) delete v.respond;
+  game.rescues = [];
+}
+
+export function setRescues(on) {
+  game.rescuesOff = !on;
+  if (!on) { for (const v of game.vehicles) delete v.respond; game.rescues = []; }
+}
+
+function tickRescues(now) {
+  game.rescues ??= [];
+  for (const v of game.vehicles) if (v.respond != null && !v.trip) delete v.respond;
+  for (const inc of [...game.rescues]) {
+    const k = RESCUE.kinds[inc.kind], town = cityById[inc.city].name, here = onScene(inc.city);
+    const done = () => { game.rescues = game.rescues.filter((r) => r.id !== inc.id); for (const v of game.vehicles) if (v.respond === inc.id) delete v.respond; };
+    if (!inc.boosted && here.some((v) => v.model === 'thunderbird1')) {
+      inc.boosted = true;
+      inc.until += RESCUE.tb1;
+      toast(`Thunderbird 1 is on the scene at ${town}: +${fmtTime(RESCUE.tb1 / 1000)} for the rescue`, 'good');
+    }
+    const m = matchRoles(k.needs, here);
+    if (!m.missing.length) {
+      done();
+      earn(k.pay);
+      toast(`${m.got.map((v) => v.name).join(' and ')} handled the ${k.name.toLowerCase()} at ${town}. +$${fmt(k.pay)}`, 'good');
+    } else if (now >= inc.until) {
+      done();
+      toast(`Too late for the ${k.name.toLowerCase()} at ${town}. Someone else dealt with it.`);
+    }
+  }
+  if (game.rescuesOff || game.level < RESCUE.level) return;
+  if (game.rescueAt == null || game.rescueAt - now > RESCUE.every[1]) { game.rescueAt = now + rescueGap(); return; }
+  if (now < game.rescueAt) return;
+  game.rescueAt = now + rescueGap();
+  if (game.rescues.length >= RESCUE.max) return;
+  const towns = CITIES.filter((c) => isOpen(c.id) && !c.anchor && !rescueAt(c.id));
+  for (const [kind, k] of shuffle(Object.entries(RESCUE.kinds).filter(([, k]) => k.level <= game.level))) {
+    // not where the responders are parked already, or there'd be nothing to do
+    const c = shuffle(towns.filter((c) => k.where === 'any' || (k.where === 'road' ? c.road : c.port))).find((c) => matchRoles(k.needs, onScene(c.id)).missing.length && coverable(k, c));
+    if (!c) continue;
+    const ttl = rescueTime(k, c);
+    game.rescues.push({ id: game.nextId++, kind, city: c.id, until: now + ttl });
+    toast(`${k.name} at ${c.name}! It needs ${rolesText(k.needs)} there within ${fmtTime(ttl / 1000)}.`, 'bad');
+    return;
+  }
+}
 
 // ---------- self-driving vehicles ----------
 
@@ -1403,6 +1606,7 @@ function step() {
     else arrive(v, tripEnd(v));
   }
   tickBreakdowns(now);
+  tickRescues(now);
   tickAuto(now);
   for (const v of game.vehicles) books(v);
   tickContracts(now);
@@ -2559,6 +2763,10 @@ function scanProblems(now) {
   for (const v of game.vehicles) {
     if (v.broken) add({ key: `broken:${v.id}`, sev: 'bad', icon: 'alert', title: `${v.name} broke down`, text: v.broken.fixAt ? 'The roadside service is on its way' : 'Send help or call the roadside service', go: { tab: 'fleet', vehicle: v.id } });
   }
+  for (const inc of game.rescues ?? []) {
+    const k = RESCUE.kinds[inc.kind], st = rescueStatus(inc);
+    add({ key: `rescue:${inc.id}`, sev: 'bad', icon: 'alert', title: `${k.name} at ${name(inc.city)}`, text: `${st.missing.length ? `Needs ${rolesText(st.missing)}` : 'Help is on the way'}, ${fmtTime((inc.until - now) / 1000)} left. Pays $${fmt(k.pay)}`, go: { tab: 'city', city: inc.city }, ...(st.missing.length && { act: { label: 'Send help', kind: 'rescue', id: inc.id } }) });
+  }
   for (const c of game.contracts.active) {
     if (c.until == null || !c.time || c.done >= c.n) continue;
     const left = c.until - now;
@@ -2638,6 +2846,7 @@ export function goToProblem(p) {
 export function fixProblem(p) {
   const v = p.act.id != null ? game.vehicles.find((x) => x.id === p.act.id) : null;
   if (p.act.kind === 'sendAll') quickSendAll();
+  else if (p.act.kind === 'rescue') { const inc = game.rescues.find((r) => r.id === p.act.id); if (inc) sendRescue(inc); }
   else if (!v) return;
   else if (p.act.kind === 'send') { if (!quickSend(v)) toast(`Nothing at ${cityById[v.city].name} that ${v.name} can take`); }
   else if (p.act.kind === 'continue') continueRoute(v);

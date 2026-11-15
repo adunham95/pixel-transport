@@ -336,6 +336,44 @@ export const BREAKDOWN = {
 };
 // now and then from this level a celebrity turns up wanting a ride: a passenger job that only goes
 // in style (models with celebrity: true), paying mult times as much and leaving after ttl (game time)
+// rescues, from level 5: now and then something goes wrong at a town and it needs certain vehicles
+// parked there before the time runs out. Get them all there and it pays (and earns XP as usual);
+// miss it and it just goes, no penalty. One only turns up where the fleet has every responder it
+// needs and they can all get there, and never more than max at once. needs lists roles (see
+// RESCUE_ROLE in game.svelte.js): a kind's level must be at least every responder's level, and
+// where says which towns it happens in ('road', 'port' or 'any').
+// Thunderbird 1 arriving first buys tb1 more time, Thunderbird 2 stands in for any one responder
+// but a sub, and only Thunderbird 4 can reach a sub on the seabed.
+export const RESCUE = {
+  level: 5,
+  every: [150 * 1000, 300 * 1000],
+  // at least ttl to get there, or slack times as long as the nearest responders need, plus a minute
+  ttl: 4 * 60 * 1000,
+  slack: 1.5,
+  max: 2,
+  tb1: 60 * 1000,
+  kinds: {
+    crash: { name: "Crash on the highway", level: 5, where: "road", needs: ["tow"], pay: 600 },
+    hikers: { name: "Hikers stranded", level: 5, where: "any", needs: ["air"], pay: 700 },
+    adrift: { name: "Boat adrift", level: 6, where: "port", needs: ["tug"], pay: 800 },
+    flood: { name: "Flood", level: 8, where: "any", needs: ["air", "air"], pay: 1800 },
+    sub: { name: "Sub trapped on the seabed", level: 9, where: "port", needs: ["sub"], pay: 3000 },
+    pileup: { name: "Pileup", level: 10, where: "road", needs: ["police", "tow"], pay: 1600 },
+    fire: { name: "Building on fire", level: 11, where: "road", needs: ["fire", "police"], pay: 2200 },
+    shipfire: { name: "Ship on fire", level: 11, where: "port", needs: ["fireboat", "tug"], pay: 2400 },
+  },
+  // what each role is called, one and more than one
+  roles: {
+    tow: ["tow truck", "tow trucks"],
+    air: ["rescue aircraft", "rescue aircraft"],
+    tug: ["tugboat", "tugboats"],
+    sub: ["Thunderbird 4", "Thunderbird 4s"],
+    police: ["police car", "police cars"],
+    fire: ["fire truck", "fire trucks"],
+    fireboat: ["fireboat", "fireboats"],
+  },
+};
+
 export const CELEB = {
   level: 12,
   chance: 0.04,

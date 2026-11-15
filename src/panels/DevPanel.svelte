@@ -1,10 +1,13 @@
 <script>
-  import { game, dev, cityById, devCoins, devMaxLevel, devSpawn, devFinishLegs, devFillJobs, devUnlockAll, devSkipHalfDay, devSuperload, devBreakdown, devCeleb, devFinishProjects, devWeather, devUsedLot, setDev, isOpen, canBase, fmt } from '../game/game.svelte.js';
-  import { ENGINES, PLANES, BOATS, TRUCKS, LEVELS, SUPERLOAD, WEATHER } from '../game/data.js';
+  import { game, dev, cityById, devCoins, devMaxLevel, devSpawn, devFinishLegs, devFillJobs, devUnlockAll, devSkipHalfDay, devSuperload, devBreakdown, devCeleb, devFinishProjects, devWeather, devUsedLot, devRescue, devClearRescues, setDev, isOpen, canBase, fmt } from '../game/game.svelte.js';
+  import { ENGINES, PLANES, BOATS, TRUCKS, LEVELS, SUPERLOAD, WEATHER, RESCUE } from '../game/data.js';
   import Sprite from '../ui/Sprite.svelte';
   const c = $derived(cityById[game.selected]);
   // which superload to put on the board: its index in SUPERLOAD.loads, or -1 for any
   let pick = $state(-1);
+  // which rescue to start: a key of RESCUE.kinds, or '' for any that fits the town
+  let rescueKind = $state('');
+  const fitsHere = (k) => k.where === 'any' || (k.where === 'road' ? c.road : c.port);
   const BY = [['road', 'By road'], ['rail', 'By rail'], ['sea', 'By sea']];
   const groups = $derived([
     { kind: 'train', title: 'Trains', specs: ENGINES },
@@ -63,6 +66,15 @@
     {/each}
   </select>
   <button class="btn small" onclick={() => devSuperload(SUPERLOAD.loads[pick] ?? null)}>Offer it{isOpen(c.id) ? ` from ${c.name}` : ''}</button>
+</div>
+
+<div class="superload">
+  <select bind:value={rescueKind} aria-label="Rescue">
+    <option value="">Any rescue</option>
+    {#each Object.entries(RESCUE.kinds) as [k, r]}<option value={k} disabled={!fitsHere(r)}>{r.name} (Lv {r.level}){fitsHere(r) ? '' : r.where === 'port' ? ', needs a port' : ', needs roads'}</option>{/each}
+  </select>
+  <button class="btn small" disabled={!isOpen(c.id) || c.anchor} onclick={() => devRescue(rescueKind || null)}>Start at {c.name}</button>
+  <button class="btn small" disabled={!game.rescues?.length} onclick={devClearRescues}>Clear</button>
 </div>
 
 {#if !isOpen(c.id)}<p class="muted small">{c.name} is locked, so nothing can be spawned there.</p>{/if}

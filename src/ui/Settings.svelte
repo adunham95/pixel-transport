@@ -4,7 +4,8 @@
   // button (App.svelte) closes it, and on phones it can be dragged down to close. Things about the
   // whole game rather than any one town or vehicle live here.
   import { onMount } from 'svelte';
-  import { game, dev, setDev, resetGame } from '../game/game.svelte.js';
+  import { game, dev, setDev, resetGame, setRescues } from '../game/game.svelte.js';
+  import { RESCUE } from '../game/data.js';
   import { prefs, setTheme } from './prefs.svelte.js';
   import Icon from './Icon.svelte';
   import { fade, fly } from './motion.js';
@@ -61,6 +62,10 @@
       <label class="row">
         <span class="grow"><b>Dev mode</b><small>Adds a tab to speed up time and try things out</small></span>
         <input class="switch" type="checkbox" checked={dev.on} onchange={(e) => setDev(e.currentTarget.checked)} />
+      </label>
+      <label class="row">
+        <span class="grow"><b>Rescues</b><small>From level {RESCUE.level}, now and then a town needs responders sent to it. Missing one costs nothing</small></span>
+        <input class="switch" type="checkbox" checked={!game.rescuesOff} onchange={(e) => setRescues(e.currentTarget.checked)} />
       </label>
       <button class="row tbtn bad" onclick={newGame}>Start a new game</button>
     </div>
