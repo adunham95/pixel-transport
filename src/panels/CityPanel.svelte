@@ -1,5 +1,5 @@
 <script>
-  import { game, ui, cityById, etaText, fmtTime, clock, followVehicle, isOpen, connections, unlockPrice, unlockCity, carrierAt, fmt, townSize, sizeName, growthOf, buyDepot, fetcher, consistOf, paintOf, buildHQ, hqPrice, mixOf, projectTowns, landmarkAt, cantHost, escortKind, rescueAt, rescueStatus, rolesText, sendRescue, rescueCandidates, sendToRescue, buyLine, lineTowns, onLine, lineFits, lineProblem, assignLine } from '../game/game.svelte.js';
+  import { game, ui, cityById, etaText, fmtTime, clock, followVehicle, isOpen, connections, unlockPrice, unlockCity, carrierAt, fmt, townSize, sizeName, growthOf, buyDepot, fetcher, consistOf, paintOf, buildHQ, hqPrice, mixOf, projectTowns, landmarkAt, cantHost, escortKind, rescueAt, rescueStatus, rolesText, sendRescue, rescueCandidates, sendToRescue, buyLine, linesAt, createLine, addRouteStop, routeById } from '../game/game.svelte.js';
   import { CITY_PRICE, DEPOT, HQ, TYPE_LABEL, PROJECTS, CONTINENTS, RESCUE, LINES } from '../game/data.js';
   import ProjectCard from '../ui/ProjectCard.svelte';
   import Icon from '../ui/Icon.svelte';
@@ -35,6 +35,14 @@
   // no more than a level off, so a new player's town page isn't a wall of locked landmarks
   const open = $derived(!c.anchor && isOpen(c.id));
   const projects = $derived(open ? PROJECTS.filter((p) => game.projects[p.id] && projectTowns(p).includes(c.id)) : []);
+  // bus and mail lines: open one in the Routes tab, or add this town to one (a new one, with 'new')
+  function openLine(r) { ui.tab = 'routes'; ui.routeEdit = r.id; }
+  function addToLine(kind, val) {
+    if (!val) return;
+    if (val === 'new') { const r = createLine(kind, c.id); if (r) openLine(r); return; }
+    const r = routeById(Number(val));
+    if (r) addRouteStop(r, c.id);
+  }
   const could = $derived(open ? PROJECTS.filter((p) => !game.projects[p.id] && p.level <= game.level + 1 && (p.link ? p.link.includes(c.id) : !landmarkAt(c.id) && !cantHost(p, c))) : []);
 </script>
 
@@ -60,7 +68,7 @@
       {#if !c.anchor && isOpen(c.id)}<span class="tag hub">{sizeName(c.id)}</span>{/if}
       {#if game.hq === c.id}<span class="tag hub">HQ</span>{/if}
       {#if game.depots[c.id]}<span class="tag">Depot</span>{/if}
-      {#each Object.entries(LINES) as [kind, L] (kind)}{#if game.lines[kind][c.id]}<span class="tag">{L.name}</span>{/if}{/each}
+      {#each Object.entries(LINES) as [kind, L] (kind)}{#if game.buildings[kind][c.id]}<span class="tag">{L.name}</span>{/if}{/each}
       {#if carrierAt(c.id)}<span class="tag hub">{c.anchor || !c.air ? 'Carrier landing strip' : 'Carrier in port'}</span>{/if}
       {#each knownFor as t (t)}<span class="tag known t-{t}" title="Turns up more {t === 'celeb' ? 'celebrities' : TYPE_LABEL[t].toLowerCase()} than most towns"><Icon name={t} size={12} />{t === 'celeb' ? 'Celebrities' : TYPE_LABEL[t]}</span>{/each}
     </div>
@@ -128,16 +136,26 @@
         {#each Object.entries(LINES) as [kind, L] (kind)}
           {@const what = kind === 'bus' ? 'passengers' : 'mail'}
           <div class="gline depot">
-            {#if game.lines[kind][c.id]}
-              {@const n = lineTowns(kind).length}
-              {@const runs = onLine(kind).length}
-              {@const free = here.filter((v) => !v.loop?.line && lineFits(v, kind) && !lineProblem(v, kind))}
-              <small><b>{L.name}.</b> {n < 2 ? `Build another ${L.name.toLowerCase()} in a town nearby to start a ${L.line.toLowerCase()}.` : `${n} on the ${L.line.toLowerCase()}, ${runs} vehicle${runs === 1 ? '' : 's'} running it, picking up ${what} between them.`}</small>
-              {#each free.slice(0, 3) as v (v.id)}
-                <button class="btn small" title="Run {v.name} round every {L.name.toLowerCase()} it can drive to" onclick={() => assignLine(v, kind)}>Put {v.name} on</button>
-              {/each}
+            {#if game.buildings[kind][c.id]}
+              {@const on = linesAt(kind, c.id)}
+              {@const others = game.routes.filter((r) => r.line === kind && !on.includes(r))}
+              <div class="lines">
+                <small><b>{L.name}.</b> {on.length ? `On ${on.length} ${L.line.toLowerCase()}${on.length > 1 ? 's' : ''}:` : `Not on a ${L.line.toLowerCase()} yet.`}</small>
+                {#if on.length}
+                  <span class="chips">
+                    {#each on as r (r.id)}
+                      <button class="chip" title="Open {r.name}" onclick={() => openLine(r)}><i style:background={r.color}></i>{r.name}</button>
+                    {/each}
+                  </span>
+                {/if}
+              </div>
+              <select class="addline" aria-label="Add {c.name} to a {L.line.toLowerCase()}" onchange={(e) => { addToLine(kind, e.currentTarget.value); e.currentTarget.value = ''; }}>
+                <option value="">Add to a line</option>
+                {#each others as r (r.id)}<option value={r.id}>{r.name}</option>{/each}
+                <option value="new">New {L.line.toLowerCase()} from here</option>
+              </select>
             {:else}
-              <small>Build a {L.name.toLowerCase()}: road vehicles you put on the {L.line.toLowerCase()} loop round every {L.name.toLowerCase()}, picking up {what}. No HQ needed.</small>
+              <small>Build a {L.name.toLowerCase()}: add it to {L.line.toLowerCase()}s, then put {what === 'mail' ? 'mail vans' : 'buses'} on each line to pick up {what} at every stop. No HQ needed.</small>
               <button class="btn small" disabled={game.level < L.level || game.coins < L.price} onclick={() => buyLine(kind, c.id)}>{game.level < L.level ? `Lv ${L.level}` : `$${fmt(L.price)}`}</button>
             {/if}
           </div>
@@ -237,6 +255,12 @@
   .gline { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
   .gline small { color: var(--ink-soft); font-size: 12px; }
   .gline b { font-weight: 600; }
+  /* bus and mail lines stopping here, each a chip in its color */
+  .lines { display: flex; flex-direction: column; gap: 6px; min-width: 0; flex: 1; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line, rgba(0,0,0,.15)); background: none; border-radius: 999px; padding: 3px 10px 3px 6px; font: inherit; font-size: 12px; font-weight: 600; color: inherit; cursor: pointer; }
+  .chip i { width: 10px; height: 10px; border-radius: 50%; flex: none; }
+  .addline { font: inherit; font-size: 13px; max-width: 100%; }
   .depot { flex-wrap: nowrap; padding-top: 6px; border-top: 1px solid var(--line); }
   .bar { height: 5px; background: var(--panel-2); border-radius: 3px; overflow: hidden; }
   .bar i { display: block; height: 100%; background: var(--accent); border-radius: 3px; }

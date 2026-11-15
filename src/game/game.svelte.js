@@ -1,4 +1,4 @@
-import { SCALE, CITIES, RAILS, ROADS, ROAD_OFF, LANE, roadSide, ENGINES, CARS, PLANES, BOATS, BARGES, TRUCKS, TRAILERS, LEVELS, RATES, SPEED, CITY_PRICE, START_CITIES, JOB_TYPES, MAGLEV_LINES, HQ, WEAR, MAIL, WIDE, CONTAINER, SECURE, GROWTH, SIZE_NAME, DEPOT, TYPE_LABEL, CONTRACTS, SUPERLOAD, ESCORT_LABEL, BREAKDOWN, PROTOTYPE, CELEB, TOURISTS, PROJECTS, CONTINENTS, LUCKY, WEATHER, USED, RESCUE, LINES } from './data.js';
+import { SCALE, CITIES, RAILS, ROADS, ROAD_OFF, LANE, roadSide, ENGINES, CARS, PLANES, BOATS, BARGES, TRUCKS, TRAILERS, LEVELS, RATES, SPEED, CITY_PRICE, START_CITIES, JOB_TYPES, MAGLEV_LINES, HQ, WEAR, MAIL, WIDE, CONTAINER, SECURE, GROWTH, SIZE_NAME, DEPOT, TYPE_LABEL, CONTRACTS, SUPERLOAD, ESCORT_LABEL, BREAKDOWN, PROTOTYPE, CELEB, TOURISTS, PROJECTS, CONTINENTS, LUCKY, WEATHER, USED, RESCUE, LINES, LINE_COLORS } from './data.js';
 import { seaLane } from '../map/sea.js';
 
 const KEY = 'pixel-transport-save-v1';
@@ -350,7 +350,7 @@ function newVehicle(g, kind, model, city, cars) {
 
 function fresh() {
   const now = Date.now();
-  const g = { v: 1, coins: 600, xp: 0, level: 1, nextId: 1, selected: 'frost', vehicles: [], jobs: {}, spawnAt: {}, growth: {}, depots: {}, lines: { bus: {}, post: {} }, lineRoutes: Object.fromEntries(Object.keys(LINES).map((k) => [k, { id: `line:${k}`, line: k, name: LINES[k].line }])), hqContracts: 0, hqSuperloads: 0, contracts: { offers: [], active: [], nextAt: 0 }, projects: {}, routes: [], rescues: [], scale: SCALE, saved: now };
+  const g = { v: 1, coins: 600, xp: 0, level: 1, nextId: 1, selected: 'frost', vehicles: [], jobs: {}, spawnAt: {}, growth: {}, depots: {}, buildings: { bus: {}, post: {} }, hqContracts: 0, hqSuperloads: 0, contracts: { offers: [], active: [], nextAt: 0 }, projects: {}, routes: [], rescues: [], scale: SCALE, saved: now };
   g.unlocked = Object.fromEntries(START_CITIES.map((id) => [id, true]));
   g.vehicles.push(newVehicle(g, 'train', 'puffer', 'frost', ['pax', 'box']));
   g.vehicles.push(newVehicle(g, 'plane', 'sparrow', 'frost'));
@@ -381,12 +381,15 @@ function load() {
     for (const c of CITIES) { g.jobs[c.id] ??= []; g.spawnAt[c.id] ??= Date.now() + (g.skew ?? 0) + Math.random() * 8000; }
     g.growth ??= {};
     g.depots ??= {};
-    g.lines ??= {};
-    g.lines.bus ??= {};
-    g.lines.post ??= {};
-    // each line's settings and running totals, shaped like a saved route so the Routes tab can show it
-    g.lineRoutes ??= {};
-    for (const k in LINES) g.lineRoutes[k] ??= { id: `line:${k}`, line: k, name: LINES[k].line };
+    // bus stops and post offices built, by kind and town (saves from the first take on lines kept them in lines)
+    g.buildings ??= g.lines ?? {};
+    for (const k in LINES) g.buildings[k] ??= {};
+    delete g.lines;
+    delete g.lineRoutes;
+    for (const v of g.vehicles) {
+      if (v.loop?.line) delete v.loop;
+      if (typeof v.lapRoute === 'string') { delete v.lapRoute; delete v.lapAt; }
+    }
     g.hqContracts ??= 0;
     g.hqSuperloads ??= 0;
     g.contracts ??= { offers: [], active: [], nextAt: 0 };
@@ -1064,75 +1067,41 @@ export function buyDepot(id) {
 // build a bus stop (kind 'bus') or post office ('post') in a town with roads
 export function buyLine(kind, id) {
   const L = LINES[kind], c = cityById[id];
-  if (game.lines[kind][id] || c.anchor || !c.road) return;
+  if (game.buildings[kind][id] || c.anchor || !c.road) return;
   if (!spend(L.price, L.level, `${L.name}s`)) return;
-  game.lines[kind][id] = true;
-  toast(`${L.name} built at ${c.name}${lineTowns(kind).length < 2 ? `. Build another in a town nearby to start a ${L.line.toLowerCase()}` : ''}`, 'good');
+  game.buildings[kind][id] = true;
+  toast(`${L.name} built at ${c.name}. Add it to a ${L.line.toLowerCase()} to put ${L.type === 'pax' ? 'buses' : 'mail vans'} on it.`, 'good');
 }
-export const lineTowns = (kind) => Object.keys(game.lines?.[kind] ?? {}).filter((id) => game.lines[kind][id] && isOpen(id));
-export const onLine = (kind) => game.vehicles.filter((v) => v.loop?.line === kind);
-// a line's settings and stats, shaped like a saved route (see routeReport, setRoutePaused, setAutoService)
-export const lineRoute = (kind) => (game.lineRoutes[kind] ??= { id: `line:${kind}`, line: kind, name: LINES[kind].line });
-// the line a Routes tab id ('line:bus') stands for, or null
-export const lineById = (id) => (typeof id === 'string' && id.startsWith('line:') && LINES[id.slice(5)] ? lineRoute(id.slice(5)) : null);
-// can this vehicle work a line at all: a road vehicle with room for its kind of job
+// the towns with a bus stop (or post office) built
+export const lineTowns = (kind) => Object.keys(game.buildings?.[kind] ?? {}).filter((id) => game.buildings[kind][id] && isOpen(id));
+// can this vehicle work a line of this kind: a road vehicle with room for its kind of job
 export const lineFits = (v, kind) => v.kind === 'truck' && capacity(v)[LINES[kind].type] > 0 && !offRoutes(v);
+// the bus (or mail) lines that stop at a town
+export const linesAt = (kind, id) => game.routes.filter((r) => r.line === kind && r.stops.some((s) => s.city === id));
 
-// one lap of a line from where the vehicle is: round every stop of its kind it can drive to,
-// nearest next each time, ending back at home
-export function lineStops(v, kind, home, from = v.city ?? home) {
-  const left = new Set(lineTowns(kind).filter((id) => id !== home && id !== from && leg(v, home, id)));
-  const out = [];
-  let at = from;
-  while (left.size) {
-    let best = null, bd = Infinity;
-    for (const id of left) { const d = leg(v, at, id)?.len ?? Infinity; if (d < bd) { bd = d; best = id; } }
-    if (best == null) break;
-    out.push(best); left.delete(best); at = best;
-  }
-  if (from !== home || out.length) out.push(home);
-  return out;
+// a line's name: the region its first stop is in and a color no other line of its kind there has
+// yet, like Westmark Blue. Mail lines add Mail, so they don't read like a bus line.
+function lineName(kind, id) {
+  const c = cityById[id], region = c.cont < 0 ? c.name : CONTINENTS[c.cont].name, tail = kind === 'post' ? ' Mail' : '';
+  const taken = new Set(game.routes.filter((r) => r.line === kind && r.region === region).map((r) => r.color));
+  const free = LINE_COLORS.find(([, hex]) => !taken.has(hex));
+  if (free) return { name: `${region} ${free[0]}${tail}`, color: free[1], region };
+  // every color's gone: go round again with a number
+  const [label, hex] = LINE_COLORS[taken.size % LINE_COLORS.length];
+  return { name: `${region} ${label} ${Math.floor(taken.size / LINE_COLORS.length) + 1}${tail}`, color: hex, region };
 }
 
-// the stop a vehicle starts its line from: the town it's in if it has one, or the nearest it can drive to
-function lineHome(v, kind, from) {
-  if (game.lines[kind][from]) return from;
-  let best = null, bd = Infinity;
-  for (const id of lineTowns(kind)) { const d = leg(v, from, id)?.len ?? Infinity; if (d < bd) { bd = d; best = id; } }
-  return best;
-}
-
-// why this vehicle can't work this line from where it is (or will be), or null if it can
-export function lineProblem(v, kind) {
+// a new bus or mail line, starting at a town if given. It's a saved route that only stops at towns
+// with its kind of building, only takes road vehicles that carry its kind of job, and needs no HQ.
+// Until its first stop is picked it goes by a stand in name, then takes its region and color.
+export function createLine(kind, id = null) {
   const L = LINES[kind];
-  if (!lineFits(v, kind)) return `Only road vehicles that carry ${kind === 'bus' ? 'passengers' : 'mail'} work the ${L.line.toLowerCase()}`;
-  const from = v.city ?? (v.next?.length ? v.next[v.next.length - 1].to : v.trip?.to);
-  if (!from) return 'Can’t be put on a line right now';
-  const home = lineHome(v, kind, from);
-  if (!home) return `No ${L.name.toLowerCase()} it can drive to`;
-  if (lineStops(v, kind, home, home).length < 2) return `Needs another ${L.name.toLowerCase()} it can drive to from ${cityById[home].name}`;
-  return null;
-}
-
-// put a vehicle on a line. Parked, it sets off now (or waits for work); out on a trip or another
-// loop, it switches over once it's back.
-export function assignLine(v, kind) {
-  const why = lineProblem(v, kind), L = LINES[kind];
-  if (why) { toast(`${v.name}: ${why}`, 'bad'); return false; }
-  if (v.city && !v.trip) {
-    const home = lineHome(v, kind, v.city);
-    closeLap(v, gameNow());
-    v.loop = { line: kind, home, stops: lineStops(v, kind, home) };
-    const was = quiet; quiet = true;
-    try { runLoop(v, gameNow()); } finally { quiet = was; }
-    if (!v.loop) { toast(`${v.name} couldn’t set off on the ${L.line.toLowerCase()}. Check you have coins for fuel.`, 'bad'); return false; }
-    toast(v.trip ? `${v.name} is running the ${L.line.toLowerCase()} from ${cityById[home].name}` : `${v.name} is on the ${L.line.toLowerCase()}, waiting at ${cityById[v.city].name} for ${kind === 'bus' ? 'passengers' : 'mail'}`, 'good');
-    return true;
-  }
-  const end = v.next?.length ? v.next[v.next.length - 1].to : v.trip.to, home = lineHome(v, kind, end);
-  v.loop = { line: kind, home, stops: lineStops(v, kind, home, end) };
-  toast(`${v.name} will start the ${L.line.toLowerCase()} when it gets to ${cityById[end].name}`, 'good');
-  return true;
+  if (game.level < L.level) { toast(`${L.line}s unlock at level ${L.level}`, 'bad'); return null; }
+  const r = { id: game.nextId++, name: `New ${L.line.toLowerCase()}`, stops: [], line: kind, autoName: true, color: LINE_COLORS[0][1] };
+  game.routes.push(r);
+  const made = game.routes[game.routes.length - 1];
+  if (id) addRouteStop(made, id);
+  return made;
 }
 
 function ownJobs(id) { return game.jobs[id].filter((j) => j.from === id).length; }
@@ -1868,12 +1837,11 @@ export function loopStops(v, stops) {
 // comes if it's still free. relay: a repeating route also carries jobs headed off the loop part of
 // the way (see relayStop). hold: a one-off route that parks at each stop until it's sent on (see
 // continueRoute), paying each leg's fuel as it sets off; the stops still to go wait in v.held
-export function dispatch(v, stops, { repeat = false, lap = null, escort = false, relay = false, route = null, hold = false, line = null } = {}) {
+export function dispatch(v, stops, { repeat = false, lap = null, escort = false, relay = false, route = null, hold = false } = {}) {
   if (route) { repeat = true; stops = routeStops(route, v.city); }
-  // a bus or mail line (see LINES) is a repeating loop that needs no HQ, its stops already ending at home
-  if (line) { repeat = true; route = null; }
-  if (repeat && !line && !game.repeatRoutes) { toast('Build an HQ to unlock repeating routes', 'bad'); return false; }
-  if (repeat && !route && !line) stops = loopStops(v, stops);
+  // bus and mail lines (routes with a line kind, see LINES) need no HQ
+  if (repeat && !route?.line && !game.repeatRoutes) { toast('Build an HQ to unlock repeating routes', 'bad'); return false; }
+  if (repeat && !route) stops = loopStops(v, stops);
   let held = null;
   if (hold && !repeat && stops.length > 1) { held = stops.slice(1); stops = stops.slice(0, 1); }
   // a carrier takes the planes that need it along, and waits for any still flying in to land
@@ -1906,11 +1874,10 @@ export function dispatch(v, stops, { repeat = false, lap = null, escort = false,
   v.miles = (v.miles ?? 0) + legs.reduce((s, l) => s + l.len, 0);
   // the lap before this one is done; a saved route starts counting a new one
   closeLap(v, lap ?? gameNow());
-  const counted = route ?? (line && lineRoute(line.kind));
-  if (counted) {
-    const st = routeStats(counted);
+  if (route) {
+    const st = routeStats(route);
     st.laps++; st.fuel += cost;
-    v.lapRoute = counted.id; v.lapAt = lap ?? gameNow();
+    v.lapRoute = route.id; v.lapAt = lap ?? gameNow();
   }
   for (const p of stow) { p.aboard = v.id; p.city = null; delete p.loop; }
   for (const { x, cost: c } of escorts) {
@@ -1928,13 +1895,12 @@ export function dispatch(v, stops, { repeat = false, lap = null, escort = false,
   v.depart = { from: v.city, at: v.trip.startAt, len: legs.reduce((s, l) => s + l.len, 0) };
   noteFill(v);
   if (route) v.loop = { route: route.id, stops };
-  else if (line) v.loop = { line: line.kind, home: line.home, stops };
   else if (repeat) v.loop = { stops, ...(escort && { escort }), ...(relay && { relay }) };
   else if (lap == null) delete v.loop;
   if (held) v.held = { stops: held, ...(escort && { escort }) };
   else delete v.held;
   v.city = null;
-  if (lap == null) toast(held ? `${v.name} left for ${cityById[first.to].name}, ${held.length} more stop${held.length > 1 ? 's' : ''} after. Fuel $${fmt(cost)}` : route ? `${v.name} is running ${route.name}. Fuel $${fmt(cost)} a lap` : line ? `${v.name} is running the ${LINES[line.kind].line.toLowerCase()}. Fuel $${fmt(cost)} a lap` : repeat ? `${v.name} is running a ${legs.length} stop loop. Fuel $${fmt(cost)} a lap` : rest.length ? `${v.name} left on a ${legs.length} stop route. Fuel $${fmt(cost)}` : `${v.name} left for ${cityById[first.to].name}. Fuel $${cost}`);
+  if (lap == null) toast(held ? `${v.name} left for ${cityById[first.to].name}, ${held.length} more stop${held.length > 1 ? 's' : ''} after. Fuel $${fmt(cost)}` : route ? `${v.name} is running ${route.name}. Fuel $${fmt(cost)} a lap` : repeat ? `${v.name} is running a ${legs.length} stop loop. Fuel $${fmt(cost)} a lap` : rest.length ? `${v.name} left on a ${legs.length} stop route. Fuel $${fmt(cost)}` : `${v.name} left for ${cityById[first.to].name}. Fuel $${cost}`);
   return true;
 }
 
@@ -2168,21 +2134,9 @@ function runLoop(v, at) {
     if (r.paused) { closeLap(v, at); v.loop.wait = at + LOOP_WAIT; return; }
     v.loop.stops = routeStops(r, v.city);
   }
-  // a line picks up any stops built since, and goes in for a service the same way a route does
-  if (v.loop.line) {
-    const lr = lineRoute(v.loop.line);
-    if (lr.autoService && wear(v) >= AUTO_SERVICE && game.coins >= serviceCost(v)) v.loop.service = true;
-    if (v.loop.service && serviceStop(v, at)) return;
-    if (lr.paused && v.city === v.loop.home) { closeLap(v, at); v.loop.wait = at + LOOP_WAIT; return; }
-    v.loop.stops = lineStops(v, v.loop.line, v.loop.home);
-    if (v.loop.stops.length < 2 && v.city === v.loop.home) { v.loop.wait = at + LOOP_WAIT; return; }
-  }
   pickUp(v, v.city);
-  // away from home (back from a service, say), a line vehicle heads back round rather than waiting
-  const away = !!v.loop.line && v.city !== v.loop.home;
-  if (!v.cargo.length && !away && !loopHasWork(v)) { v.loop.wait = at + LOOP_WAIT; return; }
-  const line = v.loop.line ? { kind: v.loop.line, home: v.loop.home } : null;
-  if (!dispatch(v, v.loop.stops, { repeat: true, lap: at, escort: !!v.loop.escort, relay: !!v.loop.relay, route: r, line })) delete v.loop;
+  if (!v.cargo.length && !loopHasWork(v)) { v.loop.wait = at + LOOP_WAIT; return; }
+  if (!dispatch(v, v.loop.stops, { repeat: true, lap: at, escort: !!v.loop.escort, relay: !!v.loop.relay, route: r })) delete v.loop;
 }
 
 // ---------- saved routes ----------
@@ -2227,6 +2181,7 @@ const offRoutes = (v) => !!escortKind(v) || !!spec(v).superload || v.aboard != n
 // to it from where it's parked
 export function routeProblem(v, r) {
   if (offRoutes(v)) return spec(v).superload ? 'Only carries superloads' : v.aboard != null ? 'Riding aboard another vehicle' : 'Escorts only move with a convoy';
+  if (r.line && !lineFits(v, r.line)) return `Only road vehicles that carry ${r.line === 'bus' ? 'passengers' : 'mail'} run a ${LINES[r.line].line.toLowerCase()}`;
   const ids = routeIds(r);
   if (ids.length < 2) return 'Needs at least 2 different stops';
   for (let i = 0; i < ids.length; i++) {
@@ -2237,7 +2192,7 @@ export function routeProblem(v, r) {
   return null;
 }
 
-export const routeVehicles = (r) => game.vehicles.filter((v) => (r.line ? v.loop?.line === r.line : v.loop?.route === r.id));
+export const routeVehicles = (r) => game.vehicles.filter((v) => v.loop?.route === r.id);
 
 // ---------- route stats ----------
 
@@ -2248,7 +2203,7 @@ export const routeVehicles = (r) => game.vehicles.filter((v) => (r.line ? v.loop
 const newStats = () => ({ laps: 0, fuel: 0, earned: 0, fill: 0, legs: 0, time: 0 });
 export const routeStats = (r) => (r.stats ??= newStats());
 function lapStats(v) {
-  const r = v.lapRoute == null ? null : typeof v.lapRoute === 'string' ? game.lineRoutes?.[v.lapRoute.slice(5)] : routeById(v.lapRoute);
+  const r = v.lapRoute != null ? routeById(v.lapRoute) : null;
   return r ? routeStats(r) : null;
 }
 // the lap a vehicle was on is over: count its time
@@ -2413,8 +2368,10 @@ export function deleteRoute(r) {
 
 export function renameRoute(r, name) {
   name = name.trim().slice(0, 24);
-  if (name) r.name = name;
+  if (name && name !== r.name) { r.name = name; delete r.autoName; }
 }
+// a line's color, picked from LINE_COLORS
+export function setLineColor(r, hex) { r.color = hex; }
 
 // no stop right after the same town. A last stop that's the same as the first is left in, so a
 // route can be built up as A, B, A, C; routeIds skips it while it's last.
@@ -2433,6 +2390,9 @@ export function addRouteStop(r, id) {
   if (last?.city === id) { r.stops.pop(); return; }
   if (!isOpen(id)) { toast(`${cityById[id].name} is locked. Unlock it from its city panel.`, 'bad'); return; }
   if (cityById[id].anchor) { toast('Routes stop at towns, not anchorages', 'bad'); return; }
+  // a line only stops where there's a bus stop (or post office), and is named after where it starts
+  if (r.line && !game.buildings[r.line][id]) { toast(`Build a ${LINES[r.line].name.toLowerCase()} at ${cityById[id].name} first, from its town page`, 'bad'); return; }
+  if (r.line && r.autoName && !r.stops.length) Object.assign(r, lineName(r.line, id));
   // a town on the route more than once does the same thing every time it's visited
   const same = r.stops.find((s) => s.city === id);
   r.stops.push({ city: id, fill: !!same?.fill, drop: !!same?.drop });
@@ -2465,7 +2425,7 @@ export function setStopMode(r, i, mode) {
 // put a vehicle on a route. Parked, it sets off now (or waits at its stop for work); out on a
 // trip or another loop, it switches over once it's back.
 export function assignRoute(v, r) {
-  if (!game.repeatRoutes) { toast('Build an HQ to unlock routes', 'bad'); return false; }
+  if (!r.line && !game.repeatRoutes) { toast('Build an HQ to unlock routes', 'bad'); return false; }
   const why = routeProblem(v, r);
   if (why) { toast(`${v.name}: ${why}`, 'bad'); return false; }
   if (v.city && !v.trip) {
@@ -2870,7 +2830,7 @@ function scanProblems(now) {
     const left = c.until - now;
     if (left > 0 && left < c.time * INBOX.contractLeft) add({ key: `contract:${c.id}`, sev: 'bad', icon: 'contracts', title: 'Contract running out of time', text: `${c.done} of ${contractText(c)}, ${fmtTime(left / 1000)} left`, go: { tab: 'contracts' } });
   }
-  for (const r of [...game.routes, ...Object.keys(LINES).map(lineRoute)]) {
+  for (const r of game.routes) {
     const rep = routeReport(r, now);
     if (rep && rep.laps >= INBOX.routeLaps && rep.profit < 0 && routeVehicles(r).length) add({ key: `route:${r.id}`, sev: 'bad', icon: 'routes', title: `${r.name} is losing money`, text: `−$${fmt(Math.round(-rep.profit))} a lap over ${rep.laps} laps`, go: { tab: 'routes', route: r.id } });
   }

@@ -1,6 +1,6 @@
 <script>
-  import { game, ui, cityById, capacity, endRoute, addCar, removeCar, canRemoveCar, upgradeEngine, upgradeCost, canRefit, sellVehicle, sellValue, openLoad, followVehicle, etaText, fmt, stopRepeating, spec, tailSpecs, tailName, aboard, carrierOf, deckUsed, deckRoom, deckFor, finances, clock, wear, service, serviceCost, sendToService, canSendService, depotFor, escortee, consistOf, paintOf, paintFor, isIdle, idleVehicles, quickSend, quickSendAll, startQueue, toast, brokenVehicles, sendHelp, callRoadside, calloutCost, stillNeeded, escortText, renameVehicle, escortKind, assignRoute, routeById, tripInfo, fmtShort, rescuesFor, sendToRescue, continueRoute, abandonRoute, assignLine, lineFits, lineTowns } from '../game/game.svelte.js';
-  import { ENGINES, TRUCKS, BOATS, PLANES, MI, JOB_TYPES, ESCORT_LABEL, RESCUE, LINES } from '../game/data.js';
+  import { game, ui, cityById, capacity, endRoute, addCar, removeCar, canRemoveCar, upgradeEngine, upgradeCost, canRefit, sellVehicle, sellValue, openLoad, followVehicle, etaText, fmt, stopRepeating, spec, tailSpecs, tailName, aboard, carrierOf, deckUsed, deckRoom, deckFor, finances, clock, wear, service, serviceCost, sendToService, canSendService, depotFor, escortee, consistOf, paintOf, paintFor, isIdle, idleVehicles, quickSend, quickSendAll, startQueue, toast, brokenVehicles, sendHelp, callRoadside, calloutCost, stillNeeded, escortText, renameVehicle, escortKind, assignRoute, routeById, tripInfo, fmtShort, rescuesFor, sendToRescue, continueRoute, abandonRoute, lineFits } from '../game/game.svelte.js';
+  import { ENGINES, TRUCKS, BOATS, PLANES, MI, JOB_TYPES, ESCORT_LABEL, RESCUE } from '../game/data.js';
   import Sprite from '../ui/Sprite.svelte';
   import LoadBadges from '../ui/LoadBadges.svelte';
   import Icon from '../ui/Icon.svelte';
@@ -19,9 +19,8 @@
   // after buying one all set ui.focusVehicle.
   const cur = $derived(ui.focusVehicle != null ? game.vehicles.find((v) => v.id === ui.focusVehicle) : null);
   $effect(() => { ui.focusVehicle; upgrading = false; });
-  // the bus and mail lines it could run (see LINES), and what its route picker shows now
-  const lines = $derived(cur ? Object.entries(LINES).filter(([k]) => lineFits(cur, k) && lineTowns(k).length > 1) : []);
-  const pick = $derived(cur?.loop?.line ? `line:${cur.loop.line}` : cur?.loop?.route ?? '');
+  // the routes it could be put on: bus and mail lines it fits, and other routes once there's an HQ
+  const choices = $derived(cur ? game.routes.filter((r) => (r.line ? lineFits(cur, r.line) : game.repeatRoutes) || cur.loop?.route === r.id) : []);
   // finding a vehicle: by kind, by what it's up to, and by name or town
   const KINDS = [['plane', 'Planes'], ['train', 'Trains'], ['truck', 'Trucks'], ['boat', 'Boats']];
   const STATUS = [
@@ -54,7 +53,7 @@
   // one pill for what it's up to, most pressing first
   function statusOf(v) {
     if (v.broken) return { text: 'Broken down', c: 'bad' };
-    if (v.loop) return { text: v.loop.line ? LINES[v.loop.line].line : v.loop.route != null ? routeById(v.loop.route)?.name ?? 'Repeating' : 'Repeating', c: 'good' };
+    if (v.loop) return { text: v.loop.route != null ? routeById(v.loop.route)?.name ?? 'Repeating' : 'Repeating', c: 'good' };
     if (isIdle(v)) return { text: 'Idle', c: 'warn' };
     if (v.trip) return { text: escortee(v) || v.trip.rescue != null ? 'Helping' : 'In transit', c: 'info' };
     if (!v.city) return { text: escortee(v) ? 'Escorting' : 'Aboard', c: 'info' };
@@ -226,17 +225,12 @@
       <span class="lab">Name</span>
       <input value={v.name} maxlength="24" placeholder={spec(v).name} onchange={(e) => { renameVehicle(v, e.currentTarget.value); e.currentTarget.value = v.name; }} onkeydown={(e) => e.key === 'Enter' && e.currentTarget.blur()} />
     </label>
-    {#if (game.routes.length || lines.length) && !escortKind(v) && !spec(v).superload && v.aboard == null}
+    {#if choices.length && !escortKind(v) && !spec(v).superload && v.aboard == null}
       <label class="row tfield">
         <span class="lab">Route</span>
-        <select value={pick} onchange={(e) => {
-          const val = e.currentTarget.value, r = routeById(Number(val));
-          if (val.startsWith('line:')) assignLine(v, val.slice(5)); else if (r) assignRoute(v, r); else stopRepeating(v);
-          e.currentTarget.value = v.loop?.line ? `line:${v.loop.line}` : v.loop?.route ?? '';
-        }}>
-          <option value="">{v.loop && v.loop.route == null && !v.loop.line ? 'Its own repeating loop' : 'None'}</option>
-          {#each lines as [k, L] (k)}<option value="line:{k}">{L.line}</option>{/each}
-          {#each game.routes as r (r.id)}<option value={r.id}>{r.name}</option>{/each}
+        <select value={v.loop?.route ?? ''} onchange={(e) => { const r = routeById(Number(e.currentTarget.value)); if (r) assignRoute(v, r); else stopRepeating(v); e.currentTarget.value = v.loop?.route ?? ''; }}>
+          <option value="">{v.loop && v.loop.route == null ? 'Its own repeating loop' : 'None'}</option>
+          {#each choices as r (r.id)}<option value={r.id}>{r.name}</option>{/each}
         </select>
       </label>
     {/if}

@@ -465,6 +465,19 @@ export const LINES = {
   bus: { name: "Bus Stop", line: "Bus line", type: "pax", level: 4, price: 500 },
   post: { name: "Post Office", line: "Mail line", type: "mail", level: 4, price: 500 },
 };
+// the colors lines are named and drawn in, first free one first (see lineName)
+export const LINE_COLORS = [
+  ["Blue", "#2a6fd6"],
+  ["Red", "#d6453a"],
+  ["Green", "#2f9e57"],
+  ["Orange", "#e98a2c"],
+  ["Purple", "#8a4fc9"],
+  ["Yellow", "#e8c232"],
+  ["Teal", "#24a3a0"],
+  ["Pink", "#e06aa6"],
+  ["Brown", "#8b5e3c"],
+  ["Gray", "#7d8794"],
+];
 // contracts: deliver n jobs of one type to one town before time runs out, for a bonus on top of
 // what the jobs pay. Up to `offers` wait on the board, each for offerTtl, a new one turning up
 // every `every`, and up to `active` can be taken on at once. size is the [min, max] jobs for

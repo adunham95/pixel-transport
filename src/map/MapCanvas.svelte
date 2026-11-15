@@ -357,8 +357,8 @@
       const x = c.x * R, y = c.y * R;
       if (isOpen(c.id)) landmark(c, x, y, now);
       if (game.depots[c.id]) depot(c.island ? x - 13 : x + 5, c.island ? y - 2 : y + 4);
-      if (game.lines?.bus?.[c.id]) busStop(x + 14, y - 3);
-      if (game.lines?.post?.[c.id]) postOffice(x - 22, y - 1);
+      if (game.buildings?.bus?.[c.id]) busStop(x + 14, y - 3);
+      if (game.buildings?.post?.[c.id]) postOffice(x - 22, y - 1);
       if (game.hq === c.id) hqFlag(c.island ? x - 9 : x - 11, c.island ? y - 12 : y - 13, now);
       if (c.air) {
         rect('#2c3038', x - 14, y + 7, 28, 8);
@@ -653,7 +653,8 @@
         b.save();
         b.lineWidth = 2; b.setLineDash([4, 3]); b.lineDashOffset = -Math.floor(now / 80) % 7;
         b.strokeStyle = 'rgba(18,22,38,0.6)'; path(pts, 1);
-        b.strokeStyle = '#ffd23f'; path(pts);
+        // a bus or mail line in its own color
+        b.strokeStyle = er.line ? er.color ?? '#ffd23f' : '#ffd23f'; path(pts);
         b.restore();
       }
       const inView = (wx, wy) => wx * R > cx - 60 && wx * R < cx + bw + 60 && wy * R > cy - 50 && wy * R < cy + bh + 50;
