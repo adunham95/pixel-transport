@@ -1399,6 +1399,7 @@ function step() {
   tickLaunches(now);
   tickWeather(now);
   tickUsed(now);
+  tickInbox(now);
   for (const v of game.vehicles) if (v.loop && v.city && !v.trip && now >= (v.loop.wait ?? 0)) runLoop(v, now);
   for (const c of CITIES) {
     // jobs are stamped the first time they're seen waiting; ones dropped off for a transfer, or with
@@ -2508,4 +2509,120 @@ export function devUnlockAll() {
   for (const c of CITIES) if (!isOpen(c.id)) { game.unlocked[c.id] = true; for (let i = 0; i < 4; i++) addJob(c.id); }
   reachCache.clear();
   toast('Every town is unlocked', 'good');
+}
+
+// ---------- the problems inbox ----------
+
+// things across the company that want a look, rebuilt every couple of seconds (see step): broken
+// down vehicles, contracts running out of time, routes losing money, towns full of jobs or with
+// jobs nothing you own can carry, worn out vehicles, and ones sitting idle or stopped partway along
+// a route. Each has a key, so one dismissed stays hidden until it clears up and comes back.
+// sev: 'bad', 'warn' or 'info'. go: where tapping it takes you. act: a one tap fix, if there is one.
+export const INBOX = { every: 2000, idle: 60 * 1000, held: 30 * 1000, contractLeft: 0.25, routeLaps: 2 };
+export const inbox = $state({ items: [], dismissed: {} });
+let scannedAt = 0;
+
+// could anything in the fleet take this job from where it waits to where it's headed?
+function shippable(j, at, fleet) {
+  if (j.escort) return true; // superloads come with their own carriers and escorts
+  const A = cityById[at], B = cityById[j.to];
+  return fleet.some((v) => {
+    const s = spec(v);
+    if (!capacity(v)[j.type] || (j.celeb && !s.celebrity) || s.superload) return false;
+    if (!canBase(v.kind, v.model, A) || !canBase(v.kind, v.model, B)) return false;
+    if (v.kind === 'truck' && !s.amphibious) return !!roadPath(at, j.to);
+    if (v.kind === 'train') return !!railPath(at, j.to, !!s.maglev);
+    return true;
+  });
+}
+
+function scanProblems(now) {
+  const out = [], add = (p) => out.push(p);
+  const name = (id) => cityById[id].name;
+  for (const v of game.vehicles) {
+    if (v.broken) add({ key: `broken:${v.id}`, sev: 'bad', icon: 'alert', title: `${v.name} broke down`, text: v.broken.fixAt ? 'The roadside service is on its way' : 'Send help or call the roadside service', go: { tab: 'fleet', vehicle: v.id } });
+  }
+  for (const c of game.contracts.active) {
+    if (c.until == null || !c.time || c.done >= c.n) continue;
+    const left = c.until - now;
+    if (left > 0 && left < c.time * INBOX.contractLeft) add({ key: `contract:${c.id}`, sev: 'bad', icon: 'contracts', title: 'Contract running out of time', text: `${c.done} of ${contractText(c)}, ${fmtTime(left / 1000)} left`, go: { tab: 'contracts' } });
+  }
+  for (const r of game.routes) {
+    const rep = routeReport(r, now);
+    if (rep && rep.laps >= INBOX.routeLaps && rep.profit < 0 && routeVehicles(r).length) add({ key: `route:${r.id}`, sev: 'bad', icon: 'routes', title: `${r.name} is losing money`, text: `−$${fmt(Math.round(-rep.profit))} a lap over ${rep.laps} laps`, go: { tab: 'routes', route: r.id } });
+  }
+  const fleet = game.vehicles, full = [];
+  for (const c of CITIES) {
+    if (!isOpen(c.id) || c.anchor) continue;
+    const list = game.jobs[c.id] ?? [];
+    if (ownJobs(c.id) >= jobCap(c.id)) full.push(c);
+    const stuck = {};
+    for (const j of list) if (!shippable(j, c.id, fleet)) stuck[j.type] = (stuck[j.type] ?? 0) + 1;
+    const types = Object.keys(stuck);
+    if (types.length) {
+      const n = types.reduce((s, t) => s + stuck[t], 0);
+      add({ key: `stuck:${c.id}:${types.sort().join(',')}`, sev: 'warn', icon: types[0], title: `${n} job${n > 1 ? 's' : ''} at ${c.name} nothing can carry`, text: `${types.map((t) => `${stuck[t]} ${TYPE_LABEL[t].toLowerCase()}`).join(', ')}. Buy a vehicle that can, or let them go`, go: { tab: 'city', city: c.id } });
+    }
+  }
+  // full towns turn up no new jobs. Lots of them at once make one item, going to the one with the most waiting
+  const waiting = (c) => game.jobs[c.id].length;
+  if (full.length >= 3) {
+    full.sort((a, b) => waiting(b) - waiting(a));
+    add({ key: `full:${full.map((c) => c.id).sort().join(',')}`, sev: 'warn', icon: 'town', title: `${full.length} towns are full of jobs`, text: `${full.slice(0, 3).map((c) => c.name).join(', ')}${full.length > 3 ? ` and ${full.length - 3} more` : ''}. No new jobs turn up there until some are picked up`, go: { tab: 'city', city: full[0].id } });
+  } else for (const c of full) add({ key: `full:${c.id}`, sev: 'warn', icon: 'town', title: `${c.name} is full of jobs`, text: `${waiting(c)} waiting. No new ones turn up until some are picked up`, go: { tab: 'city', city: c.id } });
+  for (const v of game.vehicles) {
+    if (v.broken || escortKind(v) || wear(v) < WEAR.max || v.serviceDue || v.loop?.service) continue;
+    add({ key: `worn:${v.id}`, sev: 'warn', icon: 'wrench', title: `${v.name} is worn out`, text: `Burning ${Math.round(WEAR.max * 100)}% more fuel and breaking down more`, go: { tab: 'fleet', vehicle: v.id }, ...(canSendService(v) && { act: { label: v.city ? 'Service' : 'Service later', kind: 'service', id: v.id } }) });
+  }
+  for (const v of game.vehicles) {
+    if (!v.held || !v.city || v.idleAt == null || now - v.idleAt < INBOX.held) continue;
+    add({ key: `held:${v.id}`, sev: 'info', icon: 'pause', title: `${v.name} is waiting at ${name(v.city)}`, text: `Stopped on its route. Next ${name(v.held.stops[0])}`, go: { tab: 'city', city: v.city, load: v.id }, act: { label: 'Continue', kind: 'continue', id: v.id } });
+  }
+  const idle = game.vehicles.filter((v) => isIdle(v) && v.idleAt != null && now - v.idleAt >= INBOX.idle);
+  if (idle.length >= 3) add({ key: `idle:${idle.map((v) => v.id).sort().join(',')}`, sev: 'info', icon: 'clock', title: `${idle.length} vehicles sitting idle`, text: idle.slice(0, 3).map((v) => v.name).join(', ') + (idle.length > 3 ? ` and ${idle.length - 3} more` : ''), go: { tab: 'fleet', status: 'idle' }, act: { label: 'Send all', kind: 'sendAll' } });
+  else for (const v of idle) add({ key: `idle:${v.id}`, sev: 'info', icon: 'clock', title: `${v.name} is idle`, text: `Parked at ${name(v.city)} for ${fmtTime((now - v.idleAt) / 1000)}`, go: { tab: 'fleet', vehicle: v.id }, act: { label: 'Quick send', kind: 'send', id: v.id } });
+  // a dismissed problem comes back once it's cleared up and turned up again
+  const keys = new Set(out.map((p) => p.key));
+  for (const k in inbox.dismissed) if (!keys.has(k)) delete inbox.dismissed[k];
+  inbox.items = out;
+}
+
+// how long each vehicle has been sitting parked with nothing to do (or stopped on a route), and
+// every so often, what's in the inbox
+function tickInbox(now) {
+  for (const v of game.vehicles) {
+    if ((isIdle(v) || (v.held && v.city && !v.trip))) v.idleAt ??= now;
+    else if (v.idleAt != null) delete v.idleAt;
+  }
+  if (now - scannedAt < INBOX.every && now >= scannedAt) return;
+  scannedAt = now;
+  scanProblems(now);
+}
+
+export const openProblems = () => inbox.items.filter((p) => !inbox.dismissed[p.key]);
+export function dismissProblem(p) { inbox.dismissed[p.key] = true; }
+
+// tapping a problem: over to the vehicle, town, route or tab it's about
+export function goToProblem(p) {
+  const g = p.go;
+  if (g.city) {
+    selectCity(g.city, true);
+    if (g.load) openLoad(game.vehicles.find((v) => v.id === g.load));
+  }
+  if (g.vehicle != null) ui.focusVehicle = g.vehicle;
+  if (g.route != null) ui.routeEdit = g.route;
+  if (g.status) { ui.focusVehicle = null; ui.fleetFind = ''; ui.fleetKind = null; ui.fleetStatus = g.status; }
+  ui.tab = g.tab;
+  ui.sheetOpen = true;
+}
+
+// its one tap fix; the list catches up on the next scan, or straight away here
+export function fixProblem(p) {
+  const v = p.act.id != null ? game.vehicles.find((x) => x.id === p.act.id) : null;
+  if (p.act.kind === 'sendAll') quickSendAll();
+  else if (!v) return;
+  else if (p.act.kind === 'send') { if (!quickSend(v)) toast(`Nothing at ${cityById[v.city].name} that ${v.name} can take`); }
+  else if (p.act.kind === 'continue') continueRoute(v);
+  else if (p.act.kind === 'service') sendToService(v);
+  scanProblems(gameNow());
 }

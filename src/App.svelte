@@ -12,12 +12,17 @@
   import VehicleCard from './ui/VehicleCard.svelte';
   import Icon from './ui/Icon.svelte';
   import Settings from './ui/Settings.svelte';
-  import { game, ui, dev, start, fmt, cityById, isIdle, escortKind } from './game/game.svelte.js';
+  import Inbox from './ui/Inbox.svelte';
+  import { game, ui, dev, start, fmt, cityById, isIdle, escortKind, openProblems } from './game/game.svelte.js';
   import { LEVELS, CONTRACTS } from './game/data.js';
   import { fly, fade, flip, reduced } from './ui/motion.js';
 
   let sheetPx = $state(0);
   let settingsOpen = $state(false);
+  let inboxOpen = $state(false);
+  // the bell's badge: how many problems want a look, red if any is serious
+  const problems = $derived(openProblems());
+  const serious = $derived(problems.some((p) => p.sev === 'bad'));
   // each tab opens at its top, not wherever the last one was scrolled to
   let bodyEl = $state();
   $effect(() => { ui.tab; if (bodyEl) bodyEl.scrollTop = 0; });
@@ -52,7 +57,7 @@
   // other way (its back arrow, Escape, switching tab) drops the matching entries again.
   const parkedHere = () => ui.activeVehicle != null ? game.vehicles.find((v) => v.id === ui.activeVehicle && v.city) : null;
   function depth() {
-    let d = settingsOpen ? 1 : 0;
+    let d = (settingsOpen ? 1 : 0) + (inboxOpen ? 1 : 0);
     if (ui.tab === 'city') {
       const v = parkedHere();
       if (v) d += ui.picking && !escortKind(v) ? 2 : 1;
@@ -66,6 +71,7 @@
   // close the top screen, one step
   function goBack() {
     if (settingsOpen) { settingsOpen = false; return; }
+    if (inboxOpen) { inboxOpen = false; return; }
     if (ui.tab === 'city') {
       const v = parkedHere();
       if (v && ui.picking && !escortKind(v)) { ui.picking = false; ui.plan = []; return; }
@@ -191,9 +197,14 @@
       {#key game.level}<span class="lvnum">Lv {game.level}</span>{/key}
       <span class="bar"><i style:width="{pct}%"></i></span>
     </div>
+    <button class="gear bell" aria-label={problems.length ? `Problems, ${problems.length}` : 'Problems'} title="Problems" onclick={() => (inboxOpen = true)}>
+      <Icon name="bell" size={20} />
+      {#if problems.length}<span class="badge" class:bad={serious}>{problems.length > 9 ? '9+' : problems.length}</span>{/if}
+    </button>
     <button class="gear" aria-label="Settings" title="Settings" onclick={() => (settingsOpen = true)}><Icon name="gear" size={20} /></button>
   </header>
   {#if settingsOpen}<Settings onclose={() => (settingsOpen = false)} />{/if}
+  {#if inboxOpen}<Inbox onclose={() => (inboxOpen = false)} />{/if}
 
   <main class="stage" bind:this={stageEl}>
     <div class="mapwrap">
