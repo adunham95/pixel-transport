@@ -457,6 +457,8 @@ let tid = 0;
 let quiet = false;
 export function toast(text, kind = 'info') {
   if (quiet) return;
+  // the simulator (sim/engine.mjs) listens in here to log what the player would have seen
+  globalThis.__simToast?.(text, kind);
   const id = ++tid;
   ui.toasts.push({ id, text, kind });
   if (ui.toasts.length > 3) ui.toasts.shift();
@@ -2718,6 +2720,13 @@ export function devSpawn(kind, model) {
   const v = newVehicle(game, kind, model, c.id, s.maxCars ? Array(s.maxCars).fill(0).map((_, i) => mix[i % mix.length]) : undefined);
   game.vehicles.push(v);
   toast(`${v.name} added at ${c.name}`, 'good');
+}
+
+// one tick of the game, as the page runs every 250ms: for the simulator (sim/engine.mjs), which
+// moves the clock on itself
+export function simStep() {
+  clock.now = gameNow();
+  step();
 }
 
 // jump every trip to the end of its current leg
