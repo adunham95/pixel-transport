@@ -1,6 +1,6 @@
 <script>
   import { onMount } from 'svelte';
-  import { game, ui, cityById, leg, planLegs, toggleStop, selectCity, posAt, tripProgress, gameNow, isOpen, fx, darkness, isCarrier, carrierAt, townSize, escortsOf, consistOf, paintOf, landmarkAt, projectProgress, routeById, routeIds, addRouteStop } from '../game/game.svelte.js';
+  import { game, ui, cityById, leg, planLegs, toggleStop, selectCity, posAt, tripProgress, gameNow, isOpen, fx, darkness, isCarrier, carrierAt, townSize, escortsOf, consistOf, paintOf, landmarkAt, projectProgress, routeById, routeIds, addRouteStop, dropCounts } from '../game/game.svelte.js';
   import { CITIES, ENGINES, PLANES, CARS, TRUCKS, BOATS, W, H, PROJECTS, ROAD_OFF, roadSide } from '../game/data.js';
   import { buildTerrain, makeWaterPattern, R, bresenham } from './terrain.js';
   import { drawArt, trainUnits, paintOrder, artSize, loadArt, wingtips } from './sprites.js';
@@ -393,6 +393,17 @@
       b.strokeStyle = '#ffd23f'; b.lineWidth = 1.5;
       b.beginPath(); b.arc(x + 0.5, y + 0.5, r, 0, 7); b.stroke();
     }
+    // a town where something on the vehicle (or waiting on the route being edited) can be dropped
+    // off: a soft green disc with a ring round it, breathing slowly, outside the yellow reach ring
+    function dropRing(c, now) {
+      const x = c.x * R + 0.5, y = c.y * R + 0.5, r = 19 + (reduced ? 0 : Math.sin(now / 300));
+      b.fillStyle = 'rgba(62,196,109,0.18)';
+      b.beginPath(); b.arc(x, y, r, 0, 7); b.fill();
+      b.strokeStyle = 'rgba(18,22,38,0.55)'; b.lineWidth = 3.5;
+      b.beginPath(); b.arc(x, y, r, 0, 7); b.stroke();
+      b.strokeStyle = '#3ec46d'; b.lineWidth = 2;
+      b.beginPath(); b.arc(x, y, r, 0, 7); b.stroke();
+    }
     function brackets(c) {
       const x0 = c.x * R - 15, y0 = c.y * R - 15, x1 = c.x * R + 15, y1 = c.y * R + 17;
       b.fillStyle = '#ffd23f';
@@ -658,6 +669,10 @@
         b.restore();
       }
       const inView = (wx, wy) => wx * R > cx - 60 && wx * R < cx + bw + 60 && wy * R > cy - 50 && wy * R < cy + bh + 50;
+      // where things can be dropped off: what's on the vehicle you're loading or planning a trip for,
+      // or what's waiting on the route you're editing (see dropCounts)
+      const lv = pv ?? (ui.tab === 'city' && ui.activeVehicle != null ? game.vehicles.find((v) => v.id === ui.activeVehicle && v.city) : null);
+      const drops = lv ? dropCounts({ vehicle: lv }) : er ? dropCounts({ route: er }) : null;
       for (const p of PROJECTS) if (p.link && game.projects[p.id]) bridge(p);
       for (const c of CITIES) {
         if (!inView(c.x, c.y)) continue;
@@ -667,6 +682,7 @@
         if (c.anchor) buoy(c, now); else drawCity(c, now);
         b.globalAlpha = 1;
         if (dk && isOpen(c.id) && !c.anchor) lights.push(() => townLights(c, now));
+        if (drops?.[c.id]) dropRing(c, now);
         if (pv && leg(pv, lastStop, c.id)) ring(c, now);
         if (c.id === game.selected && (blink || pv)) brackets(c);
         if (er && er.stops.some((s) => s.city === c.id)) ring(c, now);
@@ -798,6 +814,7 @@
       ctx.globalAlpha = 1;
       ctx.font = font(600, fs);
 
+      // how much could be dropped off at each town (drops, worked out above), as a ↓N pill
       for (const c of CITIES) {
         if (!inView(c.x, c.y) || (out && !isOpen(c.id) && c.id !== game.selected)) continue;
         const sx = (c.x * R - cx + 0.5) * scale;
@@ -806,6 +823,7 @@
         const n = game.jobs[c.id]?.length ?? 0;
         const bs = fs * 1.15;
         const badgeW = n ? bs + 4 * dpr : 0;
+        const dn = drops?.[c.id] ?? 0;
         const half = (tw + badgeW) / 2;
         const lx = Math.min(canvas.width - half - 4 * dpr, Math.max(half + 4 * dpr, sx)) - badgeW / 2;
         ctx.textBaseline = 'bottom';
@@ -824,6 +842,21 @@
           ctx.font = font(700, Math.round(fs * 0.78));
           ctx.textBaseline = 'middle';
           ctx.fillText(String(n), bx + bs / 2, by + bs / 2 + dpr * 0.5);
+          ctx.font = font(600, fs);
+        }
+        // a green ↓N pill under the town for what could be dropped off there
+        if (dn) {
+          const txt = `↓${dn}`;
+          ctx.font = font(700, Math.round(fs * 0.8));
+          const pw = ctx.measureText(txt).width + 8 * dpr, ph = fs * 1.15;
+          const px = sx - pw / 2, py = (c.y * R - cy + 17) * scale;
+          ctx.fillStyle = 'rgba(18,22,38,0.75)';
+          ctx.beginPath(); ctx.roundRect(px - 1.5 * dpr, py - 1.5 * dpr, pw + 3 * dpr, ph + 3 * dpr, ph); ctx.fill();
+          ctx.fillStyle = '#3ec46d';
+          ctx.beginPath(); ctx.roundRect(px, py, pw, ph, ph / 2); ctx.fill();
+          ctx.fillStyle = '#0d2416';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(txt, sx, py + ph / 2 + dpr * 0.5);
           ctx.font = font(600, fs);
         }
       }

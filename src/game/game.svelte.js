@@ -2201,6 +2201,22 @@ export function routeProblem(v, r) {
 
 export const routeVehicles = (r) => game.vehicles.filter((v) => v.loop?.route === r.id);
 
+// what's waiting to be dropped off at each town, by town id, for the map to show while you pick
+// stops. For a route (or line) being edited: jobs waiting at its stops headed there (for a line,
+// only its kind of job). For a trip being planned: what the vehicle has on board headed there.
+export function dropCounts({ route = null, vehicle = null } = {}) {
+  const out = {};
+  if (vehicle) for (const j of vehicle.cargo) out[j.to] = (out[j.to] ?? 0) + 1;
+  if (route) {
+    const at = new Set(routeIds(route)), type = route.line ? LINES[route.line].type : null;
+    for (const id of at) for (const j of game.jobs[id] ?? []) {
+      if (j.to === id || j.escort || (type && j.type !== type)) continue;
+      out[j.to] = (out[j.to] ?? 0) + 1;
+    }
+  }
+  return out;
+}
+
 // ---------- route stats ----------
 
 // running totals for a saved route: laps set off, fuel paid for them, what they earned, how full

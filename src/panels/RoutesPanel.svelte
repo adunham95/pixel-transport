@@ -1,5 +1,5 @@
 <script>
-  import { game, ui, cityById, isOpen, spec, consistOf, paintOf, createRoute, deleteRoute, routeIds, renameRoute, addRouteStop, removeRouteStop, moveRouteStop, STOP_MODES, stopMode, setStopMode, routeModes, routeProblem, routeVehicles, assignRoute, stopRepeating, selectCity, routeReport, resetRouteStats, requestService, setRoutePaused, setAutoService, setRouteBack, wear, fmt, fmtTime, clock, createLine, lineFits, lineTowns, setLineColor } from '../game/game.svelte.js';
+  import { game, ui, cityById, isOpen, spec, consistOf, paintOf, createRoute, deleteRoute, routeIds, renameRoute, addRouteStop, removeRouteStop, moveRouteStop, STOP_MODES, stopMode, setStopMode, routeModes, routeProblem, routeVehicles, assignRoute, stopRepeating, selectCity, routeReport, resetRouteStats, requestService, setRoutePaused, setAutoService, setRouteBack, wear, fmt, fmtTime, clock, createLine, lineFits, lineTowns, setLineColor, dropCounts } from '../game/game.svelte.js';
   import { CITIES, HQ, LINES, LINE_COLORS } from '../game/data.js';
   import Sprite from '../ui/Sprite.svelte';
   import Icon from '../ui/Icon.svelte';
@@ -40,6 +40,7 @@
   {@const runners = routeVehicles(r)}
   {@const modes = routeModes(r)}
   {@const rep = routeReport(r, clock.now)}
+  {@const drops = dropCounts({ route: r })}
   {@const others = game.vehicles.filter((v) => v.loop?.route !== r.id && (L ? lineFits(v, r.line) : modes.includes(v.kind))).map((v) => ({ v, why: routeProblem(v, r) }))}
   {@const able = others.filter((o) => !o.why)}
   {@const unable = others.filter((o) => o.why)}
@@ -122,7 +123,7 @@
       <span class="lab">Add a stop</span>
       <select onchange={(e) => { if (e.currentTarget.value) addRouteStop(r, e.currentTarget.value); e.currentTarget.value = ''; }}>
         <option value="">{L ? `Pick a ${L.name.toLowerCase()}, or tap its town on the map` : 'Pick a town, or tap one on the map'}</option>
-        {#each stopTowns(r) as c (c.id)}<option value={c.id}>{c.name}</option>{/each}
+        {#each stopTowns(r) as c (c.id)}<option value={c.id}>{c.name}{drops[c.id] ? ` · ${drops[c.id]} to drop off` : ''}</option>{/each}
       </select>
     </label>
   </div>

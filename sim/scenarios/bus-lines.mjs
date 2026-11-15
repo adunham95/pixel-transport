@@ -29,6 +29,12 @@ export default {
     sim.expect(G.assignRoute(bus, blue), 'a bus joins a line with no HQ');
 
     // a fare each way, then let it run for a while picking up whatever turns up
+    // the map's drop off counts while editing the line: fares at its stops, by where they're headed
+    const before = G.dropCounts({ route: blue }).pine ?? 0;
+    sim.job('iron', 'pine');
+    sim.job('iron', 'pine', { type: 'cargo' });
+    sim.expect((G.dropCounts({ route: blue }).pine ?? 0) === before + 1, 'the map counts a fare at a stop headed to Pinecrest, and skips cargo on a bus line');
+
     sim.job('iron', 'frost');
     sim.job('frost', 'iron');
     const coins = game.coins;
