@@ -132,6 +132,7 @@
   {#if routeIds(r).length > 1 && !modes.length}
     <div class="alert bad"><span class="ai"><Icon name="alert" size={18} /></span><p class="txt small">No single kind of vehicle can make every hop on this route.</p></div>
   {/if}
+  {#if r.line === 'post'}<p class="gnote">Mail lines start every stop on <b>Transfer</b>, so letters change vans wherever two mail lines meet and can get anywhere your lines reach.</p>{/if}
   <p class="gnote">Every stop drops off jobs that end there and picks up ones for another stop. <b>Fill</b> also takes jobs headed off the route, <b>Drop off</b> leaves them for another route, and <b>Transfer</b> does both. For hub and spoke, use Fill on the spokes and Transfer on the hub.</p>
 
   <p class="sec">Vehicles · {runners.length}</p>

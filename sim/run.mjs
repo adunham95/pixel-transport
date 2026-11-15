@@ -21,6 +21,8 @@ if (!files.length) { console.error(`No scenarios match ${names.join(', ')}`); pr
 let failed = 0;
 for (const f of files) {
   const { default: sc } = await import(pathToFileURL(dir + f).href);
+  // long runs (slow: true) only when named
+  if (sc.slow && !names.length) { console.log(`\n· skipped ${sc.name ?? f} (slow; run it with npm run sim ${f.replace('.mjs', '')})`); continue; }
   console.log(`\n▶ ${sc.name ?? f}${sc.about ? ` — ${sc.about}` : ''}`);
   const sim = await createSim({ seed, log: flag('log'), ...(sc.setup ?? {}) });
   const t0 = performance.now();

@@ -27,10 +27,18 @@ export default {
     sim.expect(van.city && !van.trip, `parked while paused (at ${van.city ?? 'on the road'})`);
     sim.expect(line.stats.laps === laps, 'no laps while paused');
 
-    // mail only waits MAIL.ttl, so the letter from before the pause has gone back by now
+    // mail never goes stale, so the letter from before the pause is still waiting
+    sim.expect(game.jobs.iron.some((j) => j.type === 'mail' && j.to === 'frost'), 'mail is still waiting after 5 minutes');
     G.setRoutePaused(line, false);
-    sim.job('iron', 'frost', { type: 'mail', pay: 150 });
     sim.advance('5m');
     sim.expect(line.stats.laps > laps, 'runs again once resumed');
+
+    // left a long while with nothing to carry it, mail fills only its share of a town's board
+    G.setRoutePaused(line, true);
+    sim.advance('2h');
+    const board = game.jobs.iron.filter((j) => j.from === 'iron');
+    const mail = board.filter((j) => j.type === 'mail').length;
+    sim.expect(board.length - mail > 0, `other jobs still turn up beside the mail (${mail} mail, ${board.length - mail} others)`);
+    sim.expect(mail <= Math.ceil(board.length * 0.75), `mail doesn't take over the board (${mail} of ${board.length})`);
   },
 };

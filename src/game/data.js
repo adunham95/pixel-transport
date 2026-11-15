@@ -391,9 +391,10 @@ export const CELEB = {
 // vehicles age as they travel: fuel costs step more for every `per` world units, up to max.
 // A service resets it, costing the vehicle's price times its wear times `service`.
 export const WEAR = { per: 2500, step: 0.1, max: 0.5, service: 0.5 };
-// mail turns up everywhere from this level. It pays well but goes back to the post office
-// if it waits at its town longer than ttl (game time).
-export const MAIL = { level: 2, ttl: 4 * 60 * 1000 };
+// mail turns up everywhere from this level. It pays well and never goes stale (everyone needs
+// their mail), so a town stops turning up more once mail fills `share` of its job board, leaving
+// room for everything else.
+export const MAIL = { level: 2, share: 0.5 };
 // wide loads (turbine blades, boat hulls, little houses) only go overland, on lowboy trailers or
 // flatcars, between mainland towns on the same landmass
 export const WIDE = { level: 8 };
@@ -402,12 +403,12 @@ export const WIDE = { level: 8 };
 // boat) that carries one on its way, so long runs that change from road to rail to sea pay best.
 export const CONTAINER = { level: 7, bonus: 0.25 };
 // valuables (gold, cash, art) turn up everywhere from this level, in armored cars, vault cars,
-// courier launches and courier jets. They pay the most per mile but, like mail, only wait ttl.
+// courier launches and courier jets. They pay the most per mile but only wait ttl.
 // With a police car riding along an armored car (escortedBy in TRUCKS), they pay escortBonus more.
 export const SECURE = { level: 11, ttl: 3 * 60 * 1000, escortBonus: 0.3 };
 // tourists turn up everywhere from this level, once you own a show-off vehicle (the only models
 // with room for them), in groups of `group` headed the same way. They lean toward towns with
-// landmarks and pay more going there (see PROJECTS), and like mail, only wait ttl (game time).
+// landmarks and pay more going there (see PROJECTS), and only wait ttl (game time).
 export const TOURISTS = { level: 12, ttl: 5 * 60 * 1000, group: 4 };
 // lucky cargo: `chance` of everyday jobs are a mystery, paying their usual pay times whatever turns
 // out to be inside when they're delivered, one of `finds` picked by its weight
@@ -808,8 +809,11 @@ export const CONTRACTS = {
 
 // xp needed to reach level i+1: a quick first level, then each step about a quarter longer than
 // the last, since a bigger fleet earns faster
+// the XP each level starts at. Levels 1 to 5 come in the first few hours; past that the gaps
+// grow about half again each level, since routes running while you're away keep XP coming in
+// (tested with npm run sim progression: level 10 on day 3, the top around day 5)
 export const LEVELS = [
-  0, 250, 1250, 2750, 4750, 7350, 10650, 14850, 20150, 26850, 35250, 45750,
+  0, 250, 1250, 2750, 4750, 8000, 13000, 20000, 30000, 45000, 65000, 95000,
 ];
 // job types; bulk (coal, grain, ore) turns up in batches and pays less per load
 export const JOB_TYPES = [

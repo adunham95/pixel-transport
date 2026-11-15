@@ -10,7 +10,8 @@ const LOOP_SLACK = 1.25;
 const JOB_CAP = 6;
 // a job left waiting at its town this long (game time) goes elsewhere, so towns can't clog up
 export const JOB_TTL = 15 * 60 * 1000;
-export const jobTtl = (j) => (j.celeb ? CELEB.ttl : j.type === 'mail' ? MAIL.ttl : j.type === 'secure' ? SECURE.ttl : j.type === 'tour' ? TOURISTS.ttl : JOB_TTL);
+// mail never goes stale (see MAIL)
+export const jobTtl = (j) => (j.celeb ? CELEB.ttl : j.type === 'mail' ? Infinity : j.type === 'secure' ? SECURE.ttl : j.type === 'tour' ? TOURISTS.ttl : JOB_TTL);
 
 export const cityById = Object.fromEntries(CITIES.map((c) => [c.id, c]));
 
@@ -327,7 +328,9 @@ function makeJob(g, from, forceTo, forceType) {
   const A = cityById[from];
   // bulk comes three at a time, so it's held to half the town's room, leaving space for everything else
   const bulkFull = g.jobs[from].filter((j) => j.from === from && j.type === 'bulk').length + 3 > jobCap(from, g) / 2;
-  const types = forceType ? null : jobTypes(g, A).filter(([t]) => t !== 'bulk' || !bulkFull);
+  // mail never goes stale, so it's held to its share of the room too, or it'd crowd out everything else
+  const mailFull = g.jobs[from].filter((j) => j.from === from && j.type === 'mail').length + 1 > jobCap(from, g) * MAIL.share;
+  const types = forceType ? null : jobTypes(g, A).filter(([t]) => (t !== 'bulk' || !bulkFull) && (t !== 'mail' || !mailFull));
   if (types && !types.length) return null;
   const type = forceType ?? pickWeighted(types);
   const dests = jobDests(g, A, type);
@@ -381,6 +384,8 @@ function load() {
     for (const c of CITIES) { g.jobs[c.id] ??= []; g.spawnAt[c.id] ??= Date.now() + (g.skew ?? 0) + Math.random() * 8000; }
     g.growth ??= {};
     g.depots ??= {};
+    // saves from before the steeper level curve keep their level, with XP lifted to where it now starts
+    g.xp = Math.max(g.xp ?? 0, LEVELS[Math.min(g.level, LEVELS.length) - 1] ?? 0);
     // bus stops and post offices built, by kind and town (saves from the first take on lines kept them in lines)
     g.buildings ??= g.lines ?? {};
     for (const k in LINES) g.buildings[k] ??= {};
@@ -2395,9 +2400,10 @@ export function addRouteStop(r, id) {
   // a line only stops where there's a bus stop (or post office), and is named after where it starts
   if (r.line && !game.buildings[r.line][id]) { toast(`Build a ${LINES[r.line].name.toLowerCase()} at ${cityById[id].name} first, from its town page`, 'bad'); return; }
   if (r.line && r.autoName && !r.stops.length) Object.assign(r, lineName(r.line, id));
-  // a town on the route more than once does the same thing every time it's visited
-  const same = r.stops.find((s) => s.city === id);
-  r.stops.push({ city: id, fill: !!same?.fill, drop: !!same?.drop });
+  // a town on the route more than once does the same thing every time it's visited. Mail lines start
+  // each new stop on transfer, so letters change vans wherever two lines meet (see relayStop).
+  const same = r.stops.find((s) => s.city === id), hand = r.line === 'post';
+  r.stops.push({ city: id, fill: same ? !!same.fill : hand, drop: same ? !!same.drop : hand });
 }
 export function removeRouteStop(r, i) { r.stops.splice(i, 1); tidyStops(r); }
 export function moveRouteStop(r, i, d) {
@@ -2727,6 +2733,10 @@ export function devSpawn(kind, model) {
 export function simStep() {
   clock.now = gameNow();
   step();
+}
+// the player closing the game (or switching tabs) and coming back, as the page's visibility events do
+export function simAway(on) {
+  if (on) goAway(); else comeBack();
 }
 
 // jump every trip to the end of its current leg

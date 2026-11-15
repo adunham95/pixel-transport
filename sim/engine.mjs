@@ -88,9 +88,23 @@ export async function createSim({ seed = 1, level, coins, towns = [], save = nul
     // move the clock on, ticking the game every `tick` ms the way the page does (250ms)
     advance(t, { tick = 250 } = {}) {
       const end = now + ms(t);
-      while (now < end) { now = Math.min(end, now + tick); G.simStep(); }
+      while (now < end) { now = Math.min(end, now + tick); G.simStep(); noteLevel(); }
       return sim;
     },
+    // the player closes the game for a while and comes back: the fleet runs on, but XP comes in at the
+    // away rate and can go up at most one level (see goAway). Returns what came in.
+    away(t, opts) {
+      const coins = game.coins, xp = game.xp, level = game.level;
+      G.simAway(true);
+      sim.advance(t, opts);
+      G.simAway(false);
+      const out = { coins: game.coins - coins, xp: game.xp - xp, level: game.level - level };
+      // XP the deliveries would have paid with the game open, and what the away cap kept
+      out.xpOpen = Math.round(out.coins / 8);
+      return out;
+    },
+    // when each level was reached, in game ms since the start
+    levels: [],
     // tick until test() is true or `max` game time has gone by. True if it came true.
     until(test, { max = '1h', tick = 250 } = {}) {
       const end = now + ms(max);
@@ -98,6 +112,7 @@ export async function createSim({ seed = 1, level, coins, towns = [], save = nul
         if (test()) return true;
         now = Math.min(end, now + tick);
         G.simStep();
+        noteLevel();
       }
       return !!test();
     },
@@ -164,10 +179,15 @@ export async function createSim({ seed = 1, level, coins, towns = [], save = nul
       return sim;
     },
   };
+  let lastLevel = game.level;
+  function noteLevel() {
+    while (lastLevel < game.level) sim.levels.push({ level: ++lastLevel, at: now - start });
+  }
   return sim;
 }
 
 export function fmtClock(t) {
-  const s = Math.floor(t / 1000), h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60);
+  const s = Math.floor(t / 1000), d = Math.floor(s / 86400), h = Math.floor((s % 86400) / 3600), m = Math.floor((s % 3600) / 60);
+  if (d) return `${d}d${String(h).padStart(2, '0')}h${String(m).padStart(2, '0')}m`;
   return h ? `${h}h${String(m).padStart(2, '0')}m` : `${m}m${String(s % 60).padStart(2, '0')}s`;
 }
