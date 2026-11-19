@@ -1,5 +1,5 @@
 <script>
-  import { game, ui, cityById, capacity, used, loadJob, unloadJob, autoLoad, destinations, dispatch, route, canReach, planLegs, autoPlan, toggleStop, fmt, fmtTime, aboard, canBoard, fitsAboard, deckFor, deckSize, deckUsed, deckRoom, driveOn, driveOff, wear, fetcher, convoyNeeds, pickEscorts, escortText, consistOf, optionalEscort, paintOf, spec, nextInQueue, queueLeft, escortAs, escortKind, superloadCarrier, SUPER_KIND, viaBoost, continueRoute, abandonRoute } from '../game/game.svelte.js';
+  import { game, ui, cityById, capacity, used, loadJob, unloadJob, autoLoad, destinations, dispatch, route, canReach, planLegs, autoPlan, toggleStop, fmt, fmtTime, aboard, canBoard, fitsAboard, deckFor, deckSize, deckUsed, deckRoom, driveOn, driveOff, wear, fetcher, convoyNeeds, pickEscorts, escortText, consistOf, optionalEscort, paintOf, spec, nextInQueue, queueLeft, escortAs, escortKind, superloadCarrier, SUPER_KIND, viaBoost, continueRoute, abandonRoute, loadFor, addStopFor } from '../game/game.svelte.js';
   import { prefs, setHoldStops } from '../ui/prefs.svelte.js';
   import Icon from '../ui/Icon.svelte';
   import Sprite from '../ui/Sprite.svelte';
@@ -105,6 +105,47 @@
   const WORDS = { truck: { on: 'Drive on', off: 'Drive off', big: 'Too long to carry', none: 'trucks', aboard: 'drive it aboard' }, plane: { on: 'Take aboard', off: 'Launch', big: 'Too big for a carrier', none: 'planes', aboard: 'take it aboard' } };
   const w = $derived(WORDS[rides ?? 'truck']);
   function plan() { ui.plan = autoPlan(v); ui.picking = true; }
+  // ---------- the Cargo tab: everything grouped by where it's going ----------
+  // what's on board, one group per town it's for, with whether the route stops there yet
+  const board = $derived.by(() => {
+    const m = new Map();
+    for (const j of v.cargo) {
+      const g = m.get(j.to) ?? { to: j.to, jobs: [], pay: 0 };
+      g.jobs.push(j); g.pay += Math.round(j.pay * boost(j));
+      m.set(j.to, g);
+    }
+    return [...m.values()].map((g) => ({ ...g, stop: ui.plan.indexOf(g.jobs[0].hop ?? g.to), reach: canReach(v, g.jobs[0].hop ?? g.to) })).sort((a, b) => b.pay - a.pay);
+  });
+  const haveFor = $derived(Object.fromEntries(board.map((g) => [g.to, g.jobs.length])));
+  // what's waiting here, one group per town. Towns it's already going to come first, so it's easy
+  // to top up a trip with more for the same place.
+  const waitGroups = $derived.by(() => {
+    const m = new Map();
+    for (const j of shown) {
+      const g = m.get(j.to) ?? { to: j.to, jobs: [], pay: 0, types: [] };
+      g.jobs.push(j); g.pay += j.pay;
+      if (!g.types.includes(j.type)) g.types.push(j.type);
+      m.set(j.to, g);
+    }
+    const going = (g) => (g.have || g.stop >= 0 ? 1 : 0);
+    return [...m.values()]
+      .map((g) => {
+        const ok = g.jobs.filter((j) => !blocker(j).block);
+        return { ...g, ok, why: ok.length ? '' : blocker(g.jobs[0]).text, have: haveFor[g.to] ?? 0, stop: ui.plan.indexOf(g.to), reach: canReach(v, g.to) };
+      })
+      .sort((a, b) => going(b) - going(a) || (b.ok.length && b.reach ? 1 : 0) - (a.ok.length && a.reach ? 1 : 0) || b.pay - a.pay);
+  });
+  // groups opened up to show their single jobs, by 'b:town' (on board) or 'w:town' (waiting)
+  let expanded = $state({});
+  const flip1 = (k) => (expanded[k] = !expanded[k]);
+  // one tap: load all that fit for that town, and put it on the route
+  // (out of reach, it needs a transfer: that's worth choosing job by job, so it opens up instead)
+  function loadGroup(g) {
+    if (!g.reach) { flip1(`w:${g.to}`); return; }
+    if (loadFor(v, g.to, only)) addStopFor(v, g.to);
+  }
+  function routeTo(id) { addStopFor(v, id); }
+  const setTab = (route) => { if (route && !ui.plan.length && v.cargo.length) ui.plan = autoPlan(v); ui.picking = route; };
   // escorts skip the load screen, so backing out of their route leaves them altogether
   function back() {
     ui.picking = false; ui.plan = [];
@@ -131,10 +172,10 @@
   }
 </script>
 
-<!-- planning a route goes back to loading; loading goes back to the town (escorts skip loading) -->
-<NavHeader title={v.name} sub={ui.picking ? `Plan a route from ${city.name}` : v.held ? `Loading at ${city.name} › ${v.held.stops.map((id) => cityById[id].name).join(' › ')}` : `Loading at ${city.name}`}
-  back={ui.picking && !escortKind(v) ? 'Load' : city.name}
-  onback={ui.picking ? back : leave} />
+<!-- loading and planning are two tabs of one screen; back goes to the town -->
+<NavHeader title={v.name} sub={v.held ? `At ${city.name} › ${v.held.stops.map((id) => cityById[id].name).join(' › ')}` : ui.picking ? `Planning a route from ${city.name}` : `Loading at ${city.name}`}
+  back={city.name}
+  onback={escortKind(v) ? back : leave} />
 {#if ui.queue}
   <div class="queue">
     <span class="grow"><b>Sending idle vehicles</b><small>{queueLeft() ? `${queueLeft()} more after this one` : 'Last one'}</small></span>
@@ -142,13 +183,21 @@
     <button class="btn small ghost" onclick={() => (ui.queue = null)}>Stop</button>
   </div>
 {/if}
-<div class="loadhead" bind:this={headEl}>
-  <span class="pv wide"><Sprite kind={v.kind} model={v.model} cars={consistOf(v)} scale={3} paint={paintOf(v)} /></span>
-  <div class="meters">
-    {#each JOB_TYPES as t}
-      {#if cap[t]}<span class="meter t-{t}" class:full={u[t] >= cap[t]}><Icon name={t} size={14} />{u[t]}/{cap[t]}</span>{/if}
-    {/each}
+<div class="top" bind:this={headEl}>
+  <div class="loadhead">
+    <span class="pv wide"><Sprite kind={v.kind} model={v.model} cars={consistOf(v)} scale={3} paint={paintOf(v)} /></span>
+    <div class="meters">
+      {#each JOB_TYPES as t}
+        {#if cap[t]}<span class="meter t-{t}" class:full={u[t] >= cap[t]}><Icon name={t} size={14} />{u[t]}/{cap[t]}</span>{/if}
+      {/each}
+    </div>
   </div>
+  {#if !escortKind(v)}
+    <div class="seg" role="tablist" aria-label="Loading or route">
+      <button role="tab" aria-selected={!ui.picking} class:on={!ui.picking} onclick={() => setTab(false)}><Icon name="cargo" size={16} />Cargo{#if v.cargo.length}<em>{v.cargo.length}</em>{/if}</button>
+      <button role="tab" aria-selected={ui.picking} class:on={ui.picking} onclick={() => setTab(true)}><Icon name="routes" size={16} />Route{#if ui.plan.length}<em>{ui.plan.length}</em>{/if}</button>
+    </div>
+  {/if}
 </div>
 {#if Object.keys(needs).length}
   <div class="convoy" class:ready={!convoy.missing.length}>
@@ -168,6 +217,12 @@
   {#if game.hq === c.id}<span class="tag hub mini">HQ</span>{/if}
   {#if game.depots[c.id]}<span class="tag mini">Depot</span>{/if}
   {#if c.rail + c.air + c.port > 1}<span class="tag hub mini">Hub</span>{/if}
+{/snippet}
+<!-- where a town stands on the route: its stop number, or a button to add it -->
+{#snippet stopBadge(stop, reach, id)}
+  {#if stop >= 0}<span class="sb on" title="Stop {stop + 1} on the route">Stop {stop + 1}</span>
+  {:else if reach}<button class="sb add" onclick={() => routeTo(id)}>+ Stop</button>
+  {:else}<span class="sb no">Can’t reach</span>{/if}
 {/snippet}
 
 {#if ui.picking}
@@ -196,23 +251,25 @@
       {/if}
     </ol>
   {:else}
-    <p class="muted small">Add stops in order. At each one, anything on board for that city is dropped off before moving on. Tap cities below or ones with a yellow ring on the map.</p>
+    <p class="hint"><Icon name="pin" size={16} />Tap towns on the map to add stops, in order. Green rings are where your cargo is going.</p>
   {/if}
 
-  <h3>{ui.plan.length ? `Next stop after ${cityById[last].name}` : 'First stop'}</h3>
-  <div class="group">
-  {#each dests as d (d.to)}
-    {@const c = cityById[d.to]}
-    <button class="row dest" class:has={d.n} onclick={() => toggleStop(v, d.to)}>
-      <span class="grow">
-        <b>{c.name}{@render townTags(c)}</b>
-        <small>{d.n ? `${d.n} on board for here, +$${fmt(d.pay)}` : 'Nothing on board for here'}{#if d.wx}<span class="tag mini wx">{WEATHER.kinds[d.wx].name}</span>{/if}</small>
-      </span>
-      <span class="right"><b>{fmtTime(d.time)}</b><small>Fuel ${d.cost}</small></span>
-    </button>
-  {/each}
-  </div>
-  {#if !dests.length}<p class="muted">Nowhere in range from {cityById[last].name}.</p>{/if}
+  <details class="more">
+    <summary>{ui.plan.length ? `Or pick the next stop after ${cityById[last].name}` : 'Or pick the first stop from a list'}</summary>
+    <div class="group">
+    {#each dests as d (d.to)}
+      {@const c = cityById[d.to]}
+      <button class="row dest" class:has={d.n} onclick={() => toggleStop(v, d.to)}>
+        <span class="grow">
+          <b>{c.name}{@render townTags(c)}</b>
+          <small>{d.n ? `${d.n} on board for here, +$${fmt(d.pay)}` : 'Nothing on board for here'}{#if d.wx}<span class="tag mini wx">{WEATHER.kinds[d.wx].name}</span>{/if}</small>
+        </span>
+        <span class="right"><b>{fmtTime(d.time)}</b><small>Fuel ${d.cost}</small></span>
+      </button>
+    {/each}
+    </div>
+    {#if !dests.length}<p class="muted">Nowhere in range from {cityById[last].name}.</p>{/if}
+  </details>
   <div class="group">
   {#if optKind}
     <label class="row repeat" class:off={!sidekick}>
@@ -224,31 +281,33 @@
     <input type="checkbox" checked={prefs.holdStops} onchange={(e) => setHoldStops(e.currentTarget.checked)} />
     <span class="grow"><b>Stop at each town</b><small>Waits at every stop so you can load and unload, then Continue or Abandon. Fuel is paid one leg at a time.</small></span>
   </label>
-  <div class="row repeat off">
-    <span class="grow"><b>Repeating routes</b><small>{game.repeatRoutes ? 'To send it round the same loop on its own, set up a route in the Routes tab and assign it there.' : game.level < HQ.level ? `Build an HQ from level ${HQ.level} to set up routes vehicles run on their own.` : 'Build an HQ in any town, from its town page, to set up routes vehicles run on their own.'}</small></span>
-  </div>
-  </div>
-  {#if ui.plan.length && !broken}
-    <div class="profit">
-      <div><small>Drop offs</small><b>+${fmt(pay)}</b></div>
-      <div><small>Fuel{#if wear(v)} (+{Math.round(wear(v) * 100)}% age){/if}</small><b>−${fmt(total.cost)}</b></div>
-      <div><small>Profit</small><b class:loss={pay < total.cost}>{pay < total.cost ? '−' : '+'}${fmt(Math.abs(pay - total.cost))}</b></div>
-    </div>
-  {/if}
-  <div class="footer">
-    {#if unrouted}<button class="btn" onclick={plan}>Route cargo</button>{/if}
-    <button class="btn primary" disabled={!ui.plan.length || broken || game.coins < due || convoy.missing.length > 0} onclick={go}>
-      {!ui.plan.length ? 'Go' : holding ? `Go to ${cityById[ui.plan[0]].name}, $${fmt(due)}` : `Go ${fmtTime(total.time)}, $${fmt(total.cost)}`}
-    </button>
   </div>
 {:else}
-  {#if v.cargo.length}<h3>On board. Tap to drop off here.</h3>{/if}
-  <!-- outside the if, so the very first job loaded still glides up from the waiting list -->
-  <div class="group">
-  {#each v.cargo as j (j.id)}
-    <div animate:flip in:receive={{ key: j.id }} out:send={{ key: j.id }}><JobRow job={j} loaded onclick={() => unloadJob(v, j)} action="Drop" note={j.hop ? `Left at ${cityById[j.hop].name} to go on from there` : canReach(v, j.to) ? '' : 'Can’t reach from here'} /></div>
-  {/each}
-  </div>
+  {#if board.length}
+    <h3>On board <span class="hsub">{v.cargo.length} · ${fmt(board.reduce((s, g) => s + g.pay, 0))}</span></h3>
+    <div class="group">
+    {#each board as g (g.to)}
+      {@const key = `b:${g.to}`}
+      <div class="dgroup">
+        <div class="drow-wrap">
+          <button class="row drow" onclick={() => flip1(key)} aria-expanded={!!expanded[key]}>
+            <span class="dot" class:on={g.stop >= 0} class:no={!g.reach}></span>
+            <span class="grow"><b>{cityById[g.to].name}</b><small>{g.jobs.length} job{g.jobs.length > 1 ? 's' : ''}{g.jobs[0].hop ? `, by way of ${cityById[g.jobs[0].hop].name}` : ''}. {expanded[key] ? 'Tap a job to drop it here' : 'Tap to see them'}</small></span>
+            <span class="pay">${fmt(g.pay)}</span>
+          </button>
+          <span class="badge">{@render stopBadge(g.stop, g.reach, g.jobs[0].hop ?? g.to)}</span>
+        </div>
+        {#if expanded[key]}
+          <div class="sub">
+          {#each g.jobs as j (j.id)}
+            <div animate:flip in:receive={{ key: j.id }} out:send={{ key: j.id }}><JobRow job={j} loaded onclick={() => unloadJob(v, j)} action="Drop" note={j.hop ? `Left at ${cityById[j.hop].name} to go on from there` : ''} /></div>
+          {/each}
+          </div>
+        {/if}
+      </div>
+    {/each}
+    </div>
+  {/if}
   {#if deck}
     <h3>Vehicle deck ({deckUsed(v)} of {deck} spaces)</h3>
     <div class="group">
@@ -270,7 +329,7 @@
     </div>
     {#if !onDeck.length && !ashore.length}<p class="muted small">No {w.none} here. Park one at {city.name} to {w.aboard}.</p>{/if}
   {/if}
-  <h3>Waiting at {city.name}</h3>
+  <h3>Waiting at {city.name} <span class="hsub">tap a town to load it all</span></h3>
   {#if kinds.length > 1}
     <div class="fchips" role="radiogroup" aria-label="Show jobs of one kind">
       <button role="radio" aria-checked={!only} class:on={!only} onclick={() => (onlyType = null)}>All <em>{waiting.length}</em></button>
@@ -280,9 +339,30 @@
     </div>
   {/if}
   <div class="group">
-  {#each shown as j (j.id)}
-    {@const why = blocker(j)}
-    <div animate:flip in:receive={{ key: j.id }} out:send={{ key: j.id }}><JobRow job={j} at={v.city} onclick={() => loadJob(v, j)} disabled={why.block} note={why.text} action={why.block ? '' : 'Load'} /></div>
+  {#each waitGroups as g (g.to)}
+    {@const key = `w:${g.to}`}
+    <div class="dgroup" class:going={g.have || g.stop >= 0}>
+      <div class="drow-wrap">
+        <button class="row drow" disabled={!g.ok.length} onclick={() => loadGroup(g)}>
+          <span class="types">{#each g.types as t}<span class="ti t-{t}"><Icon name={t} size={14} /></span>{/each}</span>
+          <span class="grow">
+            <b>To {cityById[g.to].name}{#if g.have}<span class="have">{g.have} on board</span>{/if}</b>
+            <small>{g.why || `${g.jobs.length} job${g.jobs.length > 1 ? 's' : ''}${g.ok.length < g.jobs.length ? `, ${g.ok.length} can go` : ''}${!g.reach ? `. Can’t get there, only as a transfer` : ''}`}</small>
+          </span>
+          <span class="pay">${fmt(g.pay)}</span>
+          {#if g.ok.length && g.reach}<span class="act">Load</span>{/if}
+        </button>
+        <button class="chev" aria-label="Show each job to {cityById[g.to].name}" aria-expanded={!!expanded[key]} onclick={() => flip1(key)}><span class:open={expanded[key]}><Icon name="chevron" size={16} /></span></button>
+      </div>
+      {#if expanded[key]}
+        <div class="sub">
+        {#each g.jobs as j (j.id)}
+          {@const why = blocker(j)}
+          <div animate:flip in:receive={{ key: j.id }} out:send={{ key: j.id }}><JobRow job={j} at={v.city} onclick={() => loadJob(v, j)} disabled={why.block} note={why.text} action={why.block ? '' : 'Load'} /></div>
+        {/each}
+        </div>
+      {/if}
+    </div>
   {/each}
   </div>
   {#if !waiting.length}<p class="muted">No jobs waiting. New ones turn up every few seconds.</p>{/if}
@@ -302,16 +382,61 @@
       </div>
     </div>
   {/if}
-  <!-- stopped on a route: carrying on is the main thing to do, on its own row above the rest -->
-  <div class="footer" class:held-foot={v.held}>
-    {#if v.held}<button class="btn primary next" disabled={!heldLeg || game.coins < (heldLeg?.cost ?? 0)} onclick={carryOn}>{heldLeg ? `Continue to ${cityById[heldNext].name}, $${fmt(heldLeg.cost)}` : `Can’t reach ${cityById[heldNext].name}`}</button>{/if}
-    <button class="btn" onclick={() => autoLoad(v, only)}>Auto load{only ? ` ${TYPE_LABEL[only].toLowerCase()}` : ''}</button>
-    {#if v.cargo.length}<button class="btn" onclick={plan}>Route cargo</button>{/if}
-    <button class="btn" class:primary={!v.held} onclick={() => { ui.plan = []; ui.picking = true; }}>Plan route</button>
-  </div>
 {/if}
 
+<!-- on both tabs: what the trip makes, and the buttons to get going -->
+<div class="footer" class:held-foot={v.held && !ui.picking}>
+  {#if ui.plan.length && !broken}
+    <div class="profit">
+      <div><small>{ui.plan.map((id) => cityById[id].name).join(' › ')}</small><b>+${fmt(pay)}</b></div>
+      <div><small>Fuel{#if wear(v)} (+{Math.round(wear(v) * 100)}% age){/if}</small><b>−${fmt(total.cost)}</b></div>
+      <div><small>Profit</small><b class:loss={pay < total.cost}>{pay < total.cost ? '−' : '+'}${fmt(Math.abs(pay - total.cost))}</b></div>
+    </div>
+  {/if}
+  {#if v.held && !ui.picking}<button class="btn primary next" disabled={!heldLeg || game.coins < (heldLeg?.cost ?? 0)} onclick={carryOn}>{heldLeg ? `Continue to ${cityById[heldNext].name}, $${fmt(heldLeg.cost)}` : `Can’t reach ${cityById[heldNext].name}`}</button>{/if}
+  {#if !ui.picking}<button class="btn" onclick={() => autoLoad(v, only)}>Auto load{only ? ` ${TYPE_LABEL[only].toLowerCase()}` : ''}</button>{/if}
+  {#if unrouted}<button class="btn" onclick={plan}>Route cargo</button>{/if}
+  {#if ui.plan.length || ui.picking}
+    <button class="btn primary" disabled={!ui.plan.length || broken || game.coins < due || convoy.missing.length > 0} onclick={go}>
+      {!ui.plan.length ? 'Go' : holding ? `Go to ${cityById[ui.plan[0]].name}, $${fmt(due)}` : `Go ${fmtTime(total.time)}, $${fmt(total.cost)}`}
+    </button>
+  {:else if !v.held}
+    <button class="btn primary" onclick={() => setTab(true)}>Plan route</button>
+  {/if}
+</div>
+
 <style>
+  .top { position: sticky; top: -4px; z-index: 2; margin: -4px 0 8px; padding: 4px 0 8px; background: var(--panel); }
+  .top .seg button.on { background: color-mix(in srgb, var(--accent) 38%, var(--panel)); font-weight: 600; }
+  .seg em { font-style: normal; font-size: 11px; min-width: 18px; padding: 0 5px; border-radius: 999px; background: var(--panel-3); color: var(--ink); }
+  .hsub { font-weight: 400; font-size: 12px; color: var(--ink-soft); text-transform: none; letter-spacing: 0; margin-left: 6px; }
+  .hint { display: flex; align-items: center; gap: 8px; margin: 0 0 12px; padding: 10px 12px; border-radius: var(--r); background: var(--accent-soft); color: var(--ink); font-size: 13px; }
+  .more { margin: 0 0 12px; }
+  .more summary { cursor: pointer; padding: 6px 2px 10px; font-size: 13px; color: var(--ink-soft); }
+  .dgroup { display: flex; flex-direction: column; }
+  .dgroup.going { box-shadow: inset 3px 0 0 var(--good); }
+  .drow-wrap { display: flex; align-items: stretch; }
+  .drow-wrap .drow { flex: 1; min-width: 0; padding-right: 4px; }
+  .drow .grow { min-width: 0; }
+  .drow .pay { font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .types { display: flex; flex-direction: column; gap: 2px; }
+  .types .ti { display: flex; }
+  .have { margin-left: 6px; font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 999px; background: color-mix(in srgb, var(--good) 20%, transparent); color: var(--ink); white-space: nowrap; }
+  .chev { flex: none; width: 44px; border: 0; background: transparent; color: var(--ink-soft); cursor: pointer; display: grid; place-items: center; }
+  .chev span { display: flex; transition: transform .2s; transform: rotate(90deg); }
+  .chev span.open { transform: rotate(-90deg); }
+  .sub { padding: 0 0 4px 12px; border-top: 1px solid var(--line); }
+  .badge { display: flex; align-items: center; padding-right: 12px; }
+  .dot { flex: none; width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--warn); }
+  .dot.on { background: var(--good); border-color: var(--good); }
+  .dot.no { border-color: var(--bad); }
+  .sb { flex: none; font-size: 12px; font-weight: 600; padding: 3px 9px; border-radius: 999px; white-space: nowrap; border: 0; font-family: inherit; }
+  .sb.on { background: color-mix(in srgb, var(--good) 20%, transparent); color: var(--ink); }
+  .sb.add { background: var(--accent); color: var(--accent-ink); cursor: pointer; }
+  .sb.no { background: color-mix(in srgb, var(--bad) 15%, transparent); color: var(--bad); }
+  .footer { flex-wrap: wrap; }
+  .footer .profit { flex-basis: 100%; margin: 0 0 4px; }
+  .profit small { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .repeat { cursor: pointer; }
   .held-foot { flex-wrap: wrap; }
   .held-foot .next { flex-basis: 100%; }

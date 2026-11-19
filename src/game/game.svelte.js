@@ -1826,6 +1826,25 @@ export function autoLoad(v, type = null) {
   if (!n) toast(list.length ? 'Nothing more fits on board' : `No ${what}jobs here that ${v.name} can deliver`);
 }
 
+// make sure the route being planned gets to a town: add it (with any stops needed on the way) after
+// the last stop, unless it's already on it. False if it can't get there.
+export function addStopFor(v, id) {
+  const p = ui.plan;
+  if (p.includes(id) || id === v.city) return true;
+  if (!isOpen(id)) return false;
+  const h = hops(v, p.length ? p[p.length - 1] : v.city);
+  if (h.D[id] == null) return false;
+  p.push(...h.path(id));
+  return true;
+}
+// load every job waiting here for one town (of one type, if given) that fits, best paying first. How many went aboard.
+export function loadFor(v, to, type = null) {
+  const taken = fetching();
+  const list = [...(game.jobs[v.city] ?? [])].filter((j) => j.to === to && (!type || j.type === type) && !taken.has(j.id)).sort((a, b) => b.pay - a.pay);
+  let n = 0;
+  for (const j of list) if (canLoad(v, j)) { loadJob(v, j); n++; }
+  return n;
+}
 // add a stop to the route being planned, or take it off again if it's the last one
 export function toggleStop(v, id) {
   const p = ui.plan;

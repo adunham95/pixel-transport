@@ -60,7 +60,8 @@
     let d = (settingsOpen ? 1 : 0) + (inboxOpen ? 1 : 0);
     if (ui.tab === 'city') {
       const v = parkedHere();
-      if (v) d += ui.picking && !escortKind(v) ? 2 : 1;
+      // Cargo and Route are tabs on one screen, not screens of their own
+      if (v) d += 1;
       else if (ui.sendJob != null && Object.values(game.jobs).some((js) => js.some((j) => j.id === ui.sendJob))) d += 1;
       else if (ui.hqPage && game.hq === game.selected) d += 1;
     } else if (ui.tab === 'fleet' && ui.focusVehicle != null && game.vehicles.some((v) => v.id === ui.focusVehicle)) d += 1;
@@ -74,7 +75,6 @@
     if (inboxOpen) { inboxOpen = false; return; }
     if (ui.tab === 'city') {
       const v = parkedHere();
-      if (v && ui.picking && !escortKind(v)) { ui.picking = false; ui.plan = []; return; }
       Object.assign(ui, { activeVehicle: null, sendJob: null, picking: false, plan: [], queue: null, hqPage: false });
     } else if (ui.tab === 'fleet') ui.focusVehicle = null;
     else if (ui.tab === 'routes') ui.routeEdit = null;

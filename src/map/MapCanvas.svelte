@@ -404,6 +404,17 @@
       b.strokeStyle = '#3ec46d'; b.lineWidth = 2;
       b.beginPath(); b.arc(x, y, r, 0, 7); b.stroke();
     }
+    // where the jobs waiting at the loading vehicle's town want to go: a dim, still ring
+    function waitRing(c) {
+      const x = c.x * R + 0.5, y = c.y * R + 0.5;
+      b.save();
+      b.setLineDash([3, 3]);
+      b.strokeStyle = 'rgba(18,22,38,0.4)'; b.lineWidth = 3;
+      b.beginPath(); b.arc(x, y, 17, 0, 7); b.stroke();
+      b.strokeStyle = 'rgba(62,196,109,0.75)'; b.lineWidth = 1.5;
+      b.beginPath(); b.arc(x, y, 17, 0, 7); b.stroke();
+      b.restore();
+    }
     function brackets(c) {
       const x0 = c.x * R - 15, y0 = c.y * R - 15, x1 = c.x * R + 15, y1 = c.y * R + 17;
       b.fillStyle = '#ffd23f';
@@ -642,7 +653,8 @@
       b.imageSmoothingEnabled = false;
       b.drawImage(terrain, 0, 0);
 
-      const pv = ui.picking ? game.vehicles.find((v) => v.id === ui.activeVehicle && v.city) : null;
+      // the vehicle being loaded: its planned route shows on both its Cargo and Route tabs
+      const pv = ui.tab === 'city' && ui.activeVehicle != null ? game.vehicles.find((v) => v.id === ui.activeVehicle && v.city) : null;
       const blink = Math.floor(now / 450) % 2 === 0;
       const lastStop = pv && (ui.plan.length ? ui.plan[ui.plan.length - 1] : pv.city);
       if (pv && ui.plan.length) {
@@ -673,6 +685,7 @@
       // or what's waiting on the route you're editing (see dropCounts)
       const lv = pv ?? (ui.tab === 'city' && ui.activeVehicle != null ? game.vehicles.find((v) => v.id === ui.activeVehicle && v.city) : null);
       const drops = lv ? dropCounts({ vehicle: lv }) : er ? dropCounts({ route: er }) : null;
+      const waits = lv ? new Set((game.jobs[lv.city] ?? []).map((j) => j.to)) : null;
       for (const p of PROJECTS) if (p.link && game.projects[p.id]) bridge(p);
       for (const c of CITIES) {
         if (!inView(c.x, c.y)) continue;
@@ -683,7 +696,8 @@
         b.globalAlpha = 1;
         if (dk && isOpen(c.id) && !c.anchor) lights.push(() => townLights(c, now));
         if (drops?.[c.id]) dropRing(c, now);
-        if (pv && leg(pv, lastStop, c.id)) ring(c, now);
+        else if (waits?.has(c.id)) waitRing(c);
+        if (pv && ui.picking && leg(pv, lastStop, c.id)) ring(c, now);
         if (c.id === game.selected && (blink || pv)) brackets(c);
         if (er && er.stops.some((s) => s.city === c.id)) ring(c, now);
       }
@@ -917,7 +931,8 @@
     function tap(e) {
       const w = toWorld(e);
       ripples.push({ x: w.x * R, y: w.y * R, t: Date.now() });
-      const pv = ui.picking ? game.vehicles.find((v) => v.id === ui.activeVehicle && v.city) : null;
+      // while a parked vehicle is open, tapping a town adds it to the route (switching to the Route tab)
+      const pv = ui.tab === 'city' && ui.activeVehicle != null ? game.vehicles.find((v) => v.id === ui.activeVehicle && v.city) : null;
       if (!pv) {
         // moving vehicles take the tap before towns, so you can pick one out as it passes through
         let hit = null, hd = 11;
@@ -927,7 +942,7 @@
       let best = null, bd = 13;
       for (const c of CITIES) { const d = Math.hypot(c.x - w.x, c.y - 2 - w.y); if (d < bd) { bd = d; best = c; } }
       if (pv) {
-        if (best && (best.id !== pv.city || ui.plan.length)) toggleStop(pv, best.id);
+        if (best && (best.id !== pv.city || ui.plan.length)) { ui.picking = true; toggleStop(pv, best.id); }
         return;
       }
       const er = ui.tab === 'routes' && ui.routeEdit != null ? routeById(ui.routeEdit) : null;
