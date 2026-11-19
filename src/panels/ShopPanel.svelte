@@ -108,7 +108,7 @@
   <NavHeader title={s.name} sub="{kindOf(kind).one} · level {s.level}" back={kindOf(kind).label} onback={() => (ui.shopModel = null)} />
   <div class="hero">
     <span class="pv big"><Sprite {kind} model={k} cars={demo(kind, s)} scale={5} paint={paintFor(kind, k)} /></span>
-    {#if s.auto || s.prototype}<span class="traits"><Traits {s} {kind} /></span>{/if}
+    {#if s.auto || s.electric || s.prototype}<span class="traits"><Traits {s} {kind} /></span>{/if}
     {@render holds(kind, s)}
   </div>
 

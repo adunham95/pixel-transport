@@ -1,4 +1,4 @@
-import { SCALE, CITIES, RAILS, ROADS, ROAD_OFF, LANE, roadSide, ENGINES, CARS, PLANES, BOATS, BARGES, TRUCKS, TRAILERS, LEVELS, RATES, SPEED, CITY_PRICE, START_CITIES, JOB_TYPES, MAGLEV_LINES, HQ, WEAR, MAIL, WIDE, CONTAINER, SECURE, GROWTH, SIZE_NAME, DEPOT, TYPE_LABEL, CONTRACTS, SUPERLOAD, ESCORT_LABEL, BREAKDOWN, PROTOTYPE, CELEB, TOURISTS, PROJECTS, CONTINENTS, LUCKY, WEATHER, USED, RESCUE, LINES, LINE_COLORS } from './data.js';
+import { SCALE, CITIES, RAILS, ROADS, ROAD_OFF, LANE, roadSide, ENGINES, CARS, PLANES, BOATS, BARGES, TRUCKS, TRAILERS, LEVELS, RATES, SPEED, CITY_PRICE, START_CITIES, JOB_TYPES, MAGLEV_LINES, HQ, WEAR, MAIL, WIDE, CONTAINER, SECURE, GROWTH, SIZE_NAME, DEPOT, TYPE_LABEL, CONTRACTS, SUPERLOAD, ESCORT_LABEL, BREAKDOWN, PROTOTYPE, CELEB, TOURISTS, PROJECTS, CONTINENTS, LUCKY, WEATHER, USED, RESCUE, LINES, LINE_COLORS, ENERGY } from './data.js';
 import { seaLane } from '../map/sea.js';
 
 const KEY = 'pixel-transport-save-v1';
@@ -173,7 +173,9 @@ export function canLoad(v, job) {
 export function wear(v) {
   return Math.min(WEAR.max, Math.floor((v.miles ?? 0) / WEAR.per) * WEAR.step);
 }
-const fuel = (v, base) => Math.max(1, Math.ceil(base * (1 + wear(v))));
+// what a model's power costs: electric models run far cheaper than fuel burners
+export const energy = (s) => (s.electric ? ENERGY.electric : ENERGY.fuel);
+const fuel = (v, base) => Math.max(1, Math.ceil(base * energy(spec(v)) * (1 + wear(v))));
 
 // one hop between two cities for this vehicle, or null if it can't make it. Weather it passes
 // through slows it down or speeds it up, and changes the fuel it burns (wx is which kind).
@@ -687,7 +689,7 @@ function rescueRoute(x, v) {
   if (x.kind !== v.kind) return null;
   const l = x.city === t.from ? { pts: [], len: 0, cost: 0, time: 0 } : leg(x, x.city, t.from);
   if (!l) return null;
-  const rate = l.len ? l.cost / l.len : spec(x).run ?? 0.05, speed = l.len ? l.len / l.time : spec(x).speed * SPEED;
+  const rate = l.len ? l.cost / l.len : (spec(x).run ?? 0.05) * energy(spec(x)), speed = l.len ? l.len / l.time : spec(x).speed * SPEED;
   return { pts: [...l.pts, ...part], len: l.len + partLen, cost: Math.max(1, Math.round(l.cost + partLen * rate)), time: l.time + partLen / speed };
 }
 // the rescuers still needed, by kind, after counting the ones on their way and the ones already there

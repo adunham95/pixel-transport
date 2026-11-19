@@ -6,10 +6,11 @@
 </script>
 
 <script>
-  // pills for the things that make a model unusual at a glance: it drives itself, or it's a prototype
+  // pills for the things that make a model unusual at a glance: it drives itself, it's electric, or it's a prototype
   import Icon from './Icon.svelte';
   let { s, kind = 'truck' } = $props();
 </script>
 
 {#if s.auto}<span class="status auto" title="Finds and carries its own jobs with auto dispatch at your HQ"><Icon name="auto" size={11} />{autoLabel(kind)}</span>{/if}
+{#if s.electric}<span class="status electric" title="Runs on power, not fuel: much cheaper to run"><Icon name="bolt" size={11} />Electric</span>{/if}
 {#if s.prototype}<span class="status proto" title="Still being tested: it breaks down now and then, even when new"><Icon name="proto" size={11} />Prototype</span>{/if}

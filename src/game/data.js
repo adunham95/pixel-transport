@@ -388,6 +388,9 @@ export const CELEB = {
     "A famous chef",
   ],
 };
+// what running a vehicle costs, as a multiplier on its run (or a plane's fuel) rate: fuel burners pay
+// `fuel`, models with electric: true in vehicles.js pay `electric`.
+export const ENERGY = { fuel: 2, electric: 0.5 };
 // vehicles age as they travel: fuel costs step more for every `per` world units, up to max.
 // A service resets it, costing the vehicle's price times its wear times `service`.
 export const WEAR = { per: 2500, step: 0.1, max: 0.5, service: 0.5 };

@@ -10,6 +10,7 @@
 // one of each kind, priced to spend a fortune on.
 
 // freightOnly: true means it won’t pull passenger cars. pulls: [car, ...] limits it to those CARS.
+// electric: true means it runs on power, not fuel, at ENERGY.electric (data.js) instead of ENERGY.fuel.
 // maglev: true means it only runs on the MAGLEV_LINES guideways in data.js and only stops at their towns.
 // superload: true means it pulls nothing but one rail superload at a time, which brings its own car
 // (see SUPERLOAD_TRAILERS). escort: a kind of escort it rides along as in a superload convoy (see TRUCKS).
@@ -79,6 +80,7 @@ export const ENGINES = {
   },
   etram: {
     name: "Electric Tram",
+    electric: true,
     short: "E-Tram",
     level: 5,
     price: 2600,
@@ -230,6 +232,7 @@ export const ENGINES = {
   },
   bullet: {
     name: "Bullet",
+    electric: true,
     level: 9,
     price: 10000,
     maxCars: 8,
@@ -247,6 +250,7 @@ export const ENGINES = {
   },
   maglev: {
     name: "Maglev",
+    electric: true,
     level: 10,
     price: 18000,
     maxCars: 6,
@@ -1817,6 +1821,7 @@ export const TRUCKS = {
   },
   evan: {
     name: "Electric Delivery Van",
+    electric: true,
     short: "E-Van",
     level: 4,
     price: 1300,
@@ -1840,6 +1845,7 @@ export const TRUCKS = {
     // an electric adventure pickup: green body, black glass roof, a covered bed, and its oval
     // "stadium" headlights joined by a light bar across the nose
     name: "Electric Adventure Truck",
+    electric: true,
     short: "Adventure Truck",
     level: 1,
     price: 2200,
@@ -1914,6 +1920,7 @@ export const TRUCKS = {
     // It barely holds anything and costs a fortune, but it's as quick as anything on the road,
     // and it keeps its bare steel in company colors.
     name: "Steel Wedge Truck",
+    electric: true,
     short: "Steel Wedge",
     level: 6,
     price: 15000,
@@ -2057,6 +2064,7 @@ export const TRUCKS = {
   },
   robotaxi: {
     name: "Robotaxi",
+    electric: true,
     level: 8,
     price: 6000,
     cap: { pax: 3 },
@@ -2076,6 +2084,7 @@ export const TRUCKS = {
   },
   selfsuv: {
     name: "Self-Driving SUV",
+    electric: true,
     short: "Self-Driving",
     level: 9,
     price: 9000,
@@ -2101,6 +2110,7 @@ export const TRUCKS = {
   // repeating routes. Each has the roof lidar and teal lamps (#5ff0d8, kept through any paint) of the robotaxi.
   autovan: {
     name: "Self-Driving Van",
+    electric: true,
     short: "Auto Van",
     level: 8,
     price: 5500,
@@ -2124,6 +2134,7 @@ export const TRUCKS = {
   },
   autobox: {
     name: "Self-Driving Box Truck",
+    electric: true,
     short: "Auto Box",
     level: 9,
     price: 5500,
@@ -2147,6 +2158,7 @@ export const TRUCKS = {
   },
   autotanker: {
     name: "Self-Driving Tanker",
+    electric: true,
     short: "Auto Tanker",
     level: 9,
     price: 6500,
@@ -2171,6 +2183,7 @@ export const TRUCKS = {
   },
   autodump: {
     name: "Self-Driving Dump Truck",
+    electric: true,
     short: "Auto Dump",
     level: 9,
     price: 5000,
@@ -2203,6 +2216,7 @@ export const TRUCKS = {
   },
   autoarmored: {
     name: "Self-Driving Armored Car",
+    electric: true,
     short: "Auto Armored",
     level: 11,
     price: 10000,
@@ -2492,6 +2506,7 @@ export const TRUCKS = {
   },
   esemi: {
     name: "Electric Semi",
+    electric: true,
     short: "E-Semi",
     level: 10,
     price: 9000,
@@ -3105,6 +3120,7 @@ PLANES.sonicboom = {
 // lamps like the self-driving trucks, kept through any paint.
 PLANES.drone = {
   name: "Delivery Drone",
+  electric: true,
   short: "Drone",
   level: 8,
   price: 2500,
@@ -3165,6 +3181,7 @@ ENGINES.metro = {
   // a driverless metro car: it runs itself with the HQ's auto dispatch (auto, as in TRUCKS), with
   // the teal stripe, roof lidar and teal lamps of the self-driving trucks
   name: "Driverless Metro",
+  electric: true,
   short: "Metro",
   level: 8,
   price: 6000,
